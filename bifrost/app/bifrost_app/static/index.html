@@ -12,7 +12,7 @@
 body{font-family:Roboto,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.45}
 .appbar{position:sticky;top:0;z-index:9;background:var(--card);border-bottom:1px solid var(--div)}
 .bar-top{display:flex;align-items:center;gap:10px;padding:10px 14px;max-width:1150px;margin:0 auto}
-.logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#e53935,#fb8c00,#fdd835,#43a047,#1e88e5,#8e24aa)}
+.logo{width:28px;height:28px}
 .bar-top h1{font-size:19px;font-weight:500}.sp{flex:1}
 .iconbtn{border:1px solid var(--div);background:transparent;color:var(--text);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer}
 .tabs{display:flex;gap:2px;overflow-x:auto;max-width:1150px;margin:0 auto;padding:0 8px}
@@ -62,14 +62,14 @@ input[type=search]{width:100%;margin-bottom:10px}
 </head>
 <body>
 <div class="appbar">
-  <div class="bar-top"><div class="logo" aria-hidden="true"></div><h1>Bifrost</h1><span class="tag" id="ver"></span><div class="sp"></div><button class="iconbtn" id="themeBtn">Theme: auto</button></div>
-  <nav class="tabs" id="tabs"><button data-v="status" class="active">Status</button><button data-v="signals">Signals</button><button data-v="setup">Setup</button></nav>
+  <div class="bar-top"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#10162c"/><path d="M8 26 A20 20 0 0 1 29 9" stroke="#f44336" stroke-width="3" fill="none"/><path d="M11 27 A17 17 0 0 1 29 12.5" stroke="#ffb300" stroke-width="3" fill="none"/><path d="M14 28 A14 14 0 0 1 29 16" stroke="#29b6f6" stroke-width="3" fill="none"/><path d="M4 24 L9 19.5 L14 24 V29 H4 Z" fill="#fff"/><circle cx="25" cy="6" r="1.6" fill="#ffd54f"/></svg><h1>Bifrost</h1><span class="tag" id="ver"></span><div class="sp"></div><button class="iconbtn" id="themeBtn">Theme: auto</button></div>
+  <nav class="tabs" id="tabs"><button data-v="status" class="active">Status</button><button data-v="timeline">Timeline</button><button data-v="dashboard">Dashboard</button><button data-v="signals">Signals</button><button data-v="setup">Setup</button></nav>
 </div>
 <div id="toast" style="display:none;position:fixed;left:50%;bottom:20px;transform:translateX(-50%);color:#fff;padding:10px 16px;border-radius:10px;z-index:20;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>
 <main id="main"><div class="empty">Loading…</div></main>
 <script>
 "use strict";
-var S={view:"status",status:null,ents:null,filter:"all",q:"",open:{}};
+var S={view:"status",status:null,ents:null,dash:null,tl:null,filter:"all",q:"",area:"",integ:"",tlcat:"",open:{}};
 var STATE={home:["Home","var(--home)"],asleep:["Asleep","var(--asleep)"],away:["Away","var(--away)"],leaving:["Leaving","var(--move)"],arriving:["Arriving","var(--move)"],unknown:["Unknown","var(--unk)"]};
 var ROLES=["Evidence","Trigger","Context","Blocker","Noise","Truth"];
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
@@ -87,11 +87,13 @@ function viewStatus(){
   h+='<div class="card hero"><div class="state" style="color:'+s[1]+'">'+s[0]+'</div><div class="sub">Updated '+new Date(st.decided_at).toLocaleTimeString()+'</div>'+
    '<div class="gauge"><svg viewBox="0 0 160 160" width="160" height="160"><circle cx="80" cy="80" r="64" fill="none" stroke="var(--bar)" stroke-width="13"/><circle cx="80" cy="80" r="64" fill="none" stroke="'+s[1]+'" stroke-width="13" stroke-linecap="round" stroke-dasharray="'+C+'" stroke-dashoffset="'+off+'" transform="rotate(-90 80 80)"/></svg><div class="val">'+d.confidence+'%<small>confidence</small></div></div>'+
    '<div class="why"><div class="hint">Why Bifrost thinks so</div>'+d.reasons.map(function(r){return '<div class="row"><span>▸</span><span>'+esc(r)+'</span></div>';}).join("")+'</div></div>';
+  if(d.anomaly)h+='<div class="banner" style="background:#fff3e0;color:#e65100">⚠️ Activity while every tracked phone is away – a guest, someone without a phone, or something unusual.</div>';
+  h+='<div class="card"><div style="display:flex;align-items:center;gap:10px"><div class="grow"><h2>Guest mode</h2><div class="hint" style="margin:0">While on, Bifrost never says the house is empty. Also available as binary_sensor.bifrost_guest_mode.</div></div><label class="switch"><input type="checkbox" id="guestSw" '+(st.guest_mode?"checked":"")+'><span></span></label></div></div>';
   h+='<div class="kpis"><div class="kpi"><div class="l">Data health</div><div class="v">'+d.data_health+'%</div></div><div class="kpi"><div class="l">People home</div><div class="v">'+d.people_home.length+'</div></div><div class="kpi"><div class="l">Signals used</div><div class="v">'+(S.ents?S.ents.summary.by_status.included||0:"–")+'</div></div></div>';
   var hist=st.history||[];
   h+='<div class="card"><h2>Last 24 hours</h2><div class="hint">Detected state over time</div>'+band(hist)+'<div class="axis"><span>-24 h</span><span>-12 h</span><span>now</span></div><div class="legend">'+["home","asleep","away","leaving"].map(function(k){return '<span style="--c:'+STATE[k][1]+'">'+STATE[k][0]+'</span>';}).join("")+'</div></div>';
   h+='<div class="card"><h2>Entities Bifrost provides</h2><div class="hint">Use them in your automations and dashboards</div><div class="list">'+
-   [["sensor.bifrost_home_status","Home · Asleep · Leaving · Away · Arriving · Unknown"],["binary_sensor.bifrost_house_empty","On when the house is empty"],["sensor.bifrost_confidence","How sure Bifrost is (%)"],["sensor.bifrost_reason","Main reason in plain words"],["sensor.bifrost_data_health","Share of signals that are available (%)"]].map(function(e){return '<div class="row"><div class="grow"><div class="ent" style="color:var(--text);font-size:12px">'+e[0]+'</div><div style="font-size:12px;color:var(--sec)">'+e[1]+'</div></div></div>';}).join("")+'</div></div>';
+   [["sensor.bifrost_home_status","Home · Asleep · Leaving · Away · Arriving · Unknown"],["sensor.bifrost_expected_return","When someone usually comes back (learned per weekday)"],["binary_sensor.bifrost_anomaly","Activity while all phones are away"],["binary_sensor.bifrost_guest_mode","Guest mode of Bifrost"],["sensor.bifrost_person_*","Home or away per person"],["binary_sensor.bifrost_house_empty","On when the house is empty"],["sensor.bifrost_confidence","How sure Bifrost is (%)"],["sensor.bifrost_reason","Main reason in plain words"],["sensor.bifrost_data_health","Share of signals that are available (%)"]].map(function(e){return '<div class="row"><div class="grow"><div class="ent" style="color:var(--text);font-size:12px">'+e[0]+'</div><div style="font-size:12px;color:var(--sec)">'+e[1]+'</div></div></div>';}).join("")+'</div></div>';
   return h;
 }
 function band(hist){
@@ -102,11 +104,46 @@ function band(hist){
   segs.forEach(function(s){out+='<div title="'+esc((STATE[s[2]]||STATE.unknown)[0])+'" style="flex:'+Math.max(1,s[1]-s[0])+';background:'+(STATE[s[2]]||STATE.unknown)[1]+'"></div>';});
   return '<div class="band">'+out+'</div>';
 }
+function viewTimeline(){
+  var T=S.tl;if(!T)return '<div class="empty">Loading…</div>';
+  var cats=T.categories,ev=T.events.filter(function(e){return !S.tlcat||e.category===S.tlcat;});
+  var items=ev.map(function(e){return {ts:e.ts,html:'<span class="ico">'+((cats[e.category]||{}).icon||"•")+'</span><div class="grow"><div>'+esc(e.name)+'</div><div class="ent">'+esc(e.entity_id)+'</div></div><span class="tag'+(/^(on|home|open|playing|detected)$/.test(e.state)?' on':'')+'">'+esc(e.state)+'</span>'};});
+  T.decisions.forEach(function(d){var s=STATE[d.state]||STATE.unknown;items.push({ts:d.ts,html:'<span class="ico" style="background:'+s[1]+';color:#fff">◆</span><div class="grow"><b style="color:'+s[1]+'">Bifrost: '+s[0]+'</b></div><span class="tag">'+d.confidence+'%</span>'});});
+  items.sort(function(a,b){return a.ts<b.ts?1:-1;});
+  var h='<div class="card"><h2>Today and the last 24 hours</h2><div class="hint">Every change of a used signal and every new Bifrost decision</div><div class="filters" id="tlf"><button data-c="" class="'+(!S.tlcat?"on":"")+'">All</button>'+Object.keys(cats).map(function(k){return '<button data-c="'+k+'" class="'+(S.tlcat===k?"on":"")+'">'+cats[k].icon+' '+esc(cats[k].name)+'</button>';}).join("")+'</div><div class="list">';
+  var hour="";
+  items.slice(0,400).forEach(function(it){var t=new Date(it.ts),hh=t.toLocaleDateString([], {weekday:"short"})+" "+String(t.getHours()).padStart(2,"0")+":00";if(hh!==hour){hour=hh;h+='<div class="hint" style="margin:12px 0 2px;font-weight:500">'+hh+'</div>';}
+    h+='<div class="row"><span style="font-size:12px;color:var(--sec);width:42px">'+t.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",hour12:false})+'</span>'+it.html+'</div>';});
+  if(!items.length)h+='<div class="empty">Nothing recorded yet – changes appear here as they happen.</div>';
+  return h+'</div></div>';
+}
+function bars(days,valFn,maxV,colorFn,title,hint,fmt){
+  var W=640,H=150,bw=W/days.length,o='<div class="card"><h2>'+title+'</h2><div class="hint">'+hint+'</div><svg viewBox="0 0 '+W+' '+(H+22)+'" width="100%" style="display:block">';
+  days.forEach(function(d,i){var v=valFn(d);if(v==null)return;var h=Math.max(2,H*v/maxV);o+='<rect x="'+(i*bw+4)+'" y="'+(H-h)+'" width="'+(bw-8)+'" height="'+h+'" rx="3" fill="'+colorFn(v)+'"><title>'+d.day+': '+fmt(v)+'</title></rect>';
+    if(i%2===0||days.length<8)o+='<text x="'+(i*bw+bw/2)+'" y="'+(H+16)+'" font-size="11" text-anchor="middle" fill="var(--sec)">'+d.day.slice(8)+'.'+d.day.slice(5,7)+'</text>';});
+  return o+'</svg></div>';
+}
+function viewDashboard(){
+  var D=S.dash;if(!D)return '<div class="empty">Loading…</div>';
+  var days=D.days,order=["home","asleep","leaving","arriving","away","unknown"];
+  var W=640,H=160,bw=W/days.length;
+  var h='<div class="card"><h2>Where the days went</h2><div class="hint">Share of each state per day (last 14 days)</div><svg viewBox="0 0 '+W+' '+(H+22)+'" width="100%" style="display:block">';
+  days.forEach(function(d,i){var tot=0;order.forEach(function(k){tot+=d.minutes[k]||0;});if(!tot)return;var y=0;
+    order.forEach(function(k){var m=d.minutes[k]||0;if(!m)return;var hh=H*m/tot;h+='<rect x="'+(i*bw+4)+'" y="'+y+'" width="'+(bw-8)+'" height="'+hh+'" fill="'+STATE[k][1]+'"><title>'+d.day+' '+STATE[k][0]+': '+Math.round(m/60*10)/10+' h</title></rect>';y+=hh;});
+    if(i%2===0)h+='<text x="'+(i*bw+bw/2)+'" y="'+(H+16)+'" font-size="11" text-anchor="middle" fill="var(--sec)">'+d.day.slice(8)+'.'+d.day.slice(5,7)+'</text>';});
+  h+='</svg><div class="legend">'+order.map(function(k){return '<span style="--c:'+STATE[k][1]+'">'+STATE[k][0]+'</span>';}).join("")+'</div></div>';
+  h+='<div class="grid">'+bars(days,function(d){return d.avg_confidence;},100,tcol,"Average confidence","Higher is better – Bifrost is more certain",function(v){return v+" %";});
+  h+=bars(days,function(d){return d.short_away;},Math.max(3,Math.max.apply(null,days.map(function(d){return d.short_away;}))),function(v){return v?"var(--err)":"var(--ok)";},"Is learning helping?","“Away” that ended within 15 min – likely wrong. Fewer is better.",function(v){return v+"×";})+'</div>';
+  var sn=D.sensors;
+  h+='<div class="card" style="margin-top:12px"><h2>Sensor trust</h2><div class="hint">Learned from confirmed periods (same state for 30 min with ≥85 % confidence). Sensors below 30 % with 5+ observations no longer count as activity'+(D.use_learning?'':' – <b>learning is switched off in the options</b>')+'.</div>';
+  h+=sn.length?'<div class="list">'+sn.map(function(x){return '<div class="row"><div class="grow"><div>'+esc(x.name)+(x.unreliable?' <span class="tag warn">ignored</span>':'')+'</div><div class="ent">'+esc(x.entity_id)+' · '+x.agree+' right · '+x.disagree+' wrong</div></div><div style="width:120px">'+bar(x.score)+'</div></div>';}).join("")+'</div>':'<div class="empty">Nothing learned yet. Bifrost needs a few confirmed Home and Away periods.</div>';
+  return h+'</div>';
+}
 function viewSignals(){
   var E=S.ents;if(!E)return '<div class="empty">Loading…</div>';
   var used=E.entities.filter(function(e){return e.status==="included";});
   var h='<div class="grid">'+Object.keys(E.categories).map(function(k){var c=E.categories[k],n=used.filter(function(e){return e.category===k;});
-    return '<div class="card"><div style="display:flex;gap:8px;align-items:center"><span class="ico">'+c.icon+'</span><h2 class="grow">'+esc(c.name)+'</h2><b style="font-size:20px">'+n.length+'</b></div><div class="hint">'+esc(c.desc)+'</div>'+
+    return '<div class="card"><div style="display:flex;gap:8px;align-items:center"><span class="ico">'+c.icon+'</span><h2 class="grow">'+esc(c.name)+'</h2><b style="font-size:20px">'+n.length+'</b></div><div class="hint">'+esc(c.desc)+'</div>'+(function(){var sg=E.entities.filter(function(e){return e.status==="suggested"&&e.category===k;}).length;return sg?'<button class="btn" data-bulk="'+k+'" style="margin-bottom:8px">Use all '+sg+' suggestions</button>':'';})()+
      n.slice(0,5).map(function(e){return '<div class="ent" style="color:var(--text)">'+esc(e.name)+' · <span style="color:var(--sec)">'+esc(e.state)+'</span></div>';}).join("")+(n.length>5?'<div class="hint" style="margin:4px 0 0">+'+(n.length-5)+' more</div>':'')+'</div>';}).join("")+'</div>';
   return h;
 }
@@ -117,15 +154,18 @@ function viewSetup(){
   h+='<div class="kpis">'+[["Entities scanned",sm.total],["Relevant",sm.relevant],["Used",bs.included||0],["Suggested",bs.suggested||0],["Unknown",bs.unknown||0],["Disabled in HA",sm.disabled_in_ha],["Unavailable",sm.unavailable]].map(function(k){return '<div class="kpi"><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div></div>';}).join("")+'</div>';
   h+='<div class="card"><h2>All entities</h2><div class="hint">Switch on what Bifrost may use. Change category or role if the guess is wrong – Bifrost remembers it.</div>'+
    '<input type="search" id="q" placeholder="Search name, entity or area…" value="'+esc(S.q)+'">'+
+   '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><select id="fArea"><option value="">All areas</option>'+uniq(E.entities,"area").map(function(a){return '<option '+(a===S.area?"selected":"")+'>'+esc(a)+'</option>';}).join("")+'</select><select id="fInt"><option value="">All integrations</option>'+uniq(E.entities,"integration").map(function(a){return '<option '+(a===S.integ?"selected":"")+'>'+esc(a)+'</option>';}).join("")+'</select></div>'+
    '<div class="filters" id="flt">'+[["all","All"],["suggested","Suggested"],["included","Used"],["unknown","Unknown"],["disabled","Disabled in HA"],["unavailable","Unavailable"],["ignored","Ignored"]].map(function(f){return '<button data-f="'+f[0]+'" class="'+(S.filter===f[0]?"on":"")+'">'+f[1]+'</button>';}).join("")+'</div><div id="elist"></div></div>';
   return h;
 }
+function uniq(L,k){var o={};L.forEach(function(e){if(e[k])o[e[k]]=1;});return Object.keys(o).sort();}
 function entityRows(){
   var E=S.ents,q=S.q.toLowerCase(),f=S.filter;
   var L=E.entities.filter(function(e){
     if(f==="disabled"&&!e.disabled)return false;if(f==="unavailable"&&(e.available||e.disabled))return false;
     if(["all","disabled","unavailable"].indexOf(f)<0&&e.status!==f)return false;
     if(f==="all"&&e.status==="ignored"&&!q)return false;
+    if(S.area&&e.area!==S.area)return false;if(S.integ&&e.integration!==S.integ)return false;
     return !q||(e.name+" "+e.entity_id+" "+(e.area||"")).toLowerCase().indexOf(q)>=0;});
   var more=L.length>300;L=L.slice(0,300);
   return (L.map(function(e){var c=catOf(e.category);
@@ -140,6 +180,8 @@ function entityRows(){
 function bindSetup(){
   var el=document.getElementById("elist");if(!el)return;el.innerHTML=entityRows();
   document.getElementById("scanBtn").onclick=function(){this.textContent="Scanning…";api("api/scan",{}).then(function(){setTimeout(load,4000);});};
+  document.getElementById("fArea").onchange=function(e){S.area=e.target.value;el.innerHTML=entityRows();};
+  document.getElementById("fInt").onchange=function(e){S.integ=e.target.value;el.innerHTML=entityRows();};
   document.getElementById("q").oninput=function(e){S.q=e.target.value;el.innerHTML=entityRows();};
   document.querySelectorAll("#flt button").forEach(function(b){b.onclick=function(){S.filter=b.dataset.f;render();};});
   el.onclick=function(ev){var row=ev.target.closest(".erow");if(!row)return;var id=row.dataset.id;
@@ -153,14 +195,19 @@ function toast(msg,err){var t=document.getElementById("toast");t.textContent=msg
 function render(){
   document.querySelectorAll("#tabs button").forEach(function(b){b.classList.toggle("active",b.dataset.v===S.view);});
   var m=document.getElementById("main");
-  m.innerHTML=S.view==="status"?viewStatus():S.view==="signals"?viewSignals():viewSetup();
+  m.innerHTML=S.view==="status"?viewStatus():S.view==="timeline"?viewTimeline():S.view==="dashboard"?viewDashboard():S.view==="signals"?viewSignals():viewSetup();
   if(S.view==="setup")bindSetup();
+  if(S.view==="status"){var g=document.getElementById("guestSw");if(g)g.onchange=function(){api("api/guest",{on:g.checked}).then(function(r){S.status.guest_mode=r.guest_mode;toast(r.guest_mode?"Guest mode on":"Guest mode off");}).catch(function(e){g.checked=!g.checked;toast("Could not save ("+e.message+")",true);});};}
+  if(S.view==="timeline")document.querySelectorAll("#tlf button").forEach(function(b){b.onclick=function(){S.tlcat=b.dataset.c;render();};});
+  if(S.view==="signals")document.querySelectorAll("[data-bulk]").forEach(function(b){b.onclick=function(){b.disabled=true;api("api/bulk",{category:b.dataset.bulk}).then(function(r){toast(r.accepted+" signals now used");return api("api/entities");}).then(function(e){S.ents=e;render();}).catch(function(e){b.disabled=false;toast("Could not save ("+e.message+")",true);});};});
 }
 function load(){
   Promise.all([api("api/status"),api("api/entities")]).then(function(r){S.status=r[0];S.ents=r[1];document.getElementById("ver").textContent="v"+r[0].version;render();})
    .catch(function(){document.getElementById("main").innerHTML='<div class="card banner err">Could not reach Bifrost. Is the app running?</div>';});
 }
-document.querySelectorAll("#tabs button").forEach(function(b){b.onclick=function(){S.view=b.dataset.v;render();};});
+document.querySelectorAll("#tabs button").forEach(function(b){b.onclick=function(){S.view=b.dataset.v;render();
+  if(S.view==="dashboard")api("api/dashboard").then(function(d){S.dash=d;render();}).catch(function(){});
+  if(S.view==="timeline")api("api/timeline").then(function(d){S.tl=d;render();}).catch(function(){});};});
 var modes=["auto","light","dark"],mi=0;
 function theme(){var m=modes[mi],dark=m==="dark"||(m==="auto"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.setAttribute("data-theme",dark?"dark":"light");document.getElementById("themeBtn").textContent="Theme: "+m;}
 document.getElementById("themeBtn").onclick=function(){mi=(mi+1)%3;theme();};

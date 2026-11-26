@@ -14,6 +14,10 @@ configuration:
   publish_entities:
     name: Bifrost-Entitäten bereitstellen
     description: Erstellt sensor.bifrost_* und binary_sensor.bifrost_* in Home Assistant, damit du sie in Automationen und Dashboards nutzen kannst.
+  use_learning:
+    name: Aus der Historie lernen
+    description: >-
+      Bifrost lernt, wie zuverlässig jeder Sensor ist. Sensoren, die oft auslösen, während das Haus leer ist (Haustiere, Roboter, Durchzug), zählen nicht mehr als Aktivität. Ausschalten, um nur die festen Regeln zu nutzen.
   log_level:
     name: Protokoll-Stufe
     description: Wie ausführlich das App-Protokoll ist.

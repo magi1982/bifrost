@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 import logging
+import re
+import statistics
 import threading
 from collections import Counter
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from . import __version__
-from .categories import CATEGORIES, STATUS_IGNORED, STATUS_INCLUDED
+from .categories import CATEGORIES, STATUS_IGNORED, STATUS_INCLUDED, STATUS_SUGGESTED
 from .classifier import Classification, EntityInfo, classify
-from .engine import Decision, Settings, Signal, decide, parse_time
+from .engine import ARRIVING, AWAY, HOME, Decision, Settings, Signal, decide, parse_time
 from .ha_client import HAClient, HAError
+from .learning import Learner, is_unreliable, trust_score
 from .store import Store
 
 LOG = logging.getLogger(__name__)
@@ -61,7 +64,13 @@ class Snapshot:
 class BifrostService:
     def __init__(self, client: HAClient, store: Store, options: dict) -> None:
         self.client, self.store, self.options = client, store, options
-        self.settings = Settings(int(options.get("phone_away_minutes", 10)), int(options.get("no_motion_minutes", 15)))
+        self.settings = Settings(
+            int(options.get("phone_away_minutes", 10)),
+            int(options.get("no_motion_minutes", 15)),
+            guest_mode=store.get_value("guest_mode") == "on",
+            use_learning=bool(options.get("use_learning", True)),
+        )
+        self.learner = Learner(store)
         self.snap = Snapshot()
         self._lock = threading.Lock()
         self._scan_requested = threading.Event()
@@ -134,7 +143,13 @@ class BifrostService:
                 signals.append(Signal(e.info.entity_id, e.info.name or e.info.entity_id, e.category, e.role, "unavailable", now))
                 continue
             signals.append(Signal(e.info.entity_id, e.info.name or e.info.entity_id, e.category, e.role, st["state"][:255], parse_time(st.get("last_changed"), now)))
-        d = decide(signals, self.settings, now)
+        trust = self.store.get_trust()
+        unreliable = {eid for eid, c in trust.items() if is_unreliable(c)}
+        d = decide(signals, self.settings, now, unreliable)
+        try:
+            self.learner.observe(signals, d, now)
+        except Exception:  # noqa: BLE001 – learning must never stop detection
+            LOG.exception("Learning step failed")
         with self._lock:
             changed = not self.snap.decision or self.snap.decision.state != d.state
             self.snap.decision, self.snap.decided_at, self.snap.error = d, now, None
@@ -142,6 +157,7 @@ class BifrostService:
             self.store.add_decision(now, d.state, d.confidence, d.reasons)
         if self.options.get("publish_entities", True):
             self.publish(d)
+            self.publish_extra(d, signals, now)
         return d
 
     def publish(self, d: Decision) -> None:
@@ -207,6 +223,160 @@ class BifrostService:
         except HAError as err:
             LOG.warning("Publishing entities failed: %s", err)
 
+    def expected_return(self, now: datetime) -> datetime | None:
+        """Typical return time on this weekday, learned from the last 8 weeks of decisions."""
+        hist = self.store.decisions_since(now - timedelta(days=56))
+        times: list[int] = []
+        prev = None
+        for h in hist:
+            if prev == AWAY and h["state"] in (HOME, ARRIVING):
+                t = parse_time(h["ts"], now)
+                if t.weekday() == now.weekday():
+                    times.append(t.hour * 60 + t.minute)
+            prev = h["state"]
+        later = [m for m in times if m > now.hour * 60 + now.minute]
+        if len(times) < 2 or not later:
+            return None
+        m = int(statistics.median(later))
+        return now.replace(hour=m // 60, minute=m % 60, second=0, microsecond=0)
+
+    def publish_extra(self, d: Decision, signals: list[Signal], now: datetime) -> None:
+        """v0.2 entities: expected return, anomaly, guest mode, one sensor per person."""
+        common = {"attribution": "Bifrost"}
+        try:
+            ret = self.expected_return(now) if d.state == AWAY else None
+            self.client.set_state(
+                "sensor.bifrost_expected_return",
+                ret.isoformat() if ret else "unknown",
+                {
+                    **common,
+                    "friendly_name": "Bifrost expected return",
+                    "device_class": "timestamp",
+                    "icon": "mdi:home-clock",
+                },
+            )
+            self.client.set_state(
+                "binary_sensor.bifrost_anomaly",
+                "on" if d.anomaly else "off",
+                {
+                    **common,
+                    "friendly_name": "Bifrost anomaly",
+                    "icon": "mdi:alert-decagram",
+                    "description": "Activity while every tracked phone is away – a guest, a person without phone, or something unusual",
+                },
+            )
+            self.client.set_state(
+                "binary_sensor.bifrost_guest_mode",
+                "on" if self.settings.guest_mode else "off",
+                {
+                    **common,
+                    "friendly_name": "Bifrost guest mode",
+                    "icon": "mdi:account-multiple",
+                },
+            )
+            for s in signals:
+                if s.entity_id.startswith("person.") and s.available:
+                    obj = re.sub(r"[^a-z0-9_]", "_", s.entity_id.split(".", 1)[1])[:60]
+                    self.client.set_state(
+                        f"sensor.bifrost_person_{obj}",
+                        "home" if s.active else "away",
+                        {
+                            **common,
+                            "friendly_name": f"Bifrost {s.name}",
+                            "icon": "mdi:account",
+                            "since": s.last_changed.isoformat(),
+                        },
+                    )
+        except HAError as err:
+            LOG.warning("Publishing extra entities failed: %s", err)
+
+    def set_guest_mode(self, on: bool) -> dict:
+        self.store.set_value("guest_mode", "on" if on else "off")
+        self.settings.guest_mode = on
+        return {"guest_mode": on}
+
+    def accept_suggestions(self, category: str) -> dict:
+        """Switch on every suggested entity of one category."""
+        with self._lock:
+            ids = [e.info.entity_id for e in self.snap.entities.values() if e.status == STATUS_SUGGESTED and e.category == category]
+        for eid in ids:
+            self.update_entity(eid, STATUS_INCLUDED, None, None)
+        return {"accepted": len(ids)}
+
+    def timeline_view(self, hours: int = 24) -> dict:
+        now = datetime.now(UTC)
+        since = now - timedelta(hours=hours)
+        events = self.store.events_since(since)
+        changes = []
+        prev = None
+        for h in self.store.decisions_since(since):
+            if h["state"] != prev:
+                changes.append({"ts": h["ts"], "state": h["state"], "confidence": h["confidence"]})
+            prev = h["state"]
+        return {"since": since.isoformat(), "events": events, "decisions": changes, "categories": CATEGORIES}
+
+    def dashboard_view(self, days: int = 14) -> dict:
+        now = datetime.now(UTC)
+        start = (now - timedelta(days=days - 1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        hist = self.store.decisions_since(start - timedelta(days=1))
+        per_day: dict[str, dict] = {}
+        for i in range(days):
+            day = (start + timedelta(days=i)).date().isoformat()
+            per_day[day] = {"day": day, "minutes": {}, "conf_sum": 0.0, "conf_n": 0, "short_away": 0}
+        # minutes per state, by walking the decision timeline
+        for i, h in enumerate(hist):
+            t0 = max(parse_time(h["ts"], now), start)
+            t1 = parse_time(hist[i + 1]["ts"], now) if i + 1 < len(hist) else now
+            while t0 < t1:
+                day_end = (t0 + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+                seg_end = min(t1, day_end)
+                key = t0.date().isoformat()
+                if key in per_day:
+                    mins = (seg_end - t0).total_seconds() / 60
+                    m = per_day[key]["minutes"]
+                    m[h["state"]] = m.get(h["state"], 0) + mins
+                    per_day[key]["conf_sum"] += h["confidence"] * mins
+                    per_day[key]["conf_n"] += mins
+                t0 = seg_end
+            # an "Away" that ends within 15 minutes is a likely wrong decision
+            if h["state"] == AWAY and i + 1 < len(hist) and hist[i + 1]["state"] != AWAY:
+                if (parse_time(hist[i + 1]["ts"], now) - parse_time(h["ts"], now)) < timedelta(minutes=15):
+                    key = parse_time(h["ts"], now).date().isoformat()
+                    if key in per_day:
+                        per_day[key]["short_away"] += 1
+        out = []
+        for v in per_day.values():
+            total = sum(v["minutes"].values()) or 0
+            unknown = v["minutes"].get("unknown", 0)
+            out.append(
+                {
+                    "day": v["day"],
+                    "minutes": {k: round(x) for k, x in v["minutes"].items()},
+                    "avg_confidence": round(v["conf_sum"] / v["conf_n"]) if v["conf_n"] else None,
+                    "decided_share": round(100 * (total - unknown) / total) if total else None,
+                    "short_away": v["short_away"],
+                }
+            )
+        trust = self.store.get_trust()
+        with self._lock:
+            names = {e.info.entity_id: (e.info.name or e.info.entity_id, e.category) for e in self.snap.entities.values()}
+        sensors = sorted(
+            (
+                {
+                    "entity_id": k,
+                    "name": names.get(k, (k, None))[0],
+                    "category": names.get(k, (k, None))[1],
+                    "agree": a,
+                    "disagree": dis,
+                    "score": round(100 * trust_score(a, dis)),
+                    "unreliable": is_unreliable((a, dis)),
+                }
+                for k, (a, dis) in trust.items()
+            ),
+            key=lambda x: x["score"],
+        )
+        return {"days": out, "sensors": sensors, "use_learning": self.settings.use_learning}
+
     # --- user changes ----------------------------------------------------------
     def update_entity(self, entity_id: str, status: str, category: str | None, role: str | None) -> dict:
         with self._lock:
@@ -230,6 +400,7 @@ class BifrostService:
             "error": err,
             "decision": None if not d else {**asdict(d), "label": STATE_LABEL.get(d.state, d.state), "last_activity": d.last_activity.isoformat() if d.last_activity else None},
             "history": self.store.history(24),
+            "guest_mode": self.settings.guest_mode,
         }
 
     def entities_view(self) -> dict:

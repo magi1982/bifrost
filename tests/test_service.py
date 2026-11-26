@@ -88,3 +88,47 @@ def test_vanished_entity_lowers_data_health(tmp_path):
     client.states = [s for s in client.states if s["entity_id"] != "binary_sensor.hall_motion"]
     d = svc.evaluate()
     assert d.data_health < 100 and not d.house_empty
+
+
+def test_guest_mode_persists_and_blocks(tmp_path):
+    svc, client = make(tmp_path)
+    svc.scan()
+    svc.set_guest_mode(True)
+    assert svc.evaluate().state == "home"
+    assert client.published["binary_sensor.bifrost_guest_mode"][0] == "on"
+    svc2 = BifrostService(client, svc.store, {})
+    assert svc2.settings.guest_mode
+
+
+def test_accept_suggestions(tmp_path):
+    svc, client = make(tmp_path)
+    client.states.append({"entity_id": "calendar.example_work", "state": "off", "last_changed": OLD, "attributes": {}})
+    svc.scan()
+    assert svc.snap.entities["calendar.example_work"].status == "suggested"
+    assert svc.accept_suggestions("calendar") == {"accepted": 1}
+    assert svc.snap.entities["calendar.example_work"].status == "included"
+
+
+def test_views_and_extra_entities(tmp_path):
+    svc, client = make(tmp_path)
+    svc.scan()
+    svc.evaluate()
+    dash = svc.dashboard_view()
+    assert len(dash["days"]) == 14 and dash["days"][-1]["minutes"]
+    tl = svc.timeline_view()
+    assert tl["decisions"] and "events" in tl
+    assert client.published["sensor.bifrost_person_example_a"][0] == "away"
+    assert client.published["binary_sensor.bifrost_anomaly"][0] == "off"
+
+
+def test_expected_return_from_history(tmp_path):
+    from datetime import timedelta
+
+    svc, _ = make(tmp_path)
+    now = datetime.now(UTC).replace(hour=8, minute=0, second=0, microsecond=0)
+    for w in (1, 2, 3):
+        day = now - timedelta(days=7 * w)
+        svc.store.add_decision(day.replace(hour=7), "away", 90, [])
+        svc.store.add_decision(day.replace(hour=17, minute=30 + w), "home", 90, [])
+    ret = svc.expected_return(now)
+    assert ret is not None and ret.hour == 17 and 30 <= ret.minute <= 33

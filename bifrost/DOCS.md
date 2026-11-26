@@ -11,10 +11,19 @@ Bifrost tells you whether anybody is home – with a confidence and the reasons.
 ## Tabs
 - **Status** – the current result, confidence, reasons and the last 24 hours.
 - **Signals** – which signals are used, grouped by category.
-- **Setup** – scanner and sensor configurator for all entities.
+- **Timeline** – every change of a used signal and every Bifrost decision of the last 24 hours.
+- **Dashboard** – the last 14 days, average confidence, "Is learning helping?" and how much Bifrost trusts each sensor.
+- **Signals** – which signals are used, grouped by category. "Use all suggestions" switches on every suggestion of a category.
+- **Setup** – scanner and sensor configurator for all entities, with filters by area and integration.
+
+## Guest mode
+Switch it on in the Status tab when you have guests. Bifrost then never says the house is empty.
+
+## Learning
+When a decision stays the same for 30 minutes with at least 85 % confidence, Bifrost checks every used signal against it. A motion sensor that fires while the house is confirmed empty (a pet, a robot) loses trust. After 5 observations below 30 % trust it no longer counts as activity. Switch this off with the option `use_learning`.
 
 ## Entities
-`sensor.bifrost_home_status`, `binary_sensor.bifrost_house_empty`, `sensor.bifrost_confidence`, `sensor.bifrost_reason`, `sensor.bifrost_data_health`.
+`sensor.bifrost_home_status`, `binary_sensor.bifrost_house_empty`, `sensor.bifrost_confidence`, `sensor.bifrost_reason`, `sensor.bifrost_data_health`, `sensor.bifrost_expected_return`, `binary_sensor.bifrost_anomaly`, `binary_sensor.bifrost_guest_mode`, `sensor.bifrost_person_*`.
 
 Example automation (notification only):
 ```yaml

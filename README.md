@@ -34,6 +34,21 @@
    | `sensor.bifrost_confidence` | confidence in % |
    | `sensor.bifrost_reason` | main reason (all reasons as attribute) |
    | `sensor.bifrost_data_health` | share of selected signals that are available |
+   | `sensor.bifrost_expected_return` | typical return time on this weekday (learned) |
+   | `binary_sensor.bifrost_anomaly` | `on` when there is activity while every tracked phone is away |
+   | `binary_sensor.bifrost_guest_mode` | Bifrost guest mode |
+   | `sensor.bifrost_person_*` | home / away per person |
+
+5. **Learns** how reliable every sensor is. A sensor that keeps firing while the house is confirmed empty (a pet, a robot, a draft) stops counting as activity.
+
+### Tabs
+| Tab | What you see |
+|---|---|
+| **Status** | Current result, confidence, reasons, last 24 hours, guest mode |
+| **Timeline** | Every change of a used signal and every decision of the last 24 hours |
+| **Dashboard** | The last 14 days, average confidence, "Is learning helping?", sensor trust |
+| **Signals** | Used signals by category, "Use all suggestions" |
+| **Setup** | Scanner and sensor configurator for all entities, filters by area and integration |
 
 ### Installation
 1. In Home Assistant open **Settings → Apps → App store → ⋮ → Repositories**.
@@ -49,13 +64,14 @@
 | `no_motion_minutes` | 15 | How long without activity before "Away" |
 | `shadow_mode` | on | Only observe – never trigger anything |
 | `publish_entities` | on | Create the `bifrost_*` entities |
+| `use_learning` | on | Learn how reliable each sensor is and ignore sensors that fire while nobody is home |
 | `log_level` | info | Logging detail |
 
 ### Privacy & security
 Everything stays in your home. No cloud, no telemetry, no dependencies outside the Python standard library. The UI is only reachable through Home Assistant. See [SECURITY.md](SECURITY.md).
 
 ### Roadmap
-Learning from history, multi-step patterns, calendar learning, BLE room location, UniFi and Loxone connectors, house map. See [NEXT.md](NEXT.md).
+Multi-step patterns, calendar learning, BLE room location, UniFi and Loxone connectors, house map. See [NEXT.md](NEXT.md).
 
 ---
 
@@ -76,6 +92,18 @@ Learning from history, multi-step patterns, calendar learning, BLE room location
 
 3. **Entscheidet**: Home · Asleep · Leaving · Away · Arriving · Unknown – mit Sicherheit in Prozent und verständlichen Gründen.
 4. **Stellt das Ergebnis als Entitäten bereit**, die du in eigenen Automationen und Dashboards nutzen kannst (Tabelle oben).
+5. **Lernt**, wie zuverlässig jeder Sensor ist. Ein Sensor, der immer wieder auslöst, während das Haus nachweislich leer ist (Haustier, Saugroboter, Durchzug), zählt nicht mehr als Aktivität.
+
+### Tabs
+| Tab | Was du siehst |
+|---|---|
+| **Status** | Aktuelles Ergebnis, Sicherheit, Gründe, letzte 24 Stunden, Gästemodus |
+| **Timeline** | Jede Änderung eines genutzten Signals und jede Entscheidung der letzten 24 Stunden |
+| **Dashboard** | Die letzten 14 Tage, durchschnittliche Sicherheit, „Hilft das Lernen?“, Vertrauen pro Sensor |
+| **Signals** | Genutzte Signale nach Kategorie, „Alle Vorschläge übernehmen“ |
+| **Setup** | Scanner und Sensor-Konfigurator für alle Entitäten, Filter nach Bereich und Integration |
+
+Neue Entitäten ab 0.2: `sensor.bifrost_expected_return` (übliche Rückkehrzeit an diesem Wochentag), `binary_sensor.bifrost_anomaly` (Aktivität, obwohl alle Handys weg sind), `binary_sensor.bifrost_guest_mode` und `sensor.bifrost_person_*` (zu Hause / weg pro Person).
 
 ### Installation
 1. In Home Assistant **Einstellungen → Apps → App Store → ⋮ → Repositories** öffnen.
@@ -91,13 +119,14 @@ Learning from history, multi-step patterns, calendar learning, BLE room location
 | `no_motion_minutes` | 15 | So lange ohne Aktivität, bevor „Away“ gilt |
 | `shadow_mode` | an | Nur beobachten – nie etwas auslösen |
 | `publish_entities` | an | Die `bifrost_*`-Entitäten anlegen |
+| `use_learning` | an | Lernen, wie zuverlässig jeder Sensor ist, und Sensoren ignorieren, die auslösen, wenn niemand da ist |
 | `log_level` | info | Detailgrad der Protokolle |
 
 ### Datenschutz & Sicherheit
 Alles bleibt zu Hause. Keine Cloud, keine Telemetrie, keine Fremdbibliotheken. Die Oberfläche ist nur über Home Assistant erreichbar. Bifrost schaltet eine Alarmanlage **nie** unscharf. Details in [SECURITY.md](SECURITY.md).
 
 ### Ausblick
-Lernen aus der Historie, mehrstufige Muster, Kalender-Lernen, BLE-Raumortung, UniFi- und Loxone-Anbindung, Hausplan. Siehe [NEXT.md](NEXT.md).
+Mehrstufige Muster, Kalender-Lernen, BLE-Raumortung, UniFi- und Loxone-Anbindung, Hausplan. Siehe [NEXT.md](NEXT.md).
 
 ---
 MIT License

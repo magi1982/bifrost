@@ -14,6 +14,10 @@ configuration:
   publish_entities:
     name: Publish Bifrost entities
     description: Creates sensor.bifrost_* and binary_sensor.bifrost_* in Home Assistant so you can use them in automations and dashboards.
+  use_learning:
+    name: Learn from history
+    description: >-
+      Bifrost learns how reliable each sensor is. Sensors that often fire while the house is empty (pets, robots, drafts) stop counting as activity. Switch off to use only the fixed rules.
   log_level:
     name: Log level
     description: Amount of detail in the app log.

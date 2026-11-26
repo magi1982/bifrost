@@ -52,6 +52,18 @@ def validate_entity_update(body: object) -> tuple[str, str, str | None, str | No
     return eid, status, category, role
 
 
+def validate_guest(body: object) -> bool:
+    if not isinstance(body, dict) or not isinstance(body.get("on"), bool):
+        raise ValueError("on must be true or false")
+    return body["on"]
+
+
+def validate_bulk(body: object) -> str:
+    if not isinstance(body, dict) or not isinstance(body.get("category"), str) or not is_valid_category(body["category"]):
+        raise ValueError("invalid category")
+    return body["category"]
+
+
 def make_handler(service, dev: bool = False):  # noqa: ANN001
     class Handler(BaseHTTPRequestHandler):
         server_version = "Bifrost"
@@ -125,6 +137,10 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
                 return self._send(HTTPStatus.OK, service.status_view())
             if route == "/api/entities":
                 return self._send(HTTPStatus.OK, service.entities_view())
+            if route == "/api/dashboard":
+                return self._send(HTTPStatus.OK, service.dashboard_view())
+            if route == "/api/timeline":
+                return self._send(HTTPStatus.OK, service.timeline_view())
             self._send(HTTPStatus.NOT_FOUND, {"error": "not found"})
 
         def do_POST(self) -> None:  # noqa: N802
@@ -145,6 +161,16 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
             if route == "/api/scan":
                 service.request_scan()
                 return self._send(HTTPStatus.ACCEPTED, {"ok": True})
+            if route == "/api/guest":
+                try:
+                    return self._send(HTTPStatus.OK, service.set_guest_mode(validate_guest(body)))
+                except ValueError as err:
+                    return self._send(HTTPStatus.BAD_REQUEST, {"error": str(err)})
+            if route == "/api/bulk":
+                try:
+                    return self._send(HTTPStatus.OK, service.accept_suggestions(validate_bulk(body)))
+                except ValueError as err:
+                    return self._send(HTTPStatus.BAD_REQUEST, {"error": str(err)})
             if route == "/api/entity":
                 try:
                     eid, status, cat, role = validate_entity_update(body)

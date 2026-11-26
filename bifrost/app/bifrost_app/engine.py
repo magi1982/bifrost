@@ -53,6 +53,8 @@ class Signal:
 class Settings:
     phone_away_minutes: int = 10
     no_motion_minutes: int = 15
+    guest_mode: bool = False
+    use_learning: bool = True
 
 
 @dataclass
@@ -63,6 +65,8 @@ class Decision:
     data_health: int = 100
     people_home: list[str] = field(default_factory=list)
     last_activity: datetime | None = None
+    anomaly: bool = False
+    ignored_unreliable: list[str] = field(default_factory=list)
 
     @property
     def house_empty(self) -> bool:
@@ -77,8 +81,14 @@ def _ago(m: float) -> str:
     return f"{int(m)} min" if m < 120 else f"{m / 60:.1f} h"
 
 
-def decide(signals: list[Signal], settings: Settings, now: datetime) -> Decision:  # noqa: C901
-    """Combine all included signals into one explainable decision."""
+def decide(signals: list[Signal], settings: Settings, now: datetime, unreliable: set[str] | None = None) -> Decision:  # noqa: C901
+    """Combine all included signals into one explainable decision.
+
+    ``unreliable`` are entity ids that learning found to fire while the house was empty;
+    they no longer count as "activity right now" (only when settings.use_learning).
+    """
+    if settings.guest_mode:
+        return Decision(HOME, 95, ["Guest mode is on in Bifrost"], 100, [], now)
     used = [s for s in signals if s.role != "Noise"]
     if not used:
         return Decision(UNKNOWN, 0, ["No signals selected yet – run the scanner in Setup"], 0)
@@ -108,6 +118,11 @@ def decide(signals: list[Signal], settings: Settings, now: datetime) -> Decision
 
     # 3. Recent activity of any kind (motion, manual use, doors)
     activity = [s for s in available if s.role in ("Evidence", "Trigger") and s.category not in ("devices", "calendar")]
+    skipped: list[str] = []
+    if settings.use_learning and unreliable:
+        # learned: these sensors fire while nobody is home (pets, robots, drafts) – they are not activity
+        skipped = [s.name for s in activity if s.entity_id in unreliable and s.active]
+        activity = [s for s in activity if s.entity_id not in unreliable]
     # Every state change of an activity signal counts – a motion sensor that just switched off saw someone a moment ago
     last_act = max((s.last_changed for s in activity), default=None)
     active_now = [s for s in activity if s.active and s.category in ("motion", "manual", "media")]
@@ -116,7 +131,7 @@ def decide(signals: list[Signal], settings: Settings, now: datetime) -> Decision
         reason = [f"Activity right now: {names}"]
         if trackers:
             reason.append("No known phone is home – maybe a person without a tracked device")
-        return Decision(HOME, round(70 * cap), reason, health, [], last_act)
+        return Decision(HOME, round(70 * cap), reason, health, [], last_act, anomaly=bool(trackers), ignored_unreliable=skipped)
 
     if health < MIN_HEALTH_FOR_AWAY:
         return Decision(UNKNOWN, round(30 * cap), [f"Only {health}% of signals are available – too little data to decide"], health, [], last_act)
@@ -135,7 +150,7 @@ def decide(signals: list[Signal], settings: Settings, now: datetime) -> Decision
         reasons = [f"Last phone left {_ago(mins_since_left)} ago"]
         if mins_since_act < settings.no_motion_minutes:
             reasons.append(f"Last activity {_ago(mins_since_act)} ago – waiting {settings.no_motion_minutes} min")
-        return Decision(LEAVING, round(60 * cap), reasons, health, [], last_act)
+        return Decision(LEAVING, round(60 * cap), reasons, health, [], last_act, ignored_unreliable=skipped)
 
     conf = 70 + 20 * min(1.0, mins_since_act / 60) + 9 * min(1.0, len(away) / 3)
     if len(activity) < 2:
@@ -143,7 +158,9 @@ def decide(signals: list[Signal], settings: Settings, now: datetime) -> Decision
     reasons = [f"All {len(away)} tracked phones/people are away (last left {_ago(mins_since_left)} ago)", f"No activity for {_ago(mins_since_act)}"]
     if health < 90:
         reasons.append(f"Only {health}% of signals are available – confidence limited")
-    return Decision(AWAY, round(min(99, conf) * cap), reasons, health, [], last_act)
+    if skipped:
+        reasons.append(f"Ignored {', '.join(skipped[:2])} – learned to fire when nobody is home")
+    return Decision(AWAY, round(min(99, conf) * cap), reasons, health, [], last_act, ignored_unreliable=skipped)
 
 
 def parse_time(value: str | None, fallback: datetime) -> datetime:

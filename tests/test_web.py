@@ -176,3 +176,19 @@ def test_chunked_body_like_ha_ingress():
         assert conn.getresponse().status == 413
     finally:
         httpd.shutdown()
+
+
+@pytest.mark.parametrize("body", [{}, {"on": "yes"}, {"on": 1}, []])
+def test_guest_validation(body):
+    from bifrost_app.web import validate_guest
+
+    with pytest.raises(ValueError):
+        validate_guest(body)
+
+
+@pytest.mark.parametrize("body", [{}, {"category": "x"}, {"category": 3}, []])
+def test_bulk_validation(body):
+    from bifrost_app.web import validate_bulk
+
+    with pytest.raises(ValueError):
+        validate_bulk(body)
