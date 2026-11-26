@@ -9,7 +9,7 @@ All items below were approved by the maintainer for the next versions. Built one
 - **Faster setup** – accept all suggestions of a category at once; filter by area and integration.
 - **More own entities** – `sensor.bifrost_expected_return`, `binary_sensor.bifrost_anomaly`, `binary_sensor.bifrost_guest_mode` (toggle in the app; a real switch needs a small custom integration – later), `sensor.bifrost_person_*`.
 
-## v0.3 – Patterns and calendars
+## v0.3 – Patterns and calendars ✅ (released in 0.3.0)
 - **Patterns as processes** – sequences of 3–5+ steps with typical times between them (e.g. calendar entry → phone leaves → front door → no motion). Suggested at ≥5 observations and ≥85 % accuracy, switchable on/off, weekly drift check, `binary_sensor.bifrost_pattern_*`.
 - **Calendar learning** – which calendars and keywords mean "away"; birthday calendars ignored; titles are never stored.
 

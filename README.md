@@ -47,6 +47,8 @@
 | **Status** | Current result, confidence, reasons, last 24 hours, guest mode |
 | **Timeline** | Every change of a used signal and every decision of the last 24 hours |
 | **Dashboard** | The last 14 days, average confidence, "Is learning helping?", sensor trust |
+| **Patterns** | Recurring step-by-step processes before leaving, coming home or going to sleep – switch each on or off |
+| **Calendars** | What Bifrost learned from your calendars (keywords that mean away) |
 | **Signals** | Used signals by category, "Use all suggestions" |
 | **Setup** | Scanner and sensor configurator for all entities, filters by area and integration |
 
@@ -65,13 +67,14 @@
 | `shadow_mode` | on | Only observe – never trigger anything |
 | `publish_entities` | on | Create the `bifrost_*` entities |
 | `use_learning` | on | Learn how reliable each sensor is and ignore sensors that fire while nobody is home |
+| `learn_calendars` | on | Learn which calendar entries mean nobody is home (keywords only, titles are never stored) |
 | `log_level` | info | Logging detail |
 
 ### Privacy & security
 Everything stays in your home. No cloud, no telemetry, no dependencies outside the Python standard library. The UI is only reachable through Home Assistant. See [SECURITY.md](SECURITY.md).
 
 ### Roadmap
-Multi-step patterns, calendar learning, BLE room location, UniFi and Loxone connectors, house map. See [NEXT.md](NEXT.md).
+BLE room location, UniFi and Loxone connectors, house map. See [NEXT.md](NEXT.md).
 
 ---
 
@@ -100,6 +103,8 @@ Multi-step patterns, calendar learning, BLE room location, UniFi and Loxone conn
 | **Status** | Aktuelles Ergebnis, Sicherheit, Gründe, letzte 24 Stunden, Gästemodus |
 | **Timeline** | Jede Änderung eines genutzten Signals und jede Entscheidung der letzten 24 Stunden |
 | **Dashboard** | Die letzten 14 Tage, durchschnittliche Sicherheit, „Hilft das Lernen?“, Vertrauen pro Sensor |
+| **Patterns** | Wiederkehrende Abläufe vor dem Weggehen, Heimkommen oder Schlafengehen – einzeln ein- und ausschaltbar |
+| **Calendars** | Was Bifrost aus deinen Kalendern gelernt hat (Stichwörter, die „weg“ bedeuten) |
 | **Signals** | Genutzte Signale nach Kategorie, „Alle Vorschläge übernehmen“ |
 | **Setup** | Scanner und Sensor-Konfigurator für alle Entitäten, Filter nach Bereich und Integration |
 
@@ -120,13 +125,14 @@ Neue Entitäten ab 0.2: `sensor.bifrost_expected_return` (übliche Rückkehrzeit
 | `shadow_mode` | an | Nur beobachten – nie etwas auslösen |
 | `publish_entities` | an | Die `bifrost_*`-Entitäten anlegen |
 | `use_learning` | an | Lernen, wie zuverlässig jeder Sensor ist, und Sensoren ignorieren, die auslösen, wenn niemand da ist |
+| `learn_calendars` | an | Lernen, welche Kalendereinträge bedeuten, dass niemand da ist (nur Stichwörter, Titel werden nie gespeichert) |
 | `log_level` | info | Detailgrad der Protokolle |
 
 ### Datenschutz & Sicherheit
 Alles bleibt zu Hause. Keine Cloud, keine Telemetrie, keine Fremdbibliotheken. Die Oberfläche ist nur über Home Assistant erreichbar. Bifrost schaltet eine Alarmanlage **nie** unscharf. Details in [SECURITY.md](SECURITY.md).
 
 ### Ausblick
-Mehrstufige Muster, Kalender-Lernen, BLE-Raumortung, UniFi- und Loxone-Anbindung, Hausplan. Siehe [NEXT.md](NEXT.md).
+BLE-Raumortung, UniFi- und Loxone-Anbindung, Hausplan. Siehe [NEXT.md](NEXT.md).
 
 ---
 MIT License

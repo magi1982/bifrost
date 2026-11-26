@@ -18,6 +18,10 @@ configuration:
     name: Learn from history
     description: >-
       Bifrost learns how reliable each sensor is. Sensors that often fire while the house is empty (pets, robots, drafts) stop counting as activity. Switch off to use only the fixed rules.
+  learn_calendars:
+    name: Learn from calendars
+    description: >-
+      Bifrost compares calendar entries with its own decisions to learn which entries mean nobody is home. Full titles are never stored – only single keywords and counts, locally.
   log_level:
     name: Log level
     description: Amount of detail in the app log.

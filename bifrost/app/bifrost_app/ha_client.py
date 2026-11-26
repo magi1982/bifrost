@@ -69,6 +69,14 @@ class HAClient:
     def set_state(self, entity_id: str, state: str, attributes: dict) -> None:
         self._request("POST", f"states/{urllib.parse.quote(entity_id)}", {"state": state, "attributes": attributes})
 
+    def get_calendar(self, entity_id: str, start: str, end: str) -> list[dict]:
+        """Calendar entries between start and end (ISO). Titles are only used in memory."""
+        if not entity_id.startswith("calendar.") or not entity_id.replace("_", "a").replace(".", "a").isalnum():
+            raise HAError("invalid calendar entity")
+        q = urllib.parse.urlencode({"start": start, "end": end})
+        res = self._request("GET", f"calendars/{urllib.parse.quote(entity_id)}?{q}")
+        return res if isinstance(res, list) else []
+
     # --- WebSocket (registries) ------------------------------------------------
     def registries(self) -> dict[str, list[dict]]:
         """Read entity, device and area registries via the WebSocket API."""

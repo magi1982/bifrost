@@ -15,7 +15,7 @@ from .store import Store
 from .web import serve
 
 DATA = Path(os.environ.get("BIFROST_DATA", "/data"))
-DEFAULTS = {"update_interval": 30, "phone_away_minutes": 10, "no_motion_minutes": 15, "shadow_mode": True, "publish_entities": True, "use_learning": True, "log_level": "info"}
+DEFAULTS = {"update_interval": 30, "phone_away_minutes": 10, "no_motion_minutes": 15, "shadow_mode": True, "publish_entities": True, "use_learning": True, "learn_calendars": True, "log_level": "info"}
 
 
 def load_options() -> dict:

@@ -14,6 +14,7 @@ import logging
 import os
 import re
 import threading
+from datetime import UTC, datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -62,6 +63,17 @@ def validate_bulk(body: object) -> str:
     if not isinstance(body, dict) or not isinstance(body.get("category"), str) or not is_valid_category(body["category"]):
         raise ValueError("invalid category")
     return body["category"]
+
+
+PATTERN_ID_RE = re.compile(r"^[0-9a-f]{10}$")
+
+
+def validate_pattern(body: object) -> tuple[str, str]:
+    if not isinstance(body, dict) or not isinstance(body.get("id"), str) or not PATTERN_ID_RE.match(body["id"]):
+        raise ValueError("invalid pattern id")
+    if body.get("status") not in ("enabled", "disabled"):
+        raise ValueError("status must be enabled or disabled")
+    return body["id"], body["status"]
 
 
 def make_handler(service, dev: bool = False):  # noqa: ANN001
@@ -141,6 +153,10 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
                 return self._send(HTTPStatus.OK, service.dashboard_view())
             if route == "/api/timeline":
                 return self._send(HTTPStatus.OK, service.timeline_view())
+            if route == "/api/patterns":
+                return self._send(HTTPStatus.OK, service.patterns_view())
+            if route == "/api/calendars":
+                return self._send(HTTPStatus.OK, service.calendars_view())
             self._send(HTTPStatus.NOT_FOUND, {"error": "not found"})
 
         def do_POST(self) -> None:  # noqa: N802
@@ -161,6 +177,17 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
             if route == "/api/scan":
                 service.request_scan()
                 return self._send(HTTPStatus.ACCEPTED, {"ok": True})
+            if route == "/api/pattern":
+                try:
+                    pid, status = validate_pattern(body)
+                    return self._send(HTTPStatus.OK, service.set_pattern(pid, status))
+                except ValueError as err:
+                    return self._send(HTTPStatus.BAD_REQUEST, {"error": str(err)})
+                except KeyError:
+                    return self._send(HTTPStatus.NOT_FOUND, {"error": "unknown pattern"})
+            if route == "/api/learn":
+                service.learn_job(datetime.now(UTC))
+                return self._send(HTTPStatus.OK, {"ok": True})
             if route == "/api/guest":
                 try:
                     return self._send(HTTPStatus.OK, service.set_guest_mode(validate_guest(body)))

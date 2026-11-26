@@ -39,6 +39,19 @@ CREATE TABLE IF NOT EXISTS trust (
     disagree  INTEGER NOT NULL DEFAULT 0,
     updated   TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS patterns (
+    id        TEXT PRIMARY KEY,
+    data      TEXT NOT NULL,
+    status    TEXT NOT NULL,
+    baseline  REAL,
+    seen      TEXT NOT NULL,
+    updated   TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS calendar_stats (
+    calendar_id TEXT PRIMARY KEY,
+    data        TEXT NOT NULL,
+    updated     TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS app_state (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -124,6 +137,34 @@ class Store:
         with self._lock:
             rows = self._db.execute("SELECT entity_id, agree, disagree FROM trust").fetchall()
         return {r[0]: (r[1], r[2]) for r in rows}
+
+    # --- patterns ------------------------------------------------------------
+    def get_patterns(self) -> dict[str, dict]:
+        with self._lock:
+            rows = self._db.execute("SELECT id, data, status, baseline, seen, updated FROM patterns").fetchall()
+        return {r[0]: {"data": json.loads(r[1]), "status": r[2], "baseline": r[3], "seen": r[4], "updated": r[5]} for r in rows}
+
+    def upsert_pattern(self, pid: str, data: dict, status: str, baseline: float | None, seen: str) -> None:
+        now = datetime.now(UTC).isoformat()
+        with self._lock, self._db:
+            self._db.execute(
+                "INSERT INTO patterns(id, data, status, baseline, seen, updated) VALUES (?,?,?,?,?,?) "
+                "ON CONFLICT(id) DO UPDATE SET data=excluded.data, status=excluded.status, baseline=excluded.baseline, seen=excluded.seen, updated=excluded.updated",
+                (pid, json.dumps(data, ensure_ascii=False), status, baseline, seen, now),
+            )
+
+    # --- calendar statistics (keywords only, never full titles) ---------------
+    def set_calendar_stats(self, calendar_id: str, data: dict) -> None:
+        with self._lock, self._db:
+            self._db.execute(
+                "INSERT INTO calendar_stats(calendar_id, data, updated) VALUES (?,?,?) ON CONFLICT(calendar_id) DO UPDATE SET data=excluded.data, updated=excluded.updated",
+                (calendar_id, json.dumps(data, ensure_ascii=False), datetime.now(UTC).isoformat()),
+            )
+
+    def get_calendar_stats(self) -> dict[str, dict]:
+        with self._lock:
+            rows = self._db.execute("SELECT calendar_id, data, updated FROM calendar_stats").fetchall()
+        return {r[0]: {**json.loads(r[1]), "updated": r[2]} for r in rows}
 
     # --- small key/value state (guest mode, learning bookkeeping) ------------
     def get_value(self, key: str, default: str | None = None) -> str | None:

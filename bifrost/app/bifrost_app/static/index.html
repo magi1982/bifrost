@@ -58,18 +58,28 @@ input[type=search]{width:100%;margin-bottom:10px}
 .erow .reasons{display:none;font-size:12px;color:var(--sec);background:var(--chip);border-radius:8px;padding:8px 10px;margin:6px 0 0 50px}.erow .reasons.open{display:block}
 .ico{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:var(--chip);font-size:14px;flex:0 0 auto}
 .empty{color:var(--sec);text-align:center;padding:20px}
+.flow{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:6px 0 10px}
+.step{flex:0 0 auto;min-width:110px;max-width:150px;background:var(--chip);border-radius:10px;padding:8px 10px;font-size:12px}
+.step b{display:block;font-size:13px;margin:2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.step.done{outline:2px solid var(--ok)}
+.step.out{background:var(--primary);color:#fff}
+.gap{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 6px;font-size:11px;color:var(--sec);min-width:54px}
+.gap::before{content:"";display:block;width:100%;height:2px;background:var(--div);margin-bottom:4px}
+@media (max-width:640px){.flow{flex-direction:column;overflow:visible}.step{max-width:none;min-width:0}.step b{white-space:normal}.gap{flex-direction:row;justify-content:flex-start;min-width:0;padding:4px 0 4px 18px}.gap::before{width:2px;height:18px;margin:0 8px 0 0}}
+.kw{display:inline-block;margin:3px 4px 3px 0;padding:3px 9px;border-radius:999px;font-size:12px;background:var(--chip)}
+.kw.away{background:var(--away);color:#fff}
 </style>
 </head>
 <body>
 <div class="appbar">
   <div class="bar-top"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#10162c"/><path d="M8 26 A20 20 0 0 1 29 9" stroke="#f44336" stroke-width="3" fill="none"/><path d="M11 27 A17 17 0 0 1 29 12.5" stroke="#ffb300" stroke-width="3" fill="none"/><path d="M14 28 A14 14 0 0 1 29 16" stroke="#29b6f6" stroke-width="3" fill="none"/><path d="M4 24 L9 19.5 L14 24 V29 H4 Z" fill="#fff"/><circle cx="25" cy="6" r="1.6" fill="#ffd54f"/></svg><h1>Bifrost</h1><span class="tag" id="ver"></span><div class="sp"></div><button class="iconbtn" id="themeBtn">Theme: auto</button></div>
-  <nav class="tabs" id="tabs"><button data-v="status" class="active">Status</button><button data-v="timeline">Timeline</button><button data-v="dashboard">Dashboard</button><button data-v="signals">Signals</button><button data-v="setup">Setup</button></nav>
+  <nav class="tabs" id="tabs"><button data-v="status" class="active">Status</button><button data-v="timeline">Timeline</button><button data-v="dashboard">Dashboard</button><button data-v="patterns">Patterns</button><button data-v="calendars">Calendars</button><button data-v="signals">Signals</button><button data-v="setup">Setup</button></nav>
 </div>
 <div id="toast" style="display:none;position:fixed;left:50%;bottom:20px;transform:translateX(-50%);color:#fff;padding:10px 16px;border-radius:10px;z-index:20;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>
 <main id="main"><div class="empty">Loading…</div></main>
 <script>
 "use strict";
-var S={view:"status",status:null,ents:null,dash:null,tl:null,filter:"all",q:"",area:"",integ:"",tlcat:"",open:{}};
+var S={view:"status",status:null,ents:null,dash:null,tl:null,pats:null,cals:null,filter:"all",q:"",area:"",integ:"",tlcat:"",open:{}};
 var STATE={home:["Home","var(--home)"],asleep:["Asleep","var(--asleep)"],away:["Away","var(--away)"],leaving:["Leaving","var(--move)"],arriving:["Arriving","var(--move)"],unknown:["Unknown","var(--unk)"]};
 var ROLES=["Evidence","Trigger","Context","Blocker","Noise","Truth"];
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
@@ -139,6 +149,33 @@ function viewDashboard(){
   h+=sn.length?'<div class="list">'+sn.map(function(x){return '<div class="row"><div class="grow"><div>'+esc(x.name)+(x.unreliable?' <span class="tag warn">ignored</span>':'')+'</div><div class="ent">'+esc(x.entity_id)+' · '+x.agree+' right · '+x.disagree+' wrong</div></div><div style="width:120px">'+bar(x.score)+'</div></div>';}).join("")+'</div>':'<div class="empty">Nothing learned yet. Bifrost needs a few confirmed Home and Away periods.</div>';
   return h+'</div>';
 }
+function catOfEntity(id){var e=S.ents&&S.ents.entities.find(function(x){return x.entity_id===id;});return catOf(e&&e.category);}
+function stepLabel(st){if(st.state==="home")return "comes home";if(st.state==="away")return "leaves";if(st.entity_id.indexOf("calendar.")===0)return "entry starts";var e=S.ents&&S.ents.entities.find(function(x){return x.entity_id===st.entity_id;}),c=e&&e.category;return c==="openings"?"opens":c==="motion"?"detects motion":c==="media"?"starts playing":"turns on";}
+function viewPatterns(){
+  var P=S.pats;if(!P)return '<div class="empty">Loading…</div>';
+  var badge={suggested:['New','tag warn'],enabled:['On','tag on'],disabled:['Off','tag'],changed:['Changed – check','tag warn']};
+  var h='<div class="card"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div class="grow"><h2>Patterns</h2><div class="hint" style="margin:0">Steps that happen again and again, in the same order, before you leave, come home or go to sleep. Suggested after '+P.min_support+'+ observations with ≥'+P.min_precision+' % accuracy. Checked again every 6 hours – a pattern that no longer holds is marked “Changed”.</div></div><button class="btn fill" id="learnBtn">🔍 Find patterns now</button></div></div>';
+  if(!P.patterns.length)return h+'<div class="card empty">No patterns yet. Bifrost needs about 1–2 weeks of data (at least '+P.min_support+' departures, arrivals or bedtimes).</div>';
+  P.patterns.forEach(function(p){var b=badge[p.status]||['?','tag'],n=p.steps.length;
+    h+='<div class="card"><div style="display:flex;gap:10px;align-items:center"><div class="grow"><h2>'+esc(p.outcome_label)+' · '+n+' steps</h2><div class="hint" style="margin:0">Seen '+p.support+'× · correct '+p.precision+' %'+(p.baseline?' (was '+p.baseline+' % when switched on)':'')+' · outcome follows ~'+p.lead+' min after the last step</div></div><span class="'+b[1]+'">'+b[0]+'</span><label class="switch"><input type="checkbox" class="patSw" data-id="'+p.id+'" '+(p.status==="enabled"?"checked":"")+'><span></span></label></div><div class="flow">';
+    p.steps.forEach(function(st,i){if(i)h+='<div class="gap">~'+st.gap_before+' min</div>';var c=catOfEntity(st.entity_id);
+      h+='<div class="step'+(p.status==="enabled"&&i<p.progress?' done':'')+'"><span>'+c.icon+' Step '+(i+1)+'</span><b title="'+esc(st.entity_id)+'">'+esc(st.name)+'</b>'+stepLabel(st)+'</div>';});
+    h+='<div class="gap">~'+p.lead+' min</div><div class="step out"><span>Result</span><b>'+esc(p.outcome_label)+'</b>'+(p.status==="enabled"?'binary_sensor.bifrost_pattern_'+p.id:'switch on to get an entity')+'</div></div>';
+    if(p.status==="enabled")h+='<div class="hint" style="margin:0">Live: '+p.progress+' of '+n+' steps happened in the last 60 minutes</div>';
+    h+='</div>';});
+  return h;
+}
+function viewCalendars(){
+  var C=S.cals;if(!C)return '<div class="empty">Loading…</div>';
+  var h='<div class="card"><h2>How Bifrost reads your calendars</h2><div class="hint" style="margin:0">For every calendar you use, Bifrost compares the entries of the last 6 weeks with its own decisions: was the house empty during the entry? Words that keep appearing in entries while you were away (for example “office”) become hints. <b>Full titles are never stored</b> – only single keywords and counts, locally. Birthday calendars are ignored.'+(C.enabled?'':' <b>Calendar learning is switched off in the options.</b>')+'</div></div>';
+  if(!C.used.length)return h+'<div class="card empty">No calendar is used yet. Switch calendars on in Setup (category “Time & calendar”).</div>';
+  if(!C.calendars.length)return h+'<div class="card empty">Nothing learned yet – first results appear a few minutes after the start and are refreshed every 6 hours.</div>';
+  C.calendars.forEach(function(c){var share=c.entries?Math.round(100*c.away/c.entries):0;
+    h+='<div class="card"><h2>📅 '+esc(c.name)+'</h2><div class="hint">'+c.entries+' entries checked · during '+share+' % of them nobody was home</div><div style="max-width:320px;margin-bottom:10px">'+bar(share)+'</div>';
+    h+=c.insights.length?'<div>'+c.insights.map(function(k){return '<span class="kw'+(k.means_away?' away':'')+'" title="'+k.entries+' entries">'+esc(k.keyword)+' · '+k.away_share+' % away</span>';}).join("")+'</div><div class="hint" style="margin-top:6px">Blue = means away (≥85 %, at least '+C.min_obs+' entries). When such an entry is active, Bifrost mentions it as a reason.</div>':'<div class="hint">No keyword with at least '+C.min_obs+' entries yet.</div>';
+    h+='</div>';});
+  return h;
+}
 function viewSignals(){
   var E=S.ents;if(!E)return '<div class="empty">Loading…</div>';
   var used=E.entities.filter(function(e){return e.status==="included";});
@@ -195,7 +232,9 @@ function toast(msg,err){var t=document.getElementById("toast");t.textContent=msg
 function render(){
   document.querySelectorAll("#tabs button").forEach(function(b){b.classList.toggle("active",b.dataset.v===S.view);});
   var m=document.getElementById("main");
-  m.innerHTML=S.view==="status"?viewStatus():S.view==="timeline"?viewTimeline():S.view==="dashboard"?viewDashboard():S.view==="signals"?viewSignals():viewSetup();
+  m.innerHTML=S.view==="status"?viewStatus():S.view==="timeline"?viewTimeline():S.view==="dashboard"?viewDashboard():S.view==="patterns"?viewPatterns():S.view==="calendars"?viewCalendars():S.view==="signals"?viewSignals():viewSetup();
+  if(S.view==="patterns"){var lb=document.getElementById("learnBtn");if(lb)lb.onclick=function(){lb.disabled=true;lb.textContent="Searching…";api("api/learn",{}).then(function(){return api("api/patterns");}).then(function(d){S.pats=d;render();toast("Pattern search finished");}).catch(function(e){toast("Failed ("+e.message+")",true);render();});};
+    document.querySelectorAll(".patSw").forEach(function(sw){sw.onchange=function(){api("api/pattern",{id:sw.dataset.id,status:sw.checked?"enabled":"disabled"}).then(function(){return api("api/patterns");}).then(function(d){S.pats=d;render();toast(sw.checked?"Pattern on":"Pattern off");}).catch(function(e){sw.checked=!sw.checked;toast("Could not save ("+e.message+")",true);});};});}
   if(S.view==="setup")bindSetup();
   if(S.view==="status"){var g=document.getElementById("guestSw");if(g)g.onchange=function(){api("api/guest",{on:g.checked}).then(function(r){S.status.guest_mode=r.guest_mode;toast(r.guest_mode?"Guest mode on":"Guest mode off");}).catch(function(e){g.checked=!g.checked;toast("Could not save ("+e.message+")",true);});};}
   if(S.view==="timeline")document.querySelectorAll("#tlf button").forEach(function(b){b.onclick=function(){S.tlcat=b.dataset.c;render();};});
@@ -207,7 +246,9 @@ function load(){
 }
 document.querySelectorAll("#tabs button").forEach(function(b){b.onclick=function(){S.view=b.dataset.v;render();
   if(S.view==="dashboard")api("api/dashboard").then(function(d){S.dash=d;render();}).catch(function(){});
-  if(S.view==="timeline")api("api/timeline").then(function(d){S.tl=d;render();}).catch(function(){});};});
+  if(S.view==="timeline")api("api/timeline").then(function(d){S.tl=d;render();}).catch(function(){});
+  if(S.view==="patterns")api("api/patterns").then(function(d){S.pats=d;render();}).catch(function(){});
+  if(S.view==="calendars")api("api/calendars").then(function(d){S.cals=d;render();}).catch(function(){});};});
 var modes=["auto","light","dark"],mi=0;
 function theme(){var m=modes[mi],dark=m==="dark"||(m==="auto"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.setAttribute("data-theme",dark?"dark":"light");document.getElementById("themeBtn").textContent="Theme: "+m;}
 document.getElementById("themeBtn").onclick=function(){mi=(mi+1)%3;theme();};

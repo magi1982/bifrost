@@ -16,6 +16,12 @@ Bifrost tells you whether anybody is home – with a confidence and the reasons.
 - **Signals** – which signals are used, grouped by category. "Use all suggestions" switches on every suggestion of a category.
 - **Setup** – scanner and sensor configurator for all entities, with filters by area and integration.
 
+## Patterns
+Bifrost looks at the hour before every departure, arrival and bedtime. Steps that keep happening in the same order become a suggested pattern (5+ times, at least 85 % accurate). Switch a pattern on to get `binary_sensor.bifrost_pattern_<id>`. Bifrost checks every 6 hours whether the pattern still holds; if not, it is marked "Changed". Patterns only add reasons – they never change the decision on their own.
+
+## Calendars
+Switch on the calendars you want Bifrost to use (Setup, category "Time & calendar"). Bifrost compares their entries of the last 6 weeks with its decisions and learns keywords that mean "away", for example "office". Full titles are never stored. Switch this off with the option `learn_calendars`.
+
 ## Guest mode
 Switch it on in the Status tab when you have guests. Bifrost then never says the house is empty.
 

@@ -11,6 +11,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from . import __version__
+from . import calendars as cal
+from . import patterns as pat
 from .categories import CATEGORIES, STATUS_IGNORED, STATUS_INCLUDED, STATUS_SUGGESTED
 from .classifier import Classification, EntityInfo, classify
 from .engine import ARRIVING, AWAY, HOME, Decision, Settings, Signal, decide, parse_time
@@ -71,6 +73,7 @@ class BifrostService:
             use_learning=bool(options.get("use_learning", True)),
         )
         self.learner = Learner(store)
+        self._last_learn: datetime | None = None
         self.snap = Snapshot()
         self._lock = threading.Lock()
         self._scan_requested = threading.Event()
@@ -147,6 +150,10 @@ class BifrostService:
         unreliable = {eid for eid, c in trust.items() if is_unreliable(c)}
         d = decide(signals, self.settings, now, unreliable)
         try:
+            self._add_context(d, states, now)
+        except Exception:  # noqa: BLE001 – context is optional
+            LOG.exception("Pattern/calendar context failed")
+        try:
             self.learner.observe(signals, d, now)
         except Exception:  # noqa: BLE001 – learning must never stop detection
             LOG.exception("Learning step failed")
@@ -158,6 +165,7 @@ class BifrostService:
         if self.options.get("publish_entities", True):
             self.publish(d)
             self.publish_extra(d, signals, now)
+            self.publish_patterns()
         return d
 
     def publish(self, d: Decision) -> None:
@@ -289,6 +297,112 @@ class BifrostService:
                     )
         except HAError as err:
             LOG.warning("Publishing extra entities failed: %s", err)
+
+    # --- v0.3 patterns and calendars --------------------------------------------
+    def _names(self) -> dict[str, str]:
+        with self._lock:
+            return {e.info.entity_id: e.info.name or e.info.entity_id for e in self.snap.entities.values()}
+
+    def learn_job(self, now: datetime) -> None:
+        """Mine patterns and learn calendars (every few hours). Never raises."""
+        self._last_learn = now
+        try:
+            events = self.store.events_since(now - timedelta(days=56), limit=200000)
+            decisions = self.store.decisions_since(now - timedelta(days=56))
+            found = pat.mine(events, decisions, lambda v: parse_time(v, now), self._names())
+            known = self.store.get_patterns()
+            seen_ids = set()
+            for p in found:
+                seen_ids.add(p.id)
+                old = known.get(p.id)
+                status = old["status"] if old else "suggested"
+                baseline = old["baseline"] if old else None
+                if status == "enabled" and baseline is not None and p.precision < baseline - 0.10:
+                    status = "changed"  # drift: the pattern no longer holds as well as when it was switched on
+                self.store.upsert_pattern(p.id, p.to_dict(), status, baseline, now.isoformat())
+            for pid, old in known.items():
+                if pid not in seen_ids and old["status"] == "enabled":
+                    self.store.upsert_pattern(pid, old["data"], "changed", old["baseline"], old["seen"])
+            LOG.info("Pattern mining: %d patterns", len(found))
+        except Exception:  # noqa: BLE001
+            LOG.exception("Pattern mining failed")
+        if not self.options.get("learn_calendars", True):
+            return
+        try:
+            start, end = cal.window(now)
+            decisions = self.store.decisions_since(start)
+            with self._lock:
+                cals = [e.info.entity_id for e in self.snap.entities.values() if e.info.domain == "calendar" and e.status == STATUS_INCLUDED]
+            for cid in cals:
+                entries = self.client.get_calendar(cid, start.isoformat(), end.isoformat())
+                self.store.set_calendar_stats(cid, cal.learn(cid, entries, decisions, lambda v: parse_time(v, now)))
+        except Exception:  # noqa: BLE001
+            LOG.exception("Calendar learning failed")
+
+    def set_pattern(self, pid: str, status: str) -> dict:
+        known = self.store.get_patterns()
+        if pid not in known:
+            raise KeyError(pid)
+        p = known[pid]
+        baseline = p["data"]["precision"] / 100 if status == "enabled" else p["baseline"]
+        self.store.upsert_pattern(pid, p["data"], status, baseline, p["seen"])
+        return {"id": pid, "status": status}
+
+    def _add_context(self, d: Decision, states: dict, now: datetime) -> None:
+        """Add pattern progress and calendar hints to the reasons (context only – never changes the state)."""
+        recent = [(parse_time(e["ts"], now), tok) for e in self.store.events_since(now - pat.WINDOW) if (tok := pat.step_token(e["entity_id"], e["state"]))]
+        self._pattern_live = {}
+        for pid, p in self.store.get_patterns().items():
+            if p["status"] != "enabled":
+                continue
+            toks = [f"{s['entity_id']}:{s['state']}" for s in p["data"]["steps"]]
+            k = pat.progress(toks, recent, now)
+            self._pattern_live[pid] = k
+            if k == len(toks):
+                d.reasons.append(f"Pattern matched: {p['data']['outcome_label']} usually follows in ~{p['data']['lead']} min")
+        if self.options.get("learn_calendars", True):
+            active = [(eid, st.get("attributes", {}).get("message", "")) for eid, st in states.items() if eid.startswith("calendar.") and st.get("state") == "on"]
+            d.reasons.extend(cal.active_hint(active, self.store.get_calendar_stats()))
+
+    def publish_patterns(self) -> None:
+        live = getattr(self, "_pattern_live", {})
+        for pid, p in self.store.get_patterns().items():
+            if p["status"] != "enabled":
+                continue
+            n, k = len(p["data"]["steps"]), live.get(pid, 0)
+            try:
+                self.client.set_state(
+                    f"binary_sensor.bifrost_pattern_{pid}",
+                    "on" if k == n else "off",
+                    {
+                        "friendly_name": f"Bifrost pattern: {p['data']['outcome_label']} ({n} steps)",
+                        "icon": "mdi:timeline-check",
+                        "progress": f"{k}/{n}",
+                        "outcome": p["data"]["outcome"],
+                        "precision": p["data"]["precision"],
+                        "attribution": "Bifrost",
+                    },
+                )
+            except HAError as err:
+                LOG.warning("Publishing pattern failed: %s", err)
+
+    def patterns_view(self) -> dict:
+        live = getattr(self, "_pattern_live", {})
+        out = []
+        for pid, p in self.store.get_patterns().items():
+            out.append({**p["data"], "status": p["status"], "seen": p["seen"], "baseline": round(100 * p["baseline"]) if p["baseline"] else None, "progress": live.get(pid, 0)})
+        order = {"changed": 0, "suggested": 1, "enabled": 2, "disabled": 3}
+        out.sort(key=lambda x: (order.get(x["status"], 9), -x["precision"]))
+        return {"patterns": out, "last_learn": self._last_learn.isoformat() if self._last_learn else None, "min_support": pat.MIN_SUPPORT, "min_precision": round(100 * pat.MIN_PRECISION)}
+
+    def calendars_view(self) -> dict:
+        names = self._names()
+        out = []
+        for cid, st in self.store.get_calendar_stats().items():
+            out.append({"calendar": cid, "name": names.get(cid, cid), "entries": st.get("entries", 0), "away": st.get("away", 0), "insights": cal.insights(st), "updated": st.get("updated")})
+        with self._lock:
+            used = [e.info.entity_id for e in self.snap.entities.values() if e.info.domain == "calendar" and e.status == STATUS_INCLUDED]
+        return {"calendars": out, "used": used, "enabled": bool(self.options.get("learn_calendars", True)), "min_obs": cal.MIN_OBS}
 
     def set_guest_mode(self, on: bool) -> dict:
         self.store.set_value("guest_mode", "on" if on else "off")
@@ -442,6 +556,9 @@ class BifrostService:
                     last_scan_day = today
                     self.store.prune()
                 self.evaluate()
+                now = datetime.now(UTC)
+                if self._last_learn is None or now - self._last_learn > timedelta(hours=6):
+                    self.learn_job(now)
             except HAError as err:
                 LOG.error("Home Assistant not reachable: %s", err)
                 with self._lock:

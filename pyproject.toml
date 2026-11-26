@@ -1,6 +1,6 @@
 [project]
 name = "bifrost"
-version = "0.2.0"
+version = "0.3.0"
 description = "Local, explainable presence detection app for Home Assistant"
 requires-python = ">=3.11"
 license = { text = "MIT" }

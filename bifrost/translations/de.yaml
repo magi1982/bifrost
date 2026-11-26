@@ -18,6 +18,10 @@ configuration:
     name: Aus der Historie lernen
     description: >-
       Bifrost lernt, wie zuverlässig jeder Sensor ist. Sensoren, die oft auslösen, während das Haus leer ist (Haustiere, Roboter, Durchzug), zählen nicht mehr als Aktivität. Ausschalten, um nur die festen Regeln zu nutzen.
+  learn_calendars:
+    name: Aus Kalendern lernen
+    description: >-
+      Bifrost vergleicht Kalendereinträge mit seinen eigenen Entscheidungen und lernt, welche Einträge bedeuten, dass niemand zu Hause ist. Ganze Titel werden nie gespeichert – nur einzelne Stichwörter und Zähler, lokal.
   log_level:
     name: Protokoll-Stufe
     description: Wie ausführlich das App-Protokoll ist.
