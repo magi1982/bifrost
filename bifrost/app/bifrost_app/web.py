@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import re
+import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -23,6 +24,9 @@ LOG = logging.getLogger(__name__)
 INGRESS_IP = "172.30.32.2"
 STATIC = Path(__file__).parent / "static"
 MAX_BODY = 4096
+MAX_THREADS = 16
+REQUEST_TIMEOUT = 10  # seconds per connection
+CSRF_HEADER = "X-Bifrost-Request"
 ENTITY_RE = re.compile(r"^[a-z_]+\.[a-z0-9_]{1,200}$")
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
@@ -51,6 +55,7 @@ def validate_entity_update(body: object) -> tuple[str, str, str | None, str | No
 def make_handler(service, dev: bool = False):  # noqa: ANN001
     class Handler(BaseHTTPRequestHandler):
         server_version = "Bifrost"
+        timeout = REQUEST_TIMEOUT
         sys_version = ""
 
         def log_message(self, fmt: str, *args) -> None:  # noqa: ANN002
@@ -99,6 +104,9 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
         def do_POST(self) -> None:  # noqa: N802
             if not self._allowed():
                 return
+            ctype = (self.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
+            if ctype != "application/json" or self.headers.get(CSRF_HEADER) != "1":
+                return self._send(HTTPStatus.FORBIDDEN, {"error": "missing request header"})
             route = self._route()
             try:
                 length = int(self.headers.get("Content-Length") or 0)
@@ -127,9 +135,39 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
     return Handler
 
 
+class BoundedThreadingHTTPServer(ThreadingHTTPServer):
+    """ThreadingHTTPServer with a hard limit on parallel requests."""
+
+    daemon_threads = True
+    max_threads = MAX_THREADS
+
+    def __init__(self, *args, **kwargs) -> None:  # noqa: ANN002, ANN003
+        super().__init__(*args, **kwargs)
+        self._slots = threading.BoundedSemaphore(self.max_threads)
+
+    def process_request(self, request, client_address) -> None:  # noqa: ANN001
+        if not self._slots.acquire(blocking=False):
+            try:
+                request.sendall(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+            finally:
+                self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except Exception:
+            self._slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address) -> None:  # noqa: ANN001
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._slots.release()
+
+
 def serve(service, port: int = 8099) -> ThreadingHTTPServer:  # noqa: ANN001
     dev = os.environ.get("BIFROST_DEV") == "1"
     host = "0.0.0.0" if not dev else "127.0.0.1"  # noqa: S104  # nosec B104 – inside the app container, reachable only via Ingress
-    httpd = ThreadingHTTPServer((host, port), make_handler(service, dev))
+    httpd = BoundedThreadingHTTPServer((host, port), make_handler(service, dev))
     LOG.info("Web UI listening on %s:%d%s", host, port, " (dev mode)" if dev else "")
     return httpd

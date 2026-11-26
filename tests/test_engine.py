@@ -46,24 +46,56 @@ def test_leaving_within_waiting_time():
 
 
 def test_away_after_waiting_time():
-    d = decide([sig("person.a", "devices", "Evidence", "not_home", 90), sig("binary_sensor.hall", "motion", "Evidence", "off", 90)], S, NOW)
+    d = decide(
+        [sig("person.a", "devices", "Evidence", "not_home", 90), sig("binary_sensor.hall", "motion", "Evidence", "off", 90), sig("binary_sensor.door", "openings", "Evidence", "off", 90)], S, NOW
+    )
     assert d.state == AWAY and d.house_empty and d.confidence >= 85
 
 
 def test_noise_is_ignored():
-    d = decide([sig("person.a", "devices", "Evidence", "not_home", 90), sig("binary_sensor.robot", "motion", "Noise", "on", 0)], S, NOW)
+    d = decide([sig("person.a", "devices", "Evidence", "not_home", 90), sig("binary_sensor.hall", "motion", "Evidence", "off", 90), sig("binary_sensor.robot", "motion", "Noise", "on", 0)], S, NOW)
     assert d.state == AWAY
 
 
 def test_unavailable_lowers_confidence():
-    good = decide([sig("person.a", "devices", "Evidence", "not_home", 90), sig("binary_sensor.hall", "motion", "Evidence", "off", 90)], S, NOW)
-    bad = decide([sig("person.a", "devices", "Evidence", "not_home", 90), sig("binary_sensor.hall", "motion", "Evidence", "unavailable", 90)], S, NOW)
-    assert bad.data_health == 50 and bad.confidence < good.confidence
+    base = [sig("person.a", "devices", "Evidence", "not_home", 90), sig("binary_sensor.hall", "motion", "Evidence", "off", 90), sig("binary_sensor.x", "motion", "Evidence", "off", 90)]
+    good = decide(base + [sig("binary_sensor.y", "motion", "Evidence", "off", 90)], S, NOW)
+    bad = decide(base + [sig("binary_sensor.y", "motion", "Evidence", "unavailable", 90)], S, NOW)
+    assert bad.data_health == 75 and bad.confidence < good.confidence
 
 
-def test_no_trackers_long_quiet_is_away_but_capped():
+def test_no_trackers_never_says_empty():
     d = decide([sig("binary_sensor.hall", "motion", "Evidence", "off", 300)], S, NOW)
-    assert d.state == AWAY and d.confidence <= 80
+    assert d.state == UNKNOWN and not d.house_empty
+
+
+def test_no_activity_sensors_never_says_empty():
+    d = decide([sig("person.a", "devices", "Evidence", "not_home", 300)], S, NOW)
+    assert d.state == UNKNOWN and not d.house_empty
+
+
+def test_low_data_health_never_says_empty():
+    sigs = [
+        sig("person.a", "devices", "Evidence", "not_home", 90),
+        sig("binary_sensor.a", "motion", "Evidence", "unavailable", 90),
+        sig("binary_sensor.b", "motion", "Evidence", "unavailable", 90),
+        sig("binary_sensor.c", "motion", "Evidence", "off", 90),
+    ]
+    d = decide(sigs, S, NOW)
+    assert d.state == UNKNOWN and d.data_health == 50
+
+
+def test_motion_that_just_stopped_counts_as_activity():
+    d = decide([sig("person.a", "devices", "Evidence", "not_home", 60), sig("binary_sensor.hall", "motion", "Evidence", "off", 2)], S, NOW)
+    assert d.state == LEAVING
+
+
+def test_single_activity_sensor_caps_confidence():
+    one = decide([sig("person.a", "devices", "Evidence", "not_home", 120), sig("binary_sensor.a", "motion", "Evidence", "off", 120)], S, NOW)
+    two = decide(
+        [sig("person.a", "devices", "Evidence", "not_home", 120), sig("binary_sensor.a", "motion", "Evidence", "off", 120), sig("binary_sensor.b", "openings", "Evidence", "off", 120)], S, NOW
+    )
+    assert one.state == two.state == AWAY and one.confidence <= 80 < two.confidence
 
 
 def test_parse_time():

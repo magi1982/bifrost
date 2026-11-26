@@ -5,7 +5,7 @@ import urllib.request
 
 import pytest
 from bifrost_app.ha_client import encode_frame
-from bifrost_app.web import MAX_BODY, ThreadingHTTPServer, make_handler, validate_entity_update
+from bifrost_app.web import MAX_BODY, BoundedThreadingHTTPServer, ThreadingHTTPServer, make_handler, validate_entity_update
 
 
 def test_validate_ok():
@@ -55,9 +55,10 @@ def _server(dev):
     return httpd, svc, f"http://127.0.0.1:{httpd.server_address[1]}"
 
 
-def _req(url, body=None, raw=None):
+def _req(url, body=None, raw=None, headers=None):
     data = raw if raw is not None else (json.dumps(body).encode() if body is not None else None)
-    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+    hdr = {"Content-Type": "application/json", "X-Bifrost-Request": "1"} if headers is None else headers
+    req = urllib.request.Request(url, data=data, headers=hdr)
     try:
         with urllib.request.urlopen(req, timeout=5) as r:  # noqa: S310
             return r.status, json.loads(r.read() or b"null"), r.headers
@@ -87,6 +88,10 @@ def test_api_in_dev_mode():
         assert _req(base + "/api/entity", raw=b"x" * (MAX_BODY + 1))[0] == 413
         assert _req(base + "/../../etc/passwd")[0] == 404
         assert _req(base + "/nope")[0] == 404
+        # CSRF: a plain form post (no custom header / wrong content type) is refused
+        assert _req(base + "/api/scan", raw=b"a=1", headers={"Content-Type": "application/x-www-form-urlencoded"})[0] == 403
+        assert _req(base + "/api/scan", {}, headers={"Content-Type": "application/json"})[0] == 403
+        assert svc.scans == 1
     finally:
         httpd.shutdown()
 
@@ -98,3 +103,24 @@ def test_ws_frame_masked_and_lengths():
     assert mid[1] & 0x7F == 126 and int.from_bytes(mid[2:4], "big") == 300
     big = encode_frame(b"x" * 70000)
     assert big[1] & 0x7F == 127 and int.from_bytes(big[2:10], "big") == 70000
+
+
+def test_bounded_server_rejects_when_full():
+    import socket
+
+    svc = FakeService()
+    BoundedThreadingHTTPServer.max_threads = 1
+    httpd = BoundedThreadingHTTPServer(("127.0.0.1", 0), make_handler(svc, True))
+    BoundedThreadingHTTPServer.max_threads = 16
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    port = httpd.server_address[1]
+    try:
+        hog = socket.create_connection(("127.0.0.1", port))  # holds the only slot (no request sent)
+        import time
+
+        time.sleep(0.3)
+        code = _req(f"http://127.0.0.1:{port}/api/status")[0]
+        assert code == 503
+        hog.close()
+    finally:
+        httpd.shutdown()

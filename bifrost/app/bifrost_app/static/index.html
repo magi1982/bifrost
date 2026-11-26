@@ -72,7 +72,7 @@ var S={view:"status",status:null,ents:null,filter:"all",q:"",open:{}};
 var STATE={home:["Home","var(--home)"],asleep:["Asleep","var(--asleep)"],away:["Away","var(--away)"],leaving:["Leaving","var(--move)"],arriving:["Arriving","var(--move)"],unknown:["Unknown","var(--unk)"]};
 var ROLES=["Evidence","Trigger","Context","Blocker","Noise","Truth"];
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
-function api(path,body){return fetch(path,body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json();});}
+function api(path,body){return fetch(path,body?{method:"POST",headers:{"Content-Type":"application/json","X-Bifrost-Request":"1"},body:JSON.stringify(body)}:{}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json();});}
 function tcol(t){return t>=85?"var(--ok)":t>=60?"var(--warn)":"var(--err)";}
 function bar(v){return '<div style="display:flex;align-items:center;gap:6px"><div class="pbar" style="flex:1"><i style="width:'+v+'%;background:'+tcol(v)+'"></i></div><span>'+v+'</span></div>';}
 function catOf(id){var c=S.ents&&S.ents.categories[id];return c||{name:"No category",icon:"❓"};}

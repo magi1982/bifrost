@@ -127,9 +127,13 @@ class BifrostService:
         for e in ents:
             st = states.get(e.info.entity_id)
             e.state = st.get("state") if st else None
-            if e.status != STATUS_INCLUDED or not e.category or not e.role or not st:
+            if e.status != STATUS_INCLUDED or not e.category or not e.role:
                 continue
-            signals.append(Signal(e.info.entity_id, e.info.name or e.info.entity_id, e.category, e.role, st.get("state", ""), parse_time(st.get("last_changed"), now)))
+            if not st or not isinstance(st.get("state"), str):
+                # Entity vanished or returned garbage: treat as unavailable so data health drops (fail closed)
+                signals.append(Signal(e.info.entity_id, e.info.name or e.info.entity_id, e.category, e.role, "unavailable", now))
+                continue
+            signals.append(Signal(e.info.entity_id, e.info.name or e.info.entity_id, e.category, e.role, st["state"][:255], parse_time(st.get("last_changed"), now)))
         d = decide(signals, self.settings, now)
         with self._lock:
             changed = not self.snap.decision or self.snap.decision.state != d.state
@@ -205,11 +209,12 @@ class BifrostService:
 
     # --- user changes ----------------------------------------------------------
     def update_entity(self, entity_id: str, status: str, category: str | None, role: str | None) -> dict:
-        self.store.set_override(entity_id, status, category, role)
         with self._lock:
             e = self.snap.entities.get(entity_id)
             if not e:
                 raise KeyError(entity_id)
+        self.store.set_override(entity_id, status, category, role)
+        with self._lock:
             e.status, e.user_set = status, True
             e.category, e.role = category or e.guess.category, role or e.guess.role
             return e.to_dict()

@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 HOME, ASLEEP, LEAVING, AWAY, ARRIVING, UNKNOWN = "home", "asleep", "leaving", "away", "arriving", "unknown"
+MIN_HEALTH_FOR_AWAY = 60  # below this share of available signals Bifrost refuses to say "empty"
 
 ON_STATES = {"on", "home", "playing", "open", "unlocked", "detected", "occupied"}
 OFF_STATES = {"off", "not_home", "away", "idle", "paused", "standby", "closed", "locked", "clear", "unoccupied"}
@@ -107,7 +108,8 @@ def decide(signals: list[Signal], settings: Settings, now: datetime) -> Decision
 
     # 3. Recent activity of any kind (motion, manual use, doors)
     activity = [s for s in available if s.role in ("Evidence", "Trigger") and s.category not in ("devices", "calendar")]
-    last_act = max((s.last_changed for s in activity if s.active or s.category in ("openings", "manual")), default=None)
+    # Every state change of an activity signal counts – a motion sensor that just switched off saw someone a moment ago
+    last_act = max((s.last_changed for s in activity), default=None)
     active_now = [s for s in activity if s.active and s.category in ("motion", "manual", "media")]
     if active_now:
         names = ", ".join(s.name for s in active_now[:2])
@@ -116,12 +118,15 @@ def decide(signals: list[Signal], settings: Settings, now: datetime) -> Decision
             reason.append("No known phone is home – maybe a person without a tracked device")
         return Decision(HOME, round(70 * cap), reason, health, [], last_act)
 
-    mins_since_act = _minutes(now, last_act) if last_act else 9999
+    if health < MIN_HEALTH_FOR_AWAY:
+        return Decision(UNKNOWN, round(30 * cap), [f"Only {health}% of signals are available – too little data to decide"], health, [], last_act)
+    if not activity or last_act is None:
+        return Decision(UNKNOWN, round(30 * cap), ["No motion, door or manual-use signals selected – Bifrost cannot see activity"], health, [], last_act)
+    mins_since_act = _minutes(now, last_act)
     if not trackers:
-        if mins_since_act >= settings.no_motion_minutes:
-            conf = min(80, 50 + mins_since_act / 4)
-            return Decision(AWAY, round(conf * cap), [f"No activity for {_ago(mins_since_act)}", "No phones selected – add trackers for a reliable result"], health, [], last_act)
-        return Decision(UNKNOWN, round(40 * cap), ["No phones selected and recent activity is unclear"], health, [], last_act)
+        # Fail closed: absence of motion alone is never enough for "empty"
+        hint = f"No activity for {_ago(mins_since_act)}" if mins_since_act >= settings.no_motion_minutes else "Recent activity is unclear"
+        return Decision(UNKNOWN, round(40 * cap), [hint, "No phones or persons selected – add trackers so Bifrost can say “empty”"], health, [], last_act)
 
     # 4. All trackers away
     left = max(s.last_changed for s in away)
@@ -133,6 +138,8 @@ def decide(signals: list[Signal], settings: Settings, now: datetime) -> Decision
         return Decision(LEAVING, round(60 * cap), reasons, health, [], last_act)
 
     conf = 70 + 20 * min(1.0, mins_since_act / 60) + 9 * min(1.0, len(away) / 3)
+    if len(activity) < 2:
+        conf = min(conf, 80)  # one activity sensor is not independent confirmation
     reasons = [f"All {len(away)} tracked phones/people are away (last left {_ago(mins_since_left)} ago)", f"No activity for {_ago(mins_since_act)}"]
     if health < 90:
         reasons.append(f"Only {health}% of signals are available – confidence limited")

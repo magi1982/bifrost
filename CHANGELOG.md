@@ -2,6 +2,19 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.1.2] – 2026-11-26
+
+### Security
+- **Fail closed:** Bifrost no longer reports "Away"/house empty without phone or person trackers, without activity sensors, or when less than 60 % of the selected signals are available. It reports "Unknown" instead.
+- An included entity that disappears from Home Assistant now counts as unavailable and lowers data health.
+- Confidence is capped at 80 % when only one activity sensor confirms the result.
+- POST requests require a JSON content type and the `X-Bifrost-Request` header (CSRF protection).
+- Web server limits parallel connections (16) and times out idle connections (10 s).
+- Entity overrides are only stored for entities found by the scanner.
+
+### Fixed
+- A motion sensor that just switched off now counts as recent activity (previously ignored, which could shorten the waiting time before "Away").
+
 ## [0.1.1] – 2026-11-26
 
 ### Added

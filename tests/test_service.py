@@ -70,3 +70,21 @@ def test_user_override_persists_across_scans(tmp_path):
     svc.scan()
     e = svc.snap.entities["binary_sensor.hall_motion"]
     assert e.status == "ignored" and e.user_set
+
+
+def test_unknown_entity_override_is_not_stored(tmp_path):
+    import pytest
+
+    svc, _ = make(tmp_path)
+    svc.scan()
+    with pytest.raises(KeyError):
+        svc.update_entity("light.does_not_exist", "included", None, None)
+    assert "light.does_not_exist" not in svc.store.get_overrides()
+
+
+def test_vanished_entity_lowers_data_health(tmp_path):
+    svc, client = make(tmp_path)
+    svc.scan()
+    client.states = [s for s in client.states if s["entity_id"] != "binary_sensor.hall_motion"]
+    d = svc.evaluate()
+    assert d.data_health < 100 and not d.house_empty

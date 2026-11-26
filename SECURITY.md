@@ -9,6 +9,8 @@ Please **do not open a public issue**. Use GitHub's private vulnerability report
 - **Least privilege.** The app requests `homeassistant_api` only (read states/registries, write its own `bifrost_*` entities). No `hassio_api`, no host network, no privileged mode, no extra ports – the UI is reachable only through Home Assistant Ingress.
 - **Ingress only.** The web server rejects every client except the Ingress proxy (`172.30.32.2`).
 - **Strict input validation.** All API input is size-limited (4 KB) and checked against allow-lists (entity id pattern, status, category, role). Only bundled static files are served.
+- **Fail closed.** Missing or unavailable data leads to "Unknown", never to "house empty".
+- **CSRF and resource limits.** POST needs JSON plus a custom header; at most 16 parallel connections with a 10 s timeout.
 - **Browser hardening.** Content-Security-Policy, `nosniff`, `no-referrer`, `no-store`; all values are HTML-escaped in the UI.
 - **No dependencies.** The app uses the Python standard library only, which removes supply-chain risk from third-party packages.
 - **Never disarms.** Bifrost will never disarm an alarm. Future versions may only *signal* "house empty confirmed" to your alarm system, and only after you switch shadow mode off.
