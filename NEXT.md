@@ -13,6 +13,49 @@ All items below were approved by the maintainer for the next versions. Built one
 - **Patterns as processes** – sequences of 3–5+ steps with typical times between them (e.g. calendar entry → phone leaves → front door → no motion). Suggested at ≥5 observations and ≥85 % accuracy, switchable on/off, weekly drift check, `binary_sensor.bifrost_pattern_*`.
 - **Calendar learning** – which calendars and keywords mean "away"; birthday calendars ignored; titles are never stored.
 
+## Data review (Nov 2026) – revised order ⭐
+
+A review against real household data showed: only 1 of 5 people is reliably visible today, the garage is the main entrance, some room sensors never fire, and a recurring school calendar keeps "school" entries during holidays. Therefore: **make every person visible and get ground truth first, add clever experts after.** The v0.4–v0.6 items below keep their content but follow this order.
+
+### Must-have: calendar learning 2.0 (Mímir · calendar)
+- Learn **every frequently used word** (≥5 occurrences) in all chosen calendars – not only "word → house empty".
+- **Five effects per word:** person away · person home · house empty · a known pattern does not happen · day type (school day, holidays, weekend, home office).
+- **Person attribution:** names from the Family tab found in a title assign the entry to that person, whatever calendar it is in. A shared family calendar is fully usable.
+- **All-day / multi-day entries** (trip, holidays) are day context, not appointments.
+- **Recurring series** (e.g. school) are a plan that is checked against reality every day; if the pattern does not happen on many consecutive days and a word like "holidays" is active, Bifrost proposes "word = no school".
+- Entries can also mean **at home** (e.g. a morning workout) – learned in both directions.
+- Proposals need confirmation; only words and counters are stored, never full titles. Built-in, editable **block list for sensitive words** (health, doctor) – never learned, never shown.
+
+### Family tab + Frigg (family) – the core
+- Household members with: phone (person/tracker) or none, own calendars, "may be home alone: yes/no", room, optional BLE tag, school schedule (from a calendar or a timetable entity).
+- Per-person "home" probability; **house empty only if every person is accounted for**. A member without phone counts as home until proven away (with an adult, schedule + exit, tag).
+- Suggestions: persons from HA, calendar owner by name, learned link "entry ↔ whose phone leaves".
+
+### Safety rules (before any fusion)
+- **Last-out rule:** an exit through front door, garage door or garage gate, then no indoor motion/presence for N minutes; garden/terrace doors are not exits.
+- **Door direction:** motion before the door then silence = out; door then motion = in.
+- **Habit speeds up, never proves:** all habit experts together count as one capped vote; without the two rules above the result stays at most Unknown.
+- Loxone safety net (documented recommendation): pre-warning with cancel, start with perimeter-only arming.
+
+### Ground truth and measurement (moved up)
+- Loxone alarm state + NFC events as labels (read-only user); optional push question "House empty?" between 75 and 90 %.
+- Hindsight labels: "empty" confirmed by an entry from outside before any indoor motion; refuted by indoor motion without entry.
+- **Backtesting** of every new rule/expert against stored history; dashboard KPIs: false "empty" per month (target 0) and share of empty time detected.
+- Bifrost keeps its own raw event history longer than the HA recorder (10 days).
+
+### Sensor doctor
+- Report dead sensors (never active), chatty sensors (far more changes than others), phones with changing Wi-Fi address, trackers almost never "home".
+
+### More data sources (later)
+- Central ventilation CO₂ as "breathing" signal (falling steadily → probably nobody home) – test first.
+- Devices of members without phone (tablet, room speaker, TV) as presence hints.
+- Day type from an official school-holiday calendar and a holiday integration.
+- **ESP32** BLE receivers indoors (ground/upper floor) and optional Wi-Fi probe sniffing; BLE tags for members without phone.
+- Family planner integration: optional timetable entities per child (in school / school holidays).
+
+### Expert names and icons
+Heimdall · watcher, Frigg · family (new), Muninn · memory, Mímir · calendar, Huginn · thinker, Verdandi · rhythm, Skuld · foresight, Loki · doubter, Forseti · judge, Himinbjörg · gate, Gjallarhorn · signal (later), Ratatoskr · data messenger (not an expert). Shown in the app as "Name · plain name" with one line icon each.
+
 ## v0.4 – Complex patterns (pattern recognition, lightweight)
 Only methods that run on the Home Assistant host with the Python standard library and can explain every result. No neural networks, no heavy libraries.
 
