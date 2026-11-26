@@ -79,6 +79,32 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
             self.end_headers()
             self.wfile.write(data)
 
+        def _read_body(self) -> bytes:
+            """Read the request body – with Content-Length or chunked (HA Ingress streams bodies chunked)."""
+            if "chunked" in (self.headers.get("Transfer-Encoding") or "").lower():
+                data = b""
+                while True:
+                    line = self.rfile.readline(64)
+                    try:
+                        size = int(line.split(b";", 1)[0].strip() or b"0", 16)
+                    except ValueError as err:
+                        raise ValueError("bad chunk") from err
+                    if size == 0:
+                        self.rfile.readline(64)  # trailing CRLF
+                        break
+                    if len(data) + size > MAX_BODY:
+                        raise ValueError("too large")
+                    data += self.rfile.read(size)
+                    self.rfile.read(2)  # CRLF after each chunk
+                return data or b"{}"
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except ValueError as err:
+                raise ValueError("bad length") from err
+            if length < 0 or length > MAX_BODY:
+                raise ValueError("too large")
+            return self.rfile.read(length) if length else b"{}"
+
         def _route(self) -> str:
             path = self.path.split("?", 1)[0]
             # Ingress strips its prefix; keep only the last meaningful part
@@ -109,12 +135,9 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
                 return self._send(HTTPStatus.FORBIDDEN, {"error": "missing request header"})
             route = self._route()
             try:
-                length = int(self.headers.get("Content-Length") or 0)
+                raw = self._read_body()
             except ValueError:
-                length = -1
-            if length < 0 or length > MAX_BODY:
                 return self._send(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "body too large"})
-            raw = self.rfile.read(length) if length else b"{}"
             try:
                 body = json.loads(raw or b"{}")
             except ValueError:

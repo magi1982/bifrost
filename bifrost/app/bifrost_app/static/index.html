@@ -65,6 +65,7 @@ input[type=search]{width:100%;margin-bottom:10px}
   <div class="bar-top"><div class="logo" aria-hidden="true"></div><h1>Bifrost</h1><span class="tag" id="ver"></span><div class="sp"></div><button class="iconbtn" id="themeBtn">Theme: auto</button></div>
   <nav class="tabs" id="tabs"><button data-v="status" class="active">Status</button><button data-v="signals">Signals</button><button data-v="setup">Setup</button></nav>
 </div>
+<div id="toast" style="display:none;position:fixed;left:50%;bottom:20px;transform:translateX(-50%);color:#fff;padding:10px 16px;border-radius:10px;z-index:20;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>
 <main id="main"><div class="empty">Loading…</div></main>
 <script>
 "use strict";
@@ -146,8 +147,9 @@ function bindSetup(){
   el.onchange=function(ev){var row=ev.target.closest(".erow");if(!row)return;var id=row.dataset.id;
     var inc=row.querySelector(".inc").checked,cat=row.querySelector(".cat").value||null,role=row.querySelector(".role").value||null;
     var status=ev.target.classList.contains("inc")?(inc?"included":"ignored"):(cat&&role?"included":"suggested");
-    api("api/entity",{entity_id:id,status:status,category:cat,role:role}).then(function(u){S.ents.entities.forEach(function(e,i){if(e.entity_id===id)S.ents.entities[i]=u;});el.innerHTML=entityRows();}).catch(function(){alert("Could not save");});};
+    api("api/entity",{entity_id:id,status:status,category:cat,role:role}).then(function(u){toast(u.status==="included"?"Used by Bifrost":u.status==="ignored"?"Ignored":"Saved");S.ents.entities.forEach(function(e,i){if(e.entity_id===id)S.ents.entities[i]=u;});el.innerHTML=entityRows();}).catch(function(e){toast("Could not save ("+e.message+")",true);});};
 }
+function toast(msg,err){var t=document.getElementById("toast");t.textContent=msg;t.style.background=err?"var(--err)":"var(--ok)";t.style.display="block";clearTimeout(t._h);t._h=setTimeout(function(){t.style.display="none";},3500);}
 function render(){
   document.querySelectorAll("#tabs button").forEach(function(b){b.classList.toggle("active",b.dataset.v===S.view);});
   var m=document.getElementById("main");

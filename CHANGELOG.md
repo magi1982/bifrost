@@ -2,6 +2,12 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.1.5] – 2026-11-26
+
+### Fixed
+- Switching entities on/off and changing category or role in Setup did not save through Home Assistant Ingress (request bodies arrive chunked). Chunked bodies are now supported, still limited to 4 KB.
+- Saving now shows a short confirmation or error message (alerts are blocked in the Home Assistant app).
+
 ## [0.1.4] – 2026-11-26
 
 ### Fixed

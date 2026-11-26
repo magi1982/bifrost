@@ -145,3 +145,34 @@ def test_missing_token_raises(tmp_path, monkeypatch):
     monkeypatch.setattr(ha_client, "S6_ENV_DIR", str(tmp_path))
     with pytest.raises(ha_client.HAError):
         ha_client.HAClient()
+
+
+def test_chunked_body_like_ha_ingress():
+    import http.client
+
+    httpd, svc, base = _server(dev=True)
+    try:
+        conn = http.client.HTTPConnection("127.0.0.1", httpd.server_address[1], timeout=5)
+        body = json.dumps({"entity_id": "light.a", "status": "ignored"}).encode()
+        conn.putrequest("POST", "/api/entity")
+        conn.putheader("Content-Type", "application/json")
+        conn.putheader("X-Bifrost-Request", "1")
+        conn.putheader("Transfer-Encoding", "chunked")
+        conn.endheaders()
+        for part in (body[:10], body[10:]):
+            conn.send(f"{len(part):x}\r\n".encode() + part + b"\r\n")
+        conn.send(b"0\r\n\r\n")
+        r = conn.getresponse()
+        assert r.status == 200 and json.loads(r.read())["status"] == "ignored"
+        # oversized chunked body is refused
+        conn = http.client.HTTPConnection("127.0.0.1", httpd.server_address[1], timeout=5)
+        conn.putrequest("POST", "/api/entity")
+        conn.putheader("Content-Type", "application/json")
+        conn.putheader("X-Bifrost-Request", "1")
+        conn.putheader("Transfer-Encoding", "chunked")
+        conn.endheaders()
+        big = b"x" * (MAX_BODY + 10)
+        conn.send(f"{len(big):x}\r\n".encode() + big + b"\r\n0\r\n\r\n")
+        assert conn.getresponse().status == 413
+    finally:
+        httpd.shutdown()
