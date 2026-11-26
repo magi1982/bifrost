@@ -54,15 +54,21 @@ Rules, every pattern and the learned model are **experts**. Each votes only when
 
 Behaviour: a strong running pattern dominates; when nothing fits, the learned model leads but alone it rarely reaches the 90 % needed for "empty"; when experts disagree the result drops to Unknown and both reasons are shown.
 
+### More experts (part of v0.4)
+- **Semi-Markov state model:** knows the usual duration of each state and the usual transitions (e.g. asleep 6–8 h, asleep → away almost never at night). Smooths short flapping, makes "Asleep" much more reliable, notices when something lasts unusually long or short. Explained as "asleep for 2 h, usually 7 h → stays Asleep". Pure Python, little data.
+- **Time-to-event model (survival analysis):** per person and weekday, the chance that somebody comes home or leaves within the next 15 minutes, and the expected return time with range ("17:35, usually 17:10–18:05"). Feeds "Arriving soon", "Leaving soon" and `sensor.bifrost_expected_return`.
+
 Not planned now: neural networks (LSTM, transformers) – too few labelled examples (2–5 per day) and no explanation. Idea for much later: optional separate "Bifrost ML" app on stronger hardware, only as an extra opinion. HMM state smoothing stays an idea for later.
 
 ## v0.5 – Connections and setup assistant
+- **Doubter expert (anomaly):** isolation forest or simple z-scores over the current situation. It does not vote for a state; when today looks unusual it lowers the weight of all other experts so Bifrost says Unknown instead of being wrongly sure. Also drives `binary_sensor.bifrost_anomaly`.
 - **Ground truth from Loxone:** alarm armed → disarmed by NFC = nobody home in between; presence detectors = somebody home. The second opinion and pattern accuracy learn from these real labels.
 - **Setup assistant** – BLE on Shelly scanners, IRK explanation, fixed Wi-Fi address on iPhones, helpers and automations as signals.
 - **Loxone connector (optional, read-only)** – person vs. automation for lights/blinds, presence blocks, alarm state.
 - **UniFi connector (optional, read-only)** – client presence, guest Wi-Fi count, DPI at category level (streaming, gaming).
 
 ## v0.6 – Where in the house
+- Particle filter for BLE room location (a data source for the experts, not an expert itself).
 - **House map** – upload a floor plan (stored locally only), place rooms and sensors, live view with activity and people.
 - **BLE room location** – room fingerprints from BLE scanners; `sensor.bifrost_room_*`.
 
