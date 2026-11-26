@@ -163,6 +163,8 @@ KW_CLIENTS = _kw("clients", "client_count")
 KW_PRESENCE = _kw("presence", "präsenz", "prasenz", "occupancy", "motion", "bewegung")
 KW_SYSTEM = _kw("cpu", "memory", "disk", "uptime", "firmware", "rssi", "signal", "battery", "update", "ip_address", "last_restart", "temperature_chip", "wifi_signal")
 
+NETWORK_SWITCH_INTEGRATIONS = {"unifi", "unifiprotect", "fritz", "tplink_omada", "mikrotik", "pihole", "adguard", "opnsense", "pfsense"}
+
 IRRELEVANT_DOMAINS = {
     "update",
     "button",
@@ -289,6 +291,8 @@ def classify(e: EntityInfo) -> Classification:  # noqa: C901 – a flat rule lis
         return c("vehicles", "Noise", 0.7, "Pet related – activity of an animal, not a person")
 
     # --- modes & helpers -----------------------------------------------------
+    if d == "switch" and (e.integration or "").lower() in NETWORK_SWITCH_INTEGRATIONS:
+        return c(None, None, 0.0, "Network switch (Wi-Fi, port, firewall rule) – says nothing about presence", relevant=False)
     if d in {"switch", "input_boolean"}:
         if KW_GUEST.search(t) and (KW_MODE.search(t) or not KW_ROOM_NOT_MODE.search(t)):
             return c("modes", "Blocker", 0.85, "Guest mode – house must not be “empty”")

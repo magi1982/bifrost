@@ -2,6 +2,11 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.1.4] – 2026-11-26
+
+### Fixed
+- Switches from network integrations (UniFi, FRITZ!Box, Omada, MikroTik, Pi-hole, AdGuard, OPNsense, pfSense) are ignored. A guest Wi-Fi switch was wrongly treated as guest mode and kept the house "Home" forever.
+
 ## [0.1.3] – 2026-11-26
 
 ### Fixed

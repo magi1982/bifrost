@@ -137,3 +137,9 @@ def test_weather_binary_sensors_ignored():
 
 def test_nightlight_is_not_sleep_mode():
     assert cl("switch.wled_nightlight").role != "Blocker"
+
+
+def test_network_switches_are_not_guest_mode():
+    r = cl("switch.example_guest_wifi_enabled", name="Guest Wi-Fi enabled", integration="unifi")
+    assert r.status == STATUS_IGNORED
+    assert cl("input_boolean.guest_mode").role == "Blocker"
