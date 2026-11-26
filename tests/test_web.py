@@ -124,3 +124,24 @@ def test_bounded_server_rejects_when_full():
         hog.close()
     finally:
         httpd.shutdown()
+
+
+def test_token_fallback_from_s6_env(tmp_path, monkeypatch):
+    from bifrost_app import ha_client
+
+    (tmp_path / "SUPERVISOR_TOKEN").write_text("abc\n")
+    monkeypatch.delenv("SUPERVISOR_TOKEN", raising=False)
+    monkeypatch.delenv("HA_TOKEN", raising=False)
+    monkeypatch.setattr(ha_client, "S6_ENV_DIR", str(tmp_path))
+    c = ha_client.HAClient()
+    assert c.base_url == "http://supervisor/core"
+
+
+def test_missing_token_raises(tmp_path, monkeypatch):
+    from bifrost_app import ha_client
+
+    monkeypatch.delenv("SUPERVISOR_TOKEN", raising=False)
+    monkeypatch.delenv("HA_TOKEN", raising=False)
+    monkeypatch.setattr(ha_client, "S6_ENV_DIR", str(tmp_path))
+    with pytest.raises(ha_client.HAError):
+        ha_client.HAClient()

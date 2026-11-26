@@ -25,9 +25,21 @@ class HAError(RuntimeError):
     pass
 
 
+S6_ENV_DIR = "/run/s6/container_environment"
+
+
+def _read_s6_env(name: str) -> str | None:
+    """Fallback: s6-overlay keeps the container environment as files."""
+    try:
+        with open(os.path.join(S6_ENV_DIR, name), encoding="utf-8") as fh:
+            return fh.read().strip() or None
+    except OSError:
+        return None
+
+
 class HAClient:
     def __init__(self, base_url: str | None = None, token: str | None = None, timeout: float = 20) -> None:
-        sup = os.environ.get("SUPERVISOR_TOKEN")
+        sup = os.environ.get("SUPERVISOR_TOKEN") or _read_s6_env("SUPERVISOR_TOKEN")
         self.base_url = (base_url or os.environ.get("HA_URL") or ("http://supervisor/core" if sup else "http://localhost:8123")).rstrip("/")
         self._token = token or os.environ.get("HA_TOKEN") or sup or ""
         self.timeout = timeout

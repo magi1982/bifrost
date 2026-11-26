@@ -2,6 +2,11 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.1.3] – 2026-11-26
+
+### Fixed
+- App did not start ("No Home Assistant token available"): the start script now passes the Supervisor environment to the app (`with-contenv`), with a fallback that reads the token from the s6 container environment.
+
 ## [0.1.2] – 2026-11-26
 
 ### Security
