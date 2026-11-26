@@ -2,7 +2,12 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
-## [0.1.0] – unreleased
+## [0.1.1] – 2026-11-26
+
+### Added
+- App icon and logo: a three-coloured bridge (fire, gold, sky) from your home to the stars.
+
+## [0.1.0] – 2026-11-26
 
 ### Added
 - First experimental Home Assistant app (ingress panel, light and dark theme).
