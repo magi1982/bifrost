@@ -1,0 +1,19 @@
+configuration:
+  update_interval:
+    name: Update interval (seconds)
+    description: How often Bifrost reads the states from Home Assistant and re-evaluates the home status.
+  phone_away_minutes:
+    name: Phone away waiting time (minutes)
+    description: A phone must be away this long before it counts as "left". Avoids wrong decisions when phones drop Wi-Fi while sleeping.
+  no_motion_minutes:
+    name: No motion waiting time (minutes)
+    description: There must be no motion for this long before the house can be considered empty.
+  shadow_mode:
+    name: Shadow mode
+    description: Bifrost only observes and learns. It never triggers anything. Keep this on until the detection has proven reliable.
+  publish_entities:
+    name: Publish Bifrost entities
+    description: Creates sensor.bifrost_* and binary_sensor.bifrost_* in Home Assistant so you can use them in automations and dashboards.
+  log_level:
+    name: Log level
+    description: Amount of detail in the app log.

@@ -1,0 +1,100 @@
+import json
+import threading
+import urllib.error
+import urllib.request
+
+import pytest
+from bifrost_app.ha_client import encode_frame
+from bifrost_app.web import MAX_BODY, ThreadingHTTPServer, make_handler, validate_entity_update
+
+
+def test_validate_ok():
+    assert validate_entity_update({"entity_id": "light.kitchen", "status": "included", "category": "manual", "role": "Evidence"}) == ("light.kitchen", "included", "manual", "Evidence")
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        [],
+        {"entity_id": "../etc/passwd", "status": "included"},
+        {"entity_id": "Light.X", "status": "included"},
+        {"entity_id": "light.x", "status": "root"},
+        {"entity_id": "light.x", "status": "included", "category": 5},
+        {"entity_id": "light.x", "status": "included", "role": "<script>"},
+        {"entity_id": "light." + "a" * 300, "status": "included"},
+    ],
+)
+def test_validate_rejects(body):
+    with pytest.raises(ValueError):
+        validate_entity_update(body)
+
+
+class FakeService:
+    def __init__(self):
+        self.scans = 0
+
+    def status_view(self):
+        return {"ok": True}
+
+    def entities_view(self):
+        return {"entities": []}
+
+    def request_scan(self):
+        self.scans += 1
+
+    def update_entity(self, eid, status, cat, role):
+        if eid == "light.missing":
+            raise KeyError(eid)
+        return {"entity_id": eid, "status": status}
+
+
+def _server(dev):
+    svc = FakeService()
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(svc, dev))
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return httpd, svc, f"http://127.0.0.1:{httpd.server_address[1]}"
+
+
+def _req(url, body=None, raw=None):
+    data = raw if raw is not None else (json.dumps(body).encode() if body is not None else None)
+    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as r:  # noqa: S310
+            return r.status, json.loads(r.read() or b"null"), r.headers
+    except urllib.error.HTTPError as e:
+        return e.code, json.loads(e.read() or b"null"), e.headers
+
+
+def test_only_ingress_allowed():
+    httpd, _, base = _server(dev=False)
+    try:
+        assert _req(base + "/api/status")[0] == 403
+    finally:
+        httpd.shutdown()
+
+
+def test_api_in_dev_mode():
+    httpd, svc, base = _server(dev=True)
+    try:
+        code, body, headers = _req(base + "/api/status")
+        assert code == 200 and body == {"ok": True}
+        assert headers["X-Content-Type-Options"] == "nosniff" and "frame-ancestors" in headers["Content-Security-Policy"]
+        assert _req(base + "/api/scan", {})[0] == 202 and svc.scans == 1
+        assert _req(base + "/api/entity", {"entity_id": "light.a", "status": "included"})[0] == 200
+        assert _req(base + "/api/entity", {"entity_id": "light.missing", "status": "included"})[0] == 404
+        assert _req(base + "/api/entity", {"entity_id": "bad", "status": "included"})[0] == 400
+        assert _req(base + "/api/entity", raw=b"{not json")[0] == 400
+        assert _req(base + "/api/entity", raw=b"x" * (MAX_BODY + 1))[0] == 413
+        assert _req(base + "/../../etc/passwd")[0] == 404
+        assert _req(base + "/nope")[0] == 404
+    finally:
+        httpd.shutdown()
+
+
+def test_ws_frame_masked_and_lengths():
+    small = encode_frame(b"hi")
+    assert small[0] == 0x81 and small[1] & 0x80 and small[1] & 0x7F == 2
+    mid = encode_frame(b"x" * 300)
+    assert mid[1] & 0x7F == 126 and int.from_bytes(mid[2:4], "big") == 300
+    big = encode_frame(b"x" * 70000)
+    assert big[1] & 0x7F == 127 and int.from_bytes(big[2:10], "big") == 70000
