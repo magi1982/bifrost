@@ -30,14 +30,16 @@ Database additions: `pattern_steps` (pos, logic ONE/AND/OR/NOT, optional, gap me
 
 UI: pattern view with **Simple / Technical** switch, friendly names, **i** button per step (entity IDs, source, timing, trust, rule), works on phones (vertical chain, sources from the side), light and dark.
 
-### Second opinion – simple learning (part of v0.4)
-A small model that answers "how likely is the house empty right now?" from all signals at once. Pure Python (logistic regression, optionally a small decision tree), trained on the HA host in seconds – no GPU, no extra libraries.
+### Second opinion – simple learning for every state (part of v0.4)
+A small model that gives a probability for every state. **Home, Asleep and Away exclude each other** – the house is always in exactly one of them, so these three add up to 100 %. **Leaving soon and Arriving soon** can happen on top of that (home *and* about to leave), so each has its own 0–100 %. Pure Python (multinomial logistic regression / softmax), trained on the HA host in about a second – no GPU, no extra libraries.
 
-- **Features:** time of day (circular), weekday, minutes since last activity, phones away, lights/media on, power use, calendar keywords, guest mode, pattern progress.
-- **Labels:** confirmed periods (same state ≥30 min, ≥85 %) – later replaced by ground truth from Loxone (0.5).
-- **Shown:** own percentage next to the rule result, top reasons as +/− weights, agreement with the rules, calibration ("when it said 80 %, it was right in 78 %").
-- **Safety:** shadow only – it never changes the decision. New option `second_opinion` (on) and later `second_opinion_counts` (off by default) once it has proven better than the rules for several weeks.
-- **Entity:** `sensor.bifrost_second_opinion` (%, attributes: top reasons).
+- **States:** Home / Asleep / Away (softmax, together 100 %) plus Leaving soon and Arriving soon (separate yes/no models: will it happen within the next 15 min?). Unknown = the model is unsure (highest of the three below a threshold).
+- **Features:** time of day (circular), weekday, minutes since last activity, phones away, lights/media on, power use, bedroom/kids' room activity, calendar keywords, guest mode, pattern progress, expected return.
+- **Labels:** confirmed periods for Home/Asleep/Away; departures and arrivals for Leaving/Arriving – later ground truth from Loxone (0.5).
+- **Shown:** distribution bar next to the rule result, top +/− reasons per state, 24 h chart of the probabilities, accuracy and calibration per state.
+- **Rules too:** the rule engine also reports a distribution, so both opinions can be compared state by state.
+- **Safety:** shadow only – it never changes the decision. Options `second_opinion` (on) and later `second_opinion_counts` (off by default, only after it has been better than the rules for several weeks).
+- **Entities:** `sensor.bifrost_second_opinion` (most likely state, attributes: all probabilities, top reasons) and `sensor.bifrost_probability_home|asleep|away` (%, together 100) and `sensor.bifrost_probability_leaving_soon|arriving_soon` (%, each on its own).
 
 Not planned now: neural networks (LSTM, transformers) – too few labelled examples (2–5 per day) and no explanation. Idea for much later: optional separate "Bifrost ML" app on stronger hardware, only as an extra opinion. HMM state smoothing stays an idea for later.
 
