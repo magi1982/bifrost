@@ -41,6 +41,19 @@ A small model that gives a probability for every state. **Home, Asleep and Away 
 - **Safety:** shadow only – it never changes the decision. Options `second_opinion` (on) and later `second_opinion_counts` (off by default, only after it has been better than the rules for several weeks).
 - **Entities:** `sensor.bifrost_second_opinion` (most likely state, attributes: all probabilities, top reasons) and `sensor.bifrost_probability_home|asleep|away` (%, together 100) and `sensor.bifrost_probability_leaving_soon|arriving_soon` (%, each on its own).
 
+### One decision from everything – expert fusion (part of v0.4)
+Rules, every pattern and the learned model are **experts**. Each votes only when it applies, and each vote counts as much as that expert has earned by being right before. Safety rules stay above everything.
+
+1. **Safety layer (veto):** guest mode, sleep mode, fail closed on missing data, shadow mode, never disarm – no expert can outvote it.
+2. **Start value:** how often the house is in this state at this weekday/time.
+3. **Experts vote:** rules (always, weighted by data health), each pattern (only while running, weighted by steps done / steps), learned model (always, weighted by proven accuracy).
+4. **Combine in log-odds:** `logit P = logit(start) + c · Σ wᵢ (logit pᵢ − logit start)`, c ≈ 0.7 dampens experts that use the same sensors. A pattern's probability is `(right+1)/(seen+2)` – 23/23 gives 96 %, never 100 %.
+5. **Weights learn (sleeping experts / Hedge):** after every confirmed outcome, experts that voted and were wrong lose weight, right ones gain; experts that did not vote are not judged.
+6. **Calibration:** isotonic mapping over the last 4 weeks so that 90 % really means 90 %.
+7. **Explained:** the Status tab lists every expert's vote, weight and pull, e.g. "Pattern #4F09B1 +1.9 · Learning −1.2 → 73 %, Unknown".
+
+Behaviour: a strong running pattern dominates; when nothing fits, the learned model leads but alone it rarely reaches the 90 % needed for "empty"; when experts disagree the result drops to Unknown and both reasons are shown.
+
 Not planned now: neural networks (LSTM, transformers) – too few labelled examples (2–5 per day) and no explanation. Idea for much later: optional separate "Bifrost ML" app on stronger hardware, only as an extra opinion. HMM state smoothing stays an idea for later.
 
 ## v0.5 – Connections and setup assistant
