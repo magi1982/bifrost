@@ -30,9 +30,19 @@ Database additions: `pattern_steps` (pos, logic ONE/AND/OR/NOT, optional, gap me
 
 UI: pattern view with **Simple / Technical** switch, friendly names, **i** button per step (entity IDs, source, timing, trust, rule), works on phones (vertical chain, sources from the side), light and dark.
 
-Not planned: neural networks (LSTM, transformers) – no explanation, too heavy. HMM state smoothing stays an idea for later.
+### Second opinion – simple learning (part of v0.4)
+A small model that answers "how likely is the house empty right now?" from all signals at once. Pure Python (logistic regression, optionally a small decision tree), trained on the HA host in seconds – no GPU, no extra libraries.
+
+- **Features:** time of day (circular), weekday, minutes since last activity, phones away, lights/media on, power use, calendar keywords, guest mode, pattern progress.
+- **Labels:** confirmed periods (same state ≥30 min, ≥85 %) – later replaced by ground truth from Loxone (0.5).
+- **Shown:** own percentage next to the rule result, top reasons as +/− weights, agreement with the rules, calibration ("when it said 80 %, it was right in 78 %").
+- **Safety:** shadow only – it never changes the decision. New option `second_opinion` (on) and later `second_opinion_counts` (off by default) once it has proven better than the rules for several weeks.
+- **Entity:** `sensor.bifrost_second_opinion` (%, attributes: top reasons).
+
+Not planned now: neural networks (LSTM, transformers) – too few labelled examples (2–5 per day) and no explanation. Idea for much later: optional separate "Bifrost ML" app on stronger hardware, only as an extra opinion. HMM state smoothing stays an idea for later.
 
 ## v0.5 – Connections and setup assistant
+- **Ground truth from Loxone:** alarm armed → disarmed by NFC = nobody home in between; presence detectors = somebody home. The second opinion and pattern accuracy learn from these real labels.
 - **Setup assistant** – BLE on Shelly scanners, IRK explanation, fixed Wi-Fi address on iPhones, helpers and automations as signals.
 - **Loxone connector (optional, read-only)** – person vs. automation for lights/blinds, presence blocks, alarm state.
 - **UniFi connector (optional, read-only)** – client presence, guest Wi-Fi count, DPI at category level (streaming, gaming).
