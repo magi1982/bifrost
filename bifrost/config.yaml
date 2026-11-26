@@ -1,0 +1,32 @@
+name: Bifrost
+version: "0.3.0"
+slug: bifrost
+description: Local, learning presence detection – knows when your home is empty.
+url: https://github.com/magi1982/bifrost
+arch:
+  - aarch64
+  - amd64
+init: false
+ingress: true
+panel_icon: mdi:bridge
+panel_title: Bifrost
+homeassistant_api: true
+stage: experimental
+options:
+  update_interval: 30
+  phone_away_minutes: 10
+  no_motion_minutes: 15
+  shadow_mode: true
+  publish_entities: true
+  use_learning: true
+  learn_calendars: true
+  log_level: info
+schema:
+  update_interval: int(10,600)
+  phone_away_minutes: int(1,120)
+  no_motion_minutes: int(1,180)
+  shadow_mode: bool
+  publish_entities: bool
+  use_learning: bool
+  learn_calendars: bool
+  log_level: list(debug|info|warning|error)

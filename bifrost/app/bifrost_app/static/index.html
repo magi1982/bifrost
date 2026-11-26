@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bifrost</title>
+<style>
+:root{--primary:#03a9f4;--bg:#fafafa;--card:#fff;--text:#212121;--sec:#727272;--div:rgba(0,0,0,.12);--chip:#f2f2f2;--bar:#e6e6e6;
+--home:#43a047;--asleep:#7e57c2;--away:#03a9f4;--move:#ffa000;--unk:#9e9e9e;--ok:#43a047;--warn:#ffa000;--err:#db4437}
+[data-theme=dark]{--bg:#111;--card:#1c1c1c;--text:#e1e1e1;--sec:#9b9b9b;--div:rgba(225,225,225,.12);--chip:#2a2a2a;--bar:#333}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Roboto,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.45}
+.appbar{position:sticky;top:0;z-index:9;background:var(--card);border-bottom:1px solid var(--div)}
+.bar-top{display:flex;align-items:center;gap:10px;padding:10px 14px;max-width:1150px;margin:0 auto}
+.logo{width:28px;height:28px}
+.bar-top h1{font-size:19px;font-weight:500}.sp{flex:1}
+.iconbtn{border:1px solid var(--div);background:transparent;color:var(--text);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer}
+.tabs{display:flex;gap:2px;overflow-x:auto;max-width:1150px;margin:0 auto;padding:0 8px}
+.tabs button{background:none;border:none;border-bottom:2px solid transparent;color:var(--sec);padding:10px 12px;font-size:14px;cursor:pointer}
+.tabs button.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:500}
+main{max-width:1150px;margin:0 auto;padding:14px}
+.card{background:var(--card);border-radius:12px;box-shadow:0 1px 2px rgba(0,0,0,.12);padding:16px;margin-bottom:12px}
+[data-theme=dark] .card,[data-theme=dark] .kpi{box-shadow:none;border:1px solid var(--div)}
+.card h2{font-size:16px;font-weight:500;margin-bottom:2px}.hint{font-size:12px;color:var(--sec);margin-bottom:10px}
+.banner{background:#e3f2fd;color:#0d47a1;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13px}
+[data-theme=dark] .banner{background:#0d2a4a;color:#bbdefb}
+.err{background:#ffebee;color:#c62828}[data-theme=dark] .err{background:#7f1d1d;color:#ffcdd2}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}.grid .card{margin-bottom:0}
+.kpis{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));margin-bottom:12px}
+.kpi{background:var(--card);border-radius:12px;padding:12px 14px;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.kpi .l{font-size:12px;color:var(--sec)}.kpi .v{font-size:22px;font-weight:500}
+.tag{display:inline-block;font-size:11px;font-weight:500;padding:2px 8px;border-radius:999px;background:var(--chip);color:var(--sec);white-space:nowrap}
+.tag.on{background:var(--home);color:#fff}.tag.warn{background:#fff3e0;color:#e65100}
+.list .row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--div)}.list .row:first-child{border-top:none}
+.grow{flex:1;min-width:0}.ent{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--sec);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn{border:1px solid var(--div);background:transparent;color:var(--primary);border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;font-weight:500}
+.btn.fill{background:var(--primary);color:#fff;border-color:var(--primary)}
+.pbar{height:6px;background:var(--bar);border-radius:3px;overflow:hidden;min-width:50px}.pbar i{display:block;height:100%;border-radius:3px}
+.hero{text-align:center;padding:22px 16px}.hero .state{font-size:36px;font-weight:500}.hero .sub{color:var(--sec)}
+.gauge{width:160px;height:160px;margin:14px auto;position:relative}.gauge .val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:28px;font-weight:500}
+.gauge .val small{font-size:12px;color:var(--sec);font-weight:400}
+.why{text-align:left;max-width:560px;margin:10px auto 0}.why .row{padding:6px 0;border-top:1px solid var(--div);display:flex;gap:8px}
+.band{display:flex;height:26px;border-radius:6px;overflow:hidden;background:var(--chip)}.band div{min-width:1px}
+.axis{display:flex;justify-content:space-between;font-size:11px;color:var(--sec);margin-top:4px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--sec);margin-top:8px}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;background:var(--c);vertical-align:-1px}
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.filters button{border:1px solid var(--div);background:transparent;color:var(--sec);border-radius:999px;padding:4px 10px;font-size:12px;cursor:pointer}
+.filters button.on{background:var(--primary);border-color:var(--primary);color:#fff}
+input[type=search],select{border:1px solid var(--div);background:var(--card);color:var(--text);border-radius:8px;padding:7px 10px;font-size:13px}
+input[type=search]{width:100%;margin-bottom:10px}
+.switch{position:relative;width:40px;height:22px;flex:0 0 auto}.switch input{opacity:0;width:0;height:0}
+.switch span{position:absolute;inset:0;background:var(--bar);border-radius:11px;cursor:pointer}
+.switch span::before{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.switch input:checked+span{background:var(--primary)}.switch input:checked+span::before{transform:translateX(18px)}
+.erow{border-top:1px solid var(--div);padding:8px 0}.erow:first-child{border-top:none}
+.erow .top{display:flex;gap:10px;align-items:center}.erow .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 0 50px}
+.erow .reasons{display:none;font-size:12px;color:var(--sec);background:var(--chip);border-radius:8px;padding:8px 10px;margin:6px 0 0 50px}.erow .reasons.open{display:block}
+.ico{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:var(--chip);font-size:14px;flex:0 0 auto}
+.empty{color:var(--sec);text-align:center;padding:20px}
+.flow{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:6px 0 10px}
+.step{flex:0 0 auto;min-width:110px;max-width:150px;background:var(--chip);border-radius:10px;padding:8px 10px;font-size:12px}
+.step b{display:block;font-size:13px;margin:2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.step.done{outline:2px solid var(--ok)}
+.step.out{background:var(--primary);color:#fff}
+.gap{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 6px;font-size:11px;color:var(--sec);min-width:54px}
+.gap::before{content:"";display:block;width:100%;height:2px;background:var(--div);margin-bottom:4px}
+@media (max-width:640px){.flow{flex-direction:column;overflow:visible}.step{max-width:none;min-width:0}.step b{white-space:normal}.gap{flex-direction:row;justify-content:flex-start;min-width:0;padding:4px 0 4px 18px}.gap::before{width:2px;height:18px;margin:0 8px 0 0}}
+/* pattern chain – follows light/dark theme and HA card style */
+:root{--cy-card:var(--card);--cy-panel:#f5f5f5;--cy-line:#e0e0e0;--cy-text:var(--text);--cy-sub:var(--sec);--cy-acc:#0288d1;--cy-acc2:#7b1fa2;--cy-acc3:#c2185b;--cy-ok:#2e7d32;--cy-warn:#ef6c00;--cy-err:#c62828;--cy-glow:none}
+[data-theme=dark]{--cy-panel:#252525;--cy-line:#3a3a3a;--cy-acc:#29b6f6;--cy-acc2:#b388ff;--cy-acc3:#ff4081;--cy-ok:#66bb6a;--cy-warn:#ffa726;--cy-err:#ef5350;--cy-glow:0 0 8px}
+.cy{background:var(--cy-card);color:var(--cy-text);border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.12);border-top:3px solid var(--cy-acc)}
+[data-theme=dark] .cy{box-shadow:none;border:1px solid var(--div);border-top:3px solid var(--cy-acc)}
+.cy .hd{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cy .pid{display:inline-block;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:var(--cy-acc);background:var(--cy-panel);border:1px solid var(--cy-line);border-radius:6px;padding:2px 7px;letter-spacing:.5px}
+.cy .ttl{font-size:16px;font-weight:500;margin-top:2px}
+.cy .st{font-size:11px;font-weight:500;padding:2px 8px;border-radius:999px;border:1px solid;letter-spacing:.5px;text-transform:uppercase}
+.cy .st.enabled{color:var(--cy-ok);border-color:var(--cy-ok)}.cy .st.suggested{color:var(--cy-warn);border-color:var(--cy-warn)}
+.cy .st.changed{color:var(--cy-err);border-color:var(--cy-err)}.cy .st.disabled{color:var(--cy-sub);border-color:var(--cy-line)}
+.cy .ring{position:relative;width:54px;height:54px;flex:0 0 auto}.cy .ring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500}
+.cy .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+.cy .m{background:var(--cy-panel);border:1px solid var(--cy-line);border-radius:8px;padding:6px 8px}.cy .m span{display:block;font-size:10px;color:var(--cy-sub);text-transform:uppercase;letter-spacing:.6px}.cy .m b{font-size:15px;font-weight:500;font-family:ui-monospace,Menlo,Consolas,monospace}
+.chain{position:relative;margin:6px 0 4px 6px;padding-left:26px}
+.chain::before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:2px;background:linear-gradient(var(--cy-acc),var(--cy-acc2) 70%,var(--cy-acc3))}
+[data-theme=dark] .chain::before{box-shadow:0 0 8px var(--cy-acc)}
+.node{position:relative;margin:0 0 4px;padding:8px 10px;background:var(--cy-panel);border:1px solid var(--cy-line);border-radius:8px}
+.node::before{content:attr(data-n);position:absolute;left:-26px;top:9px;width:20px;height:20px;border-radius:50%;background:var(--cy-card);border:2px solid var(--cy-acc);color:var(--cy-acc);font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center}
+[data-theme=dark] .node::before{box-shadow:0 0 8px var(--cy-acc)}
+.node.hit{border-color:var(--cy-ok)}.node.hit::before{border-color:var(--cy-ok);color:#fff;background:var(--cy-ok);content:"✓"}
+.node .t{float:right;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:var(--cy-sub)}.node .n{font-size:14px;font-weight:500}.node .a{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:var(--cy-sub)}
+.node.out{border-color:var(--cy-acc2);background:linear-gradient(90deg,color-mix(in srgb,var(--cy-acc2) 14%,var(--cy-card)),color-mix(in srgb,var(--cy-acc3) 10%,var(--cy-card)))}.node.out::before{content:"◎";border-color:var(--cy-acc3);color:var(--cy-acc3)}
+.link{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;color:var(--cy-acc);margin:2px 0 6px 4px;letter-spacing:.4px}
+.cy .story{font-size:13px;background:var(--cy-panel);border-left:3px solid var(--cy-acc);border-radius:6px;padding:8px 10px;margin-top:10px}
+.cy .live{display:flex;gap:4px;margin-top:10px;align-items:center;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:var(--cy-sub)}.cy .live i{flex:1;height:6px;border-radius:3px;background:var(--cy-line)}.cy .live i.on{background:var(--cy-ok)}
+[data-theme=dark] .cy .live i.on{box-shadow:0 0 6px var(--cy-ok)}
+.cy .ent2{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:var(--cy-acc);margin-top:8px;word-break:break-all}
+@media (max-width:640px){.cy .metrics{grid-template-columns:repeat(2,1fr)}}
+.kw{display:inline-block;margin:3px 4px 3px 0;padding:3px 9px;border-radius:999px;font-size:12px;background:var(--chip)}
+.kw.away{background:var(--away);color:#fff}
+</style>
+</head>
+<body>
+<div class="appbar">
+  <div class="bar-top"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#10162c"/><path d="M8 26 A20 20 0 0 1 29 9" stroke="#f44336" stroke-width="3" fill="none"/><path d="M11 27 A17 17 0 0 1 29 12.5" stroke="#ffb300" stroke-width="3" fill="none"/><path d="M14 28 A14 14 0 0 1 29 16" stroke="#29b6f6" stroke-width="3" fill="none"/><path d="M4 24 L9 19.5 L14 24 V29 H4 Z" fill="#fff"/><circle cx="25" cy="6" r="1.6" fill="#ffd54f"/></svg><h1>Bifrost</h1><span class="tag" id="ver"></span><div class="sp"></div><button class="iconbtn" id="themeBtn">Theme: auto</button></div>
+  <nav class="tabs" id="tabs"><button data-v="status" class="active">Status</button><button data-v="timeline">Timeline</button><button data-v="dashboard">Dashboard</button><button data-v="patterns">Patterns</button><button data-v="calendars">Calendars</button><button data-v="signals">Signals</button><button data-v="setup">Setup</button></nav>
+</div>
+<div id="toast" style="display:none;position:fixed;left:50%;bottom:20px;transform:translateX(-50%);color:#fff;padding:10px 16px;border-radius:10px;z-index:20;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>
+<main id="main"><div class="empty">Loading…</div></main>
+<script>
+"use strict";
+var S={view:"status",status:null,ents:null,dash:null,tl:null,pats:null,cals:null,filter:"all",q:"",area:"",integ:"",tlcat:"",open:{}};
+var STATE={home:["Home","var(--home)"],asleep:["Asleep","var(--asleep)"],away:["Away","var(--away)"],leaving:["Leaving","var(--move)"],arriving:["Arriving","var(--move)"],unknown:["Unknown","var(--unk)"]};
+var ROLES=["Evidence","Trigger","Context","Blocker","Noise","Truth"];
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function api(path,body){return fetch(path,body?{method:"POST",headers:{"Content-Type":"application/json","X-Bifrost-Request":"1"},body:JSON.stringify(body)}:{}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json();});}
+function tcol(t){return t>=85?"var(--ok)":t>=60?"var(--warn)":"var(--err)";}
+function bar(v){return '<div style="display:flex;align-items:center;gap:6px"><div class="pbar" style="flex:1"><i style="width:'+v+'%;background:'+tcol(v)+'"></i></div><span>'+v+'</span></div>';}
+function catOf(id){var c=S.ents&&S.ents.categories[id];return c||{name:"No category",icon:"❓"};}
+
+function viewStatus(){
+  var st=S.status;if(!st)return '<div class="empty">Loading…</div>';
+  var h=st.shadow_mode?'<div class="banner">🕶️ Shadow mode – Bifrost only observes and learns. Nothing is triggered.</div>':'';
+  if(st.error)h+='<div class="banner err">⚠️ '+esc(st.error)+'</div>';
+  var d=st.decision;if(!d)return h+'<div class="card empty">Waiting for the first decision…</div>';
+  var s=STATE[d.state]||STATE.unknown,C=2*Math.PI*64,off=C*(1-d.confidence/100);
+  h+='<div class="card hero"><div class="state" style="color:'+s[1]+'">'+s[0]+'</div><div class="sub">Updated '+new Date(st.decided_at).toLocaleTimeString()+'</div>'+
+   '<div class="gauge"><svg viewBox="0 0 160 160" width="160" height="160"><circle cx="80" cy="80" r="64" fill="none" stroke="var(--bar)" stroke-width="13"/><circle cx="80" cy="80" r="64" fill="none" stroke="'+s[1]+'" stroke-width="13" stroke-linecap="round" stroke-dasharray="'+C+'" stroke-dashoffset="'+off+'" transform="rotate(-90 80 80)"/></svg><div class="val">'+d.confidence+'%<small>confidence</small></div></div>'+
+   '<div class="why"><div class="hint">Why Bifrost thinks so</div>'+d.reasons.map(function(r){return '<div class="row"><span>▸</span><span>'+esc(r)+'</span></div>';}).join("")+'</div></div>';
+  if(d.anomaly)h+='<div class="banner" style="background:#fff3e0;color:#e65100">⚠️ Activity while every tracked phone is away – a guest, someone without a phone, or something unusual.</div>';
+  h+='<div class="card"><div style="display:flex;align-items:center;gap:10px"><div class="grow"><h2>Guest mode</h2><div class="hint" style="margin:0">While on, Bifrost never says the house is empty. Also available as binary_sensor.bifrost_guest_mode.</div></div><label class="switch"><input type="checkbox" id="guestSw" '+(st.guest_mode?"checked":"")+'><span></span></label></div></div>';
+  h+='<div class="kpis"><div class="kpi"><div class="l">Data health</div><div class="v">'+d.data_health+'%</div></div><div class="kpi"><div class="l">People home</div><div class="v">'+d.people_home.length+'</div></div><div class="kpi"><div class="l">Signals used</div><div class="v">'+(S.ents?S.ents.summary.by_status.included||0:"–")+'</div></div></div>';
+  var hist=st.history||[];
+  h+='<div class="card"><h2>Last 24 hours</h2><div class="hint">Detected state over time</div>'+band(hist)+'<div class="axis"><span>-24 h</span><span>-12 h</span><span>now</span></div><div class="legend">'+["home","asleep","away","leaving"].map(function(k){return '<span style="--c:'+STATE[k][1]+'">'+STATE[k][0]+'</span>';}).join("")+'</div></div>';
+  h+='<div class="card"><h2>Entities Bifrost provides</h2><div class="hint">Use them in your automations and dashboards</div><div class="list">'+
+   [["sensor.bifrost_home_status","Home · Asleep · Leaving · Away · Arriving · Unknown"],["sensor.bifrost_expected_return","When someone usually comes back (learned per weekday)"],["binary_sensor.bifrost_anomaly","Activity while all phones are away"],["binary_sensor.bifrost_guest_mode","Guest mode of Bifrost"],["sensor.bifrost_person_*","Home or away per person"],["binary_sensor.bifrost_house_empty","On when the house is empty"],["sensor.bifrost_confidence","How sure Bifrost is (%)"],["sensor.bifrost_reason","Main reason in plain words"],["sensor.bifrost_data_health","Share of signals that are available (%)"]].map(function(e){return '<div class="row"><div class="grow"><div class="ent" style="color:var(--text);font-size:12px">'+e[0]+'</div><div style="font-size:12px;color:var(--sec)">'+e[1]+'</div></div></div>';}).join("")+'</div></div>';
+  return h;
+}
+function band(hist){
+  if(!hist.length)return '<div class="band"></div>';
+  var start=Date.now()-864e5,segs=[];
+  hist.forEach(function(p,i){var t0=Math.max(start,Date.parse(p.ts)),t1=i+1<hist.length?Date.parse(hist[i+1].ts):Date.now();segs.push([t0,t1,p.state]);});
+  var first=segs[0][0];var out='<div style="flex:'+Math.max(0,first-start)+'"></div>';
+  segs.forEach(function(s){out+='<div title="'+esc((STATE[s[2]]||STATE.unknown)[0])+'" style="flex:'+Math.max(1,s[1]-s[0])+';background:'+(STATE[s[2]]||STATE.unknown)[1]+'"></div>';});
+  return '<div class="band">'+out+'</div>';
+}
+function viewTimeline(){
+  var T=S.tl;if(!T)return '<div class="empty">Loading…</div>';
+  var cats=T.categories,ev=T.events.filter(function(e){return !S.tlcat||e.category===S.tlcat;});
+  var items=ev.map(function(e){return {ts:e.ts,html:'<span class="ico">'+((cats[e.category]||{}).icon||"•")+'</span><div class="grow"><div>'+esc(e.name)+'</div><div class="ent">'+esc(e.entity_id)+'</div></div><span class="tag'+(/^(on|home|open|playing|detected)$/.test(e.state)?' on':'')+'">'+esc(e.state)+'</span>'};});
+  T.decisions.forEach(function(d){var s=STATE[d.state]||STATE.unknown;items.push({ts:d.ts,html:'<span class="ico" style="background:'+s[1]+';color:#fff">◆</span><div class="grow"><b style="color:'+s[1]+'">Bifrost: '+s[0]+'</b></div><span class="tag">'+d.confidence+'%</span>'});});
+  items.sort(function(a,b){return a.ts<b.ts?1:-1;});
+  var h='<div class="card"><h2>Today and the last 24 hours</h2><div class="hint">Every change of a used signal and every new Bifrost decision</div><div class="filters" id="tlf"><button data-c="" class="'+(!S.tlcat?"on":"")+'">All</button>'+Object.keys(cats).map(function(k){return '<button data-c="'+k+'" class="'+(S.tlcat===k?"on":"")+'">'+cats[k].icon+' '+esc(cats[k].name)+'</button>';}).join("")+'</div><div class="list">';
+  var hour="";
+  items.slice(0,400).forEach(function(it){var t=new Date(it.ts),hh=t.toLocaleDateString([], {weekday:"short"})+" "+String(t.getHours()).padStart(2,"0")+":00";if(hh!==hour){hour=hh;h+='<div class="hint" style="margin:12px 0 2px;font-weight:500">'+hh+'</div>';}
+    h+='<div class="row"><span style="font-size:12px;color:var(--sec);width:42px">'+t.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",hour12:false})+'</span>'+it.html+'</div>';});
+  if(!items.length)h+='<div class="empty">Nothing recorded yet – changes appear here as they happen.</div>';
+  return h+'</div></div>';
+}
+function bars(days,valFn,maxV,colorFn,title,hint,fmt){
+  var W=640,H=150,bw=W/days.length,o='<div class="card"><h2>'+title+'</h2><div class="hint">'+hint+'</div><svg viewBox="0 0 '+W+' '+(H+22)+'" width="100%" style="display:block">';
+  days.forEach(function(d,i){var v=valFn(d);if(v==null)return;var h=Math.max(2,H*v/maxV);o+='<rect x="'+(i*bw+4)+'" y="'+(H-h)+'" width="'+(bw-8)+'" height="'+h+'" rx="3" fill="'+colorFn(v)+'"><title>'+d.day+': '+fmt(v)+'</title></rect>';
+    if(i%2===0||days.length<8)o+='<text x="'+(i*bw+bw/2)+'" y="'+(H+16)+'" font-size="11" text-anchor="middle" fill="var(--sec)">'+d.day.slice(8)+'.'+d.day.slice(5,7)+'</text>';});
+  return o+'</svg></div>';
+}
+function viewDashboard(){
+  var D=S.dash;if(!D)return '<div class="empty">Loading…</div>';
+  var days=D.days,order=["home","asleep","leaving","arriving","away","unknown"];
+  var W=640,H=160,bw=W/days.length;
+  var h='<div class="card"><h2>Where the days went</h2><div class="hint">Share of each state per day (last 14 days)</div><svg viewBox="0 0 '+W+' '+(H+22)+'" width="100%" style="display:block">';
+  days.forEach(function(d,i){var tot=0;order.forEach(function(k){tot+=d.minutes[k]||0;});if(!tot)return;var y=0;
+    order.forEach(function(k){var m=d.minutes[k]||0;if(!m)return;var hh=H*m/tot;h+='<rect x="'+(i*bw+4)+'" y="'+y+'" width="'+(bw-8)+'" height="'+hh+'" fill="'+STATE[k][1]+'"><title>'+d.day+' '+STATE[k][0]+': '+Math.round(m/60*10)/10+' h</title></rect>';y+=hh;});
+    if(i%2===0)h+='<text x="'+(i*bw+bw/2)+'" y="'+(H+16)+'" font-size="11" text-anchor="middle" fill="var(--sec)">'+d.day.slice(8)+'.'+d.day.slice(5,7)+'</text>';});
+  h+='</svg><div class="legend">'+order.map(function(k){return '<span style="--c:'+STATE[k][1]+'">'+STATE[k][0]+'</span>';}).join("")+'</div></div>';
+  h+='<div class="grid">'+bars(days,function(d){return d.avg_confidence;},100,tcol,"Average confidence","Higher is better – Bifrost is more certain",function(v){return v+" %";});
+  h+=bars(days,function(d){return d.short_away;},Math.max(3,Math.max.apply(null,days.map(function(d){return d.short_away;}))),function(v){return v?"var(--err)":"var(--ok)";},"Is learning helping?","“Away” that ended within 15 min – likely wrong. Fewer is better.",function(v){return v+"×";})+'</div>';
+  var sn=D.sensors;
+  h+='<div class="card" style="margin-top:12px"><h2>Sensor trust</h2><div class="hint">Learned from confirmed periods (same state for 30 min with ≥85 % confidence). Sensors below 30 % with 5+ observations no longer count as activity'+(D.use_learning?'':' – <b>learning is switched off in the options</b>')+'.</div>';
+  h+=sn.length?'<div class="list">'+sn.map(function(x){return '<div class="row"><div class="grow"><div>'+esc(x.name)+(x.unreliable?' <span class="tag warn">ignored</span>':'')+'</div><div class="ent">'+esc(x.entity_id)+' · '+x.agree+' right · '+x.disagree+' wrong</div></div><div style="width:120px">'+bar(x.score)+'</div></div>';}).join("")+'</div>':'<div class="empty">Nothing learned yet. Bifrost needs a few confirmed Home and Away periods.</div>';
+  return h+'</div>';
+}
+function catOfEntity(id){var e=S.ents&&S.ents.entities.find(function(x){return x.entity_id===id;});return catOf(e&&e.category);}
+function stepLabel(st){if(st.state==="home")return "comes home";if(st.state==="away")return "leaves";if(st.entity_id.indexOf("calendar.")===0)return "entry starts";var e=S.ents&&S.ents.entities.find(function(x){return x.entity_id===st.entity_id;}),c=e&&e.category;return c==="openings"?"opens":c==="motion"?"detects motion":c==="media"?"starts playing":"turns on";}
+function ring(v){var C=2*Math.PI*22,col=v>=95?"var(--cy-ok)":v>=85?"var(--cy-acc)":"var(--cy-warn)";return '<div class="ring" title="Accuracy"><svg viewBox="0 0 54 54" width="54" height="54"><circle cx="27" cy="27" r="22" fill="none" stroke="var(--cy-line)" stroke-width="5"/><circle cx="27" cy="27" r="22" fill="none" stroke="'+col+'" stroke-width="5" stroke-linecap="round" stroke-dasharray="'+C+'" stroke-dashoffset="'+(C*(1-v/100))+'" transform="rotate(-90 27 27)"/></svg><b>'+v+'%</b></div>';}
+function story(p){var parts=p.steps.map(function(st,i){var who=esc(st.name)+" "+stepLabel(st);return i?"about "+st.gap_before+" min later "+who:"When "+who;});
+  return parts.join(", ")+" – you are usually <b>"+esc(p.outcome_label.toLowerCase())+"</b> ~"+p.lead+" min after the last step. Seen "+p.support+" times, right in "+p.precision+" %.";}
+function viewPatterns(){
+  var P=S.pats;if(!P)return '<div class="empty">Loading…</div>';
+  var lbl={suggested:"New",enabled:"Active",disabled:"Off",changed:"Changed"};
+  var h='<div class="card"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div class="grow"><h2>Patterns</h2><div class="hint" style="margin:0">Steps that happen again and again, in the same order, before you leave, come home or go to sleep. Suggested after '+P.min_support+'+ observations with ≥'+P.min_precision+' % accuracy. Re-checked every 6 hours – a pattern that no longer holds turns <b>Changed</b>.</div></div><button class="btn fill" id="learnBtn">🔍 Find patterns now</button></div></div>';
+  if(!P.patterns.length)return h+'<div class="card empty">No patterns yet. Bifrost needs about 1–2 weeks of data (at least '+P.min_support+' departures, arrivals or bedtimes).</div>';
+  P.patterns.forEach(function(p){var n=p.steps.length,total=p.lead;p.steps.forEach(function(st,i){if(i)total+=st.gap_before;});
+    var tminus=[],acc=p.lead;for(var i=n-1;i>=0;i--){tminus[i]=acc;if(i)acc+=p.steps[i].gap_before;}
+    var icon={departure:"🚪",arrival:"🏠",bedtime:"🌙"}[p.outcome]||"◎";
+    h+='<div class="cy"><div class="hd">'+ring(p.precision)+'<div class="grow"><div class="pid">PATTERN #'+p.id.slice(0,6).toUpperCase()+'</div><div class="ttl">'+icon+' '+esc(p.outcome_label)+' · '+n+'-step chain</div></div><span class="st '+p.status+'">'+(lbl[p.status]||p.status)+'</span><label class="switch"><input type="checkbox" class="patSw" data-id="'+p.id+'" '+(p.status==="enabled"?"checked":"")+'><span></span></label></div>';
+    h+='<div class="metrics"><div class="m"><span>Seen</span><b>'+p.support+'×</b></div><div class="m"><span>Accuracy</span><b>'+p.precision+'%</b></div><div class="m"><span>Chain length</span><b>~'+total+' min</b></div><div class="m"><span>Lead time</span><b>~'+p.lead+' min</b></div></div>';
+    h+='<div class="chain">';
+    p.steps.forEach(function(st,i){var c=catOfEntity(st.entity_id);if(i)h+='<div class="link">▼ +'+st.gap_before+' min</div>';
+      h+='<div class="node'+(p.status==="enabled"&&i<p.progress?' hit':'')+'" data-n="'+(i+1)+'"><span class="t">T−'+tminus[i]+' min</span><div class="n">'+c.icon+' '+esc(st.name)+'</div><div class="a">'+stepLabel(st)+' · '+esc(st.entity_id)+'</div></div>';});
+    h+='<div class="link">▼ +'+p.lead+' min</div><div class="node out" data-n=""><span class="t">T 0</span><div class="n">'+icon+' '+esc(p.outcome_label)+'</div><div class="a">result Bifrost expects</div></div></div>';
+    h+='<div class="story">'+story(p)+'</div>';
+    if(p.baseline&&p.status!=="suggested")h+='<div class="ent2">accuracy when switched on: '+p.baseline+'% → now '+p.precision+'%</div>';
+    if(p.status==="enabled"){h+='<div class="live">LIVE';for(var k=0;k<n;k++)h+='<i class="'+(k<p.progress?'on':'')+'"></i>';h+=p.progress+'/'+n+'</div><div class="ent2">binary_sensor.bifrost_pattern_'+p.id+'</div>';}
+    else h+='<div class="ent2" style="color:var(--cy-sub)">switch on to activate the live check and get an entity</div>';
+    h+='</div>';});
+  return h;
+}
+function viewCalendars(){
+  var C=S.cals;if(!C)return '<div class="empty">Loading…</div>';
+  var h='<div class="card"><h2>How Bifrost reads your calendars</h2><div class="hint" style="margin:0">For every calendar you use, Bifrost compares the entries of the last 6 weeks with its own decisions: was the house empty during the entry? Words that keep appearing in entries while you were away (for example “office”) become hints. <b>Full titles are never stored</b> – only single keywords and counts, locally. Birthday calendars are ignored.'+(C.enabled?'':' <b>Calendar learning is switched off in the options.</b>')+'</div></div>';
+  if(!C.used.length)return h+'<div class="card empty">No calendar is used yet. Switch calendars on in Setup (category “Time & calendar”).</div>';
+  if(!C.calendars.length)return h+'<div class="card empty">Nothing learned yet – first results appear a few minutes after the start and are refreshed every 6 hours.</div>';
+  C.calendars.forEach(function(c){var share=c.entries?Math.round(100*c.away/c.entries):0;
+    h+='<div class="card"><h2>📅 '+esc(c.name)+'</h2><div class="hint">'+c.entries+' entries checked · during '+share+' % of them nobody was home</div><div style="max-width:320px;margin-bottom:10px">'+bar(share)+'</div>';
+    h+=c.insights.length?'<div>'+c.insights.map(function(k){return '<span class="kw'+(k.means_away?' away':'')+'" title="'+k.entries+' entries">'+esc(k.keyword)+' · '+k.away_share+' % away</span>';}).join("")+'</div><div class="hint" style="margin-top:6px">Blue = means away (≥85 %, at least '+C.min_obs+' entries). When such an entry is active, Bifrost mentions it as a reason.</div>':'<div class="hint">No keyword with at least '+C.min_obs+' entries yet.</div>';
+    h+='</div>';});
+  return h;
+}
+function viewSignals(){
+  var E=S.ents;if(!E)return '<div class="empty">Loading…</div>';
+  var used=E.entities.filter(function(e){return e.status==="included";});
+  var h='<div class="grid">'+Object.keys(E.categories).map(function(k){var c=E.categories[k],n=used.filter(function(e){return e.category===k;});
+    return '<div class="card"><div style="display:flex;gap:8px;align-items:center"><span class="ico">'+c.icon+'</span><h2 class="grow">'+esc(c.name)+'</h2><b style="font-size:20px">'+n.length+'</b></div><div class="hint">'+esc(c.desc)+'</div>'+(function(){var sg=E.entities.filter(function(e){return e.status==="suggested"&&e.category===k;}).length;return sg?'<button class="btn" data-bulk="'+k+'" style="margin-bottom:8px">Use all '+sg+' suggestions</button>':'';})()+
+     n.slice(0,5).map(function(e){return '<div class="ent" style="color:var(--text)">'+esc(e.name)+' · <span style="color:var(--sec)">'+esc(e.state)+'</span></div>';}).join("")+(n.length>5?'<div class="hint" style="margin:4px 0 0">+'+(n.length-5)+' more</div>':'')+'</div>';}).join("")+'</div>';
+  return h;
+}
+function viewSetup(){
+  var E=S.ents;if(!E)return '<div class="empty">Loading…</div>';
+  var sm=E.summary,bs=sm.by_status;
+  var h='<div class="card"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div class="grow"><h2>Home Assistant scanner</h2><div class="hint" style="margin:0">Last scan: '+(E.scanned_at?new Date(E.scanned_at).toLocaleString():"never")+' · runs daily and on demand</div></div><button class="btn fill" id="scanBtn">🔍 Scan now</button></div></div>';
+  h+='<div class="kpis">'+[["Entities scanned",sm.total],["Relevant",sm.relevant],["Used",bs.included||0],["Suggested",bs.suggested||0],["Unknown",bs.unknown||0],["Disabled in HA",sm.disabled_in_ha],["Unavailable",sm.unavailable]].map(function(k){return '<div class="kpi"><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div></div>';}).join("")+'</div>';
+  h+='<div class="card"><h2>All entities</h2><div class="hint">Switch on what Bifrost may use. Change category or role if the guess is wrong – Bifrost remembers it.</div>'+
+   '<input type="search" id="q" placeholder="Search name, entity or area…" value="'+esc(S.q)+'">'+
+   '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><select id="fArea"><option value="">All areas</option>'+uniq(E.entities,"area").map(function(a){return '<option '+(a===S.area?"selected":"")+'>'+esc(a)+'</option>';}).join("")+'</select><select id="fInt"><option value="">All integrations</option>'+uniq(E.entities,"integration").map(function(a){return '<option '+(a===S.integ?"selected":"")+'>'+esc(a)+'</option>';}).join("")+'</select></div>'+
+   '<div class="filters" id="flt">'+[["all","All"],["suggested","Suggested"],["included","Used"],["unknown","Unknown"],["disabled","Disabled in HA"],["unavailable","Unavailable"],["ignored","Ignored"]].map(function(f){return '<button data-f="'+f[0]+'" class="'+(S.filter===f[0]?"on":"")+'">'+f[1]+'</button>';}).join("")+'</div><div id="elist"></div></div>';
+  return h;
+}
+function uniq(L,k){var o={};L.forEach(function(e){if(e[k])o[e[k]]=1;});return Object.keys(o).sort();}
+function entityRows(){
+  var E=S.ents,q=S.q.toLowerCase(),f=S.filter;
+  var L=E.entities.filter(function(e){
+    if(f==="disabled"&&!e.disabled)return false;if(f==="unavailable"&&(e.available||e.disabled))return false;
+    if(["all","disabled","unavailable"].indexOf(f)<0&&e.status!==f)return false;
+    if(f==="all"&&e.status==="ignored"&&!q)return false;
+    if(S.area&&e.area!==S.area)return false;if(S.integ&&e.integration!==S.integ)return false;
+    return !q||(e.name+" "+e.entity_id+" "+(e.area||"")).toLowerCase().indexOf(q)>=0;});
+  var more=L.length>300;L=L.slice(0,300);
+  return (L.map(function(e){var c=catOf(e.category);
+    return '<div class="erow" data-id="'+esc(e.entity_id)+'"><div class="top"><label class="switch"><input type="checkbox" class="inc" '+(e.status==="included"?"checked":"")+(e.disabled?" disabled":"")+'><span></span></label>'+
+     '<div class="grow"><div>'+esc(e.name)+'</div><div class="ent">'+esc(e.entity_id)+(e.area?' · '+esc(e.area):'')+(e.integration?' · '+esc(e.integration):'')+'</div></div>'+
+     (e.disabled?'<span class="tag warn">disabled in HA</span>':!e.available?'<span class="tag warn">unavailable</span>':'')+'</div>'+
+     '<div class="meta"><select class="cat"><option value="">'+c.icon+' category…</option>'+Object.keys(E.categories).map(function(k){return '<option value="'+k+'" '+(k===e.category?"selected":"")+'>'+E.categories[k].icon+' '+esc(E.categories[k].name)+'</option>';}).join("")+'</select>'+
+     '<select class="role"><option value="">role…</option>'+ROLES.map(function(r){return '<option '+(r===e.role?"selected":"")+'>'+r+'</option>';}).join("")+'</select>'+
+     '<span class="tag">'+esc(e.status)+(e.user_set?" · by you":"")+'</span><span class="tag">guess '+e.confidence+'%</span><button class="btn why" style="padding:3px 10px;font-size:12px">Why?</button></div>'+
+     '<div class="reasons'+(S.open[e.entity_id]?" open":"")+'">'+e.reasons.map(esc).join("<br>")+'</div></div>';}).join("")||'<div class="empty">Nothing here</div>')+(more?'<div class="hint">Showing the first 300 – use the search to narrow down.</div>':'');
+}
+function bindSetup(){
+  var el=document.getElementById("elist");if(!el)return;el.innerHTML=entityRows();
+  document.getElementById("scanBtn").onclick=function(){this.textContent="Scanning…";api("api/scan",{}).then(function(){setTimeout(load,4000);});};
+  document.getElementById("fArea").onchange=function(e){S.area=e.target.value;el.innerHTML=entityRows();};
+  document.getElementById("fInt").onchange=function(e){S.integ=e.target.value;el.innerHTML=entityRows();};
+  document.getElementById("q").oninput=function(e){S.q=e.target.value;el.innerHTML=entityRows();};
+  document.querySelectorAll("#flt button").forEach(function(b){b.onclick=function(){S.filter=b.dataset.f;render();};});
+  el.onclick=function(ev){var row=ev.target.closest(".erow");if(!row)return;var id=row.dataset.id;
+    if(ev.target.classList.contains("why")){S.open[id]=!S.open[id];row.querySelector(".reasons").classList.toggle("open");}};
+  el.onchange=function(ev){var row=ev.target.closest(".erow");if(!row)return;var id=row.dataset.id;
+    var inc=row.querySelector(".inc").checked,cat=row.querySelector(".cat").value||null,role=row.querySelector(".role").value||null;
+    var status=ev.target.classList.contains("inc")?(inc?"included":"ignored"):(cat&&role?"included":"suggested");
+    api("api/entity",{entity_id:id,status:status,category:cat,role:role}).then(function(u){toast(u.status==="included"?"Used by Bifrost":u.status==="ignored"?"Ignored":"Saved");S.ents.entities.forEach(function(e,i){if(e.entity_id===id)S.ents.entities[i]=u;});el.innerHTML=entityRows();}).catch(function(e){toast("Could not save ("+e.message+")",true);});};
+}
+function toast(msg,err){var t=document.getElementById("toast");t.textContent=msg;t.style.background=err?"var(--err)":"var(--ok)";t.style.display="block";clearTimeout(t._h);t._h=setTimeout(function(){t.style.display="none";},3500);}
+function render(){
+  document.querySelectorAll("#tabs button").forEach(function(b){b.classList.toggle("active",b.dataset.v===S.view);});
+  var m=document.getElementById("main");
+  m.innerHTML=S.view==="status"?viewStatus():S.view==="timeline"?viewTimeline():S.view==="dashboard"?viewDashboard():S.view==="patterns"?viewPatterns():S.view==="calendars"?viewCalendars():S.view==="signals"?viewSignals():viewSetup();
+  if(S.view==="patterns"){var lb=document.getElementById("learnBtn");if(lb)lb.onclick=function(){lb.disabled=true;lb.textContent="Searching…";api("api/learn",{}).then(function(){return api("api/patterns");}).then(function(d){S.pats=d;render();toast("Pattern search finished");}).catch(function(e){toast("Failed ("+e.message+")",true);render();});};
+    document.querySelectorAll(".patSw").forEach(function(sw){sw.onchange=function(){api("api/pattern",{id:sw.dataset.id,status:sw.checked?"enabled":"disabled"}).then(function(){return api("api/patterns");}).then(function(d){S.pats=d;render();toast(sw.checked?"Pattern on":"Pattern off");}).catch(function(e){sw.checked=!sw.checked;toast("Could not save ("+e.message+")",true);});};});}
+  if(S.view==="setup")bindSetup();
+  if(S.view==="status"){var g=document.getElementById("guestSw");if(g)g.onchange=function(){api("api/guest",{on:g.checked}).then(function(r){S.status.guest_mode=r.guest_mode;toast(r.guest_mode?"Guest mode on":"Guest mode off");}).catch(function(e){g.checked=!g.checked;toast("Could not save ("+e.message+")",true);});};}
+  if(S.view==="timeline")document.querySelectorAll("#tlf button").forEach(function(b){b.onclick=function(){S.tlcat=b.dataset.c;render();};});
+  if(S.view==="signals")document.querySelectorAll("[data-bulk]").forEach(function(b){b.onclick=function(){b.disabled=true;api("api/bulk",{category:b.dataset.bulk}).then(function(r){toast(r.accepted+" signals now used");return api("api/entities");}).then(function(e){S.ents=e;render();}).catch(function(e){b.disabled=false;toast("Could not save ("+e.message+")",true);});};});
+}
+function load(){
+  Promise.all([api("api/status"),api("api/entities")]).then(function(r){S.status=r[0];S.ents=r[1];document.getElementById("ver").textContent="v"+r[0].version;render();})
+   .catch(function(){document.getElementById("main").innerHTML='<div class="card banner err">Could not reach Bifrost. Is the app running?</div>';});
+}
+document.querySelectorAll("#tabs button").forEach(function(b){b.onclick=function(){S.view=b.dataset.v;render();
+  if(S.view==="dashboard")api("api/dashboard").then(function(d){S.dash=d;render();}).catch(function(){});
+  if(S.view==="timeline")api("api/timeline").then(function(d){S.tl=d;render();}).catch(function(){});
+  if(S.view==="patterns")api("api/patterns").then(function(d){S.pats=d;render();}).catch(function(){});
+  if(S.view==="calendars")api("api/calendars").then(function(d){S.cals=d;render();}).catch(function(){});};});
+var modes=["auto","light","dark"],mi=0;
+function theme(){var m=modes[mi],dark=m==="dark"||(m==="auto"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.setAttribute("data-theme",dark?"dark":"light");document.getElementById("themeBtn").textContent="Theme: "+m;}
+document.getElementById("themeBtn").onclick=function(){mi=(mi+1)%3;theme();};
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",theme);
+theme();load();setInterval(function(){if(S.view==="status")api("api/status").then(function(s){S.status=s;render();}).catch(function(){});},30000);
+</script>
+</body>
+</html>

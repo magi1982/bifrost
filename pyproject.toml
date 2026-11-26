@@ -1,0 +1,25 @@
+[project]
+name = "bifrost"
+version = "0.3.0"
+description = "Local, explainable presence detection app for Home Assistant"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = []  # standard library only
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["bifrost/app"]
+
+[tool.ruff]
+line-length = 200
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "BLE", "N"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "N802"]
+
+[tool.bandit]
+exclude_dirs = ["tests"]

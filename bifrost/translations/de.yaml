@@ -1,0 +1,27 @@
+configuration:
+  update_interval:
+    name: Aktualisierungs-Intervall (Sekunden)
+    description: Wie oft Bifrost die Zustände aus Home Assistant liest und den Hausstatus neu bewertet.
+  phone_away_minutes:
+    name: Wartezeit Handy weg (Minuten)
+    description: Ein Handy muss so lange weg sein, bevor es als „gegangen“ zählt. Verhindert Fehlentscheidungen, wenn Handys im Schlaf das WLAN verlieren.
+  no_motion_minutes:
+    name: Wartezeit ohne Bewegung (Minuten)
+    description: So lange darf keine Bewegung sein, bevor das Haus als leer gelten kann.
+  shadow_mode:
+    name: Schattenmodus
+    description: Bifrost beobachtet und lernt nur. Es wird nie etwas ausgelöst. Eingeschaltet lassen, bis sich die Erkennung als zuverlässig erwiesen hat.
+  publish_entities:
+    name: Bifrost-Entitäten bereitstellen
+    description: Erstellt sensor.bifrost_* und binary_sensor.bifrost_* in Home Assistant, damit du sie in Automationen und Dashboards nutzen kannst.
+  use_learning:
+    name: Aus der Historie lernen
+    description: >-
+      Bifrost lernt, wie zuverlässig jeder Sensor ist. Sensoren, die oft auslösen, während das Haus leer ist (Haustiere, Roboter, Durchzug), zählen nicht mehr als Aktivität. Ausschalten, um nur die festen Regeln zu nutzen.
+  learn_calendars:
+    name: Aus Kalendern lernen
+    description: >-
+      Bifrost vergleicht Kalendereinträge mit seinen eigenen Entscheidungen und lernt, welche Einträge bedeuten, dass niemand zu Hause ist. Ganze Titel werden nie gespeichert – nur einzelne Stichwörter und Zähler, lokal.
+  log_level:
+    name: Protokoll-Stufe
+    description: Wie ausführlich das App-Protokoll ist.
