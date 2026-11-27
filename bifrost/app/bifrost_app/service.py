@@ -619,7 +619,7 @@ class BifrostService:
             dismissed = set(json.loads(self.store.get_value("opt_dismissed") or "[]"))
         except ValueError:
             dismissed = set()
-        items = opt_suggestions(ents, model.get("roles", {}), model.get("doctor", []), dismissed)
+        items = opt_suggestions(ents, model.get("roles", {}), model.get("doctor", []), dismissed, self.brain.value)
         return {"items": items, "dismissed": len(dismissed)}
 
     def dismiss_optimization(self, entity_id: str, key: str) -> dict:
@@ -638,7 +638,8 @@ class BifrostService:
     def entities_view(self) -> dict:
         with self._lock:
             floors = dict(self.floors)
-            ents = [{**e.to_dict(), "floor": (floors.get(e.info.area) or {}).get("floor") if e.info.area else None} for e in self.snap.entities.values()]
+            vals = self.brain.value or {}
+            ents = [{**e.to_dict(), "floor": (floors.get(e.info.area) or {}).get("floor") if e.info.area else None, "value": vals.get(e.info.entity_id)} for e in self.snap.entities.values()]
             at = self.snap.scanned_at
         status = Counter(e["status"] for e in ents)
         by_domain: dict[str, list[int]] = {}
@@ -678,7 +679,8 @@ class BifrostService:
         with self._lock:
             ents = list(self.snap.entities.values())
             stypes = dict(self.source_types)
-        counts = {k: {"kind": k, "found": 0, "used": 0} for k in CATALOG_KINDS}
+        counts = {k: {"kind": k, "found": 0, "used": 0, "valuable": 0} for k in CATALOG_KINDS}
+        vals = self.brain.value or {}
         for e in ents:
             if e.info.disabled:
                 continue
@@ -686,6 +688,7 @@ class BifrostService:
             if k:
                 counts[k]["found"] += 1
                 counts[k]["used"] += e.status == STATUS_INCLUDED
+                counts[k]["valuable"] += (vals.get(e.info.entity_id) or {}).get("verdict") == "valuable"
         return {"kinds": list(counts.values())}
 
     def people_view(self) -> dict:
@@ -784,6 +787,9 @@ class BifrostService:
                 "neighbours": sorted(neigh.get(eid, []), key=lambda n: -(n.get("count") or 0))[:3],
             }  # fmt: skip
             sig["active"] = bool(ts and (now - ts).total_seconds() < 60 and not noise and sig["origin"] not in (AUTOMATION, SCHEDULED))
+            vv = (self.brain.value or {}).get(eid) or {}
+            sig["value"] = vv.get("verdict")
+            sig["archived"] = vv.get("verdict") in ("nothing", "slow")
             areas.setdefault(e.info.area, []).append(sig)
         floors: dict[str | None, dict] = {}
         for area, sigs in areas.items():

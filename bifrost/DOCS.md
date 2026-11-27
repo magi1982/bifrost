@@ -41,6 +41,9 @@ Bifrost works out by itself how well it can see each person, from the sources as
 - **Partly visible** – only Wi-Fi (`router`) or Bluetooth without a room: “away” counts only after a longer time.
 - **Invisible** – no own source (e.g. a child without a phone): counts as home until facts say otherwise. Without people in the household the alarm signal stays blocked.
 
+### Signal value
+Bifrost judges every used signal by itself: **Valuable**, **Helps a little**, **Brings nothing**, **Slow** (stays on for long – typically a summary zone from another system) or **Still learning**. The verdict and its reason stand at the entity in Setup; the filters *Brings nothing* and *Slow* show them all. Bifrost only suggests switching such a signal off – you decide. In the House tab they are archived; **Show archived** brings them back.
+
 ### Who switched it?
 Bifrost reads the Home Assistant context of every change: by hand, via app or by an automation. A light switched by an automation – or by a timer Bifrost learned (same time on 5 of the last 14 days, e.g. a Loxone timer) – is not a person. Humidity jumps, CO₂ rises, power spikes and running water count as events.
 
@@ -109,6 +112,9 @@ Bifrost leitet selbst ab, wie gut es eine Person sieht – aus den im Setup zuge
 - **Gut sichtbar** – Handy mit GPS, Bluetooth mit Raum oder ein Code-/NFC-Benutzer.
 - **Mittel sichtbar** – nur WLAN (`router`) oder Bluetooth ohne Raum: „weg“ gilt erst nach längerer Zeit.
 - **Unsichtbar** – keine eigene Quelle (z. B. ein Kind ohne Handy): gilt als daheim, bis Fakten dagegen sprechen. Ohne Personen im Haushalt bleibt das Alarm-Signal gesperrt.
+
+### Wert pro Signal
+Bifrost bewertet jedes genutzte Signal selbst: **Wertvoll**, **Hilft wenig**, **Bringt nichts**, **Träge** (bleibt lange an – meist eine zusammengefasste Zone aus einem anderen System) oder **Lernt noch**. Urteil und Grund stehen im Setup bei der Entität; die Filter *Bringt nichts* und *Träge* zeigen alle. Bifrost schlägt das Ausschalten nur vor – du entscheidest. Im Haus-Tab sind sie archiviert; **Archivierte anzeigen** holt sie zurück.
 
 ### Wer hat geschaltet?
 Bifrost liest bei jeder Änderung den Home-Assistant-Context: von Hand, per App oder durch eine Automation. Ein Licht, das eine Automation geschaltet hat – oder eine gelernte Zeitschaltung (gleiche Zeit an 5 der letzten 14 Tage, z. B. in Loxone) – ist keine Person. Feuchte-Sprünge, steigendes CO₂, Strom-Spitzen und laufendes Wasser zählen als Ereignisse.

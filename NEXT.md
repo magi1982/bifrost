@@ -71,7 +71,8 @@ In parallel the guard watches entries: an entry nothing explains becomes a hint 
 - Signal "house empty confirmed" and "suspicion" as entities ✅ (off by default); ⏳ wiring to the alarm system in Loxone. **Never disarm.**
 
 
-### Next version · Signal value – which sensors help, which are useless (requested 27.11.)
+### Done in 0.10.0 · Signal value – which sensors help, which are useless (requested 27.11.)
+Decisions: only suggest switching off; useless/slow signals disappear from the House tab, a separate button shows the archived ones.
 Goal: Bifrost reads every entity and learns by itself which signals help to tell "home" from "empty" – and which bring nothing (e.g. aggregated presence zones from another system that stay "on" for a long time, sensors that hardly change). Filterable in Setup.
 
 **What Bifrost measures per signal (no setting needed)**

@@ -2,6 +2,14 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.10.0] – 2026-11-27
+
+### Added
+- **Signal value**: Bifrost judges every used signal by itself – *Valuable*, *Helps a little*, *Brings nothing*, *Slow* or *Still learning* – from what it learned: how well the signal tells home and empty apart (evidence scale), how often it changes, how long it stays on (summary zones from other systems stay on long and are *slow*), duplicates and dead sensors. The verdict and its reason are shown at every entity in Setup.
+- Setup filters **Brings nothing** and **Slow** with counts; “What Bifrost sees” also counts the valuable signals per kind.
+- Optimisation “Brings nothing – switch off?” / “Slow – switch off?”. Bifrost only suggests; you decide.
+- House tab: signals that bring nothing or are slow are archived – hidden from rooms, the lane and the area cards; **Show archived** brings them back.
+
 ## [0.9.1] – 2026-11-27
 
 ### Added

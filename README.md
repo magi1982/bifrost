@@ -3,7 +3,7 @@
 **Local, explainable presence detection for Home Assistant.**
 *Is anybody home?* Bifrost combines all the signals your home already has – phones, motion, doors, windows, modes, media, calendars – into one clear answer with a confidence and the reasons behind it.
 
-> ⚠️ **Experimental (v0.9).** Bifrost runs in *shadow mode*: it observes, learns and explains. The only signal it can ever give your alarm is “house empty confirmed” – and only after you switch it on and the balance has been green for 30 days. Bifrost never disarms anything.
+> ⚠️ **Experimental (v0.10).** Bifrost runs in *shadow mode*: it observes, learns and explains. The only signal it can ever give your alarm is “house empty confirmed” – and only after you switch it on and the balance has been green for 30 days. Bifrost never disarms anything.
 
 [🇬🇧 English](#english) · [🇩🇪 Deutsch](#deutsch)
 
@@ -64,7 +64,7 @@ New entities: `binary_sensor.bifrost_suspicious_entry`, `binary_sensor.bifrost_e
 | **Patterns** | Learning progress; Blocks · People · Routines as chains with lines (OR / AND / companions, sub-patterns open inline, Simple / Technical); switch a pattern on as an entity; detectors (baseline per signal, paths between areas); calendar words |
 | **Incidents** | What did not fit, bundled into chains (approach → access → inside → identity) with a score; questions and suggestions – Yes / No / Maybe / Don't know |
 | **Balance** | Key figures, hindsight, “are the percentages right?” and the release gate for the alarm signal |
-| **Setup** | Language, “What Bifrost sees in your home”, guide, optimisations, Bluetooth help, filters, scanner and configurator for all entities incl. “Belongs to” and reported users |
+| **Setup** | Language, “What Bifrost sees in your home”, value per signal (valuable / brings nothing / slow) with filters, guide, optimisations, Bluetooth help, filters, scanner and configurator for all entities incl. “Belongs to” and reported users |
 
 ### Installation
 1. In Home Assistant open **Settings → Apps → App store → ⋮ → Repositories**.
@@ -138,7 +138,7 @@ Neue Entitäten: `binary_sensor.bifrost_suspicious_entry`, `binary_sensor.bifros
 | **Mustererkennung** | Lernfortschritt; Bausteine · Personen · Abläufe als Ketten mit Linien (ODER / UND / Begleiter, Unter-Muster klappen auf, Einfach / Technisch); Muster als Entität einschalten; Detektoren (Grundlinie pro Signal, Wege zwischen Bereichen); Kalenderwörter |
 | **Vorfälle** | Was nicht passte, gebündelt zu Ketten (Annäherung → Zugang → drinnen → Identität) mit Score; Fragen und Vorschläge – Ja / Nein / Vielleicht / Weiss nicht |
 | **Bilanz** | Kennzahlen, Rückblick, „Stimmen die Prozente?“ und die Freigabe für das Alarm-Signal |
-| **Setup** | Sprache, „Was Bifrost bei dir sieht“, Anleitung, Optimierungen, Bluetooth-Hilfe, Filter, Scanner und Konfigurator für alle Entitäten inkl. „Gehört zu“ und gemeldeter Benutzer |
+| **Setup** | Sprache, „Was Bifrost bei dir sieht“, Wert pro Signal (wertvoll / bringt nichts / träge) mit Filtern, Anleitung, Optimierungen, Bluetooth-Hilfe, Filter, Scanner und Konfigurator für alle Entitäten inkl. „Gehört zu“ und gemeldeter Benutzer |
 
 ### Installation
 1. In Home Assistant **Einstellungen → Apps → App Store → ⋮ → Repositories** öffnen.

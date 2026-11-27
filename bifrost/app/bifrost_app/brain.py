@@ -17,7 +17,7 @@ from collections import deque
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
-from . import balance, baseline, blocks, calwords, evidence, guard, hindsight, house, timing
+from . import balance, baseline, blocks, calwords, evidence, guard, hindsight, house, timing, value
 from . import routines as rt
 from .engine import ASLEEP, AWAY, LEAVING, UNKNOWN, Decision, parse_time
 from .floorplan import validate_floorplan
@@ -69,6 +69,7 @@ class Brain:
         self.hind = store.get_obj("model", "hindsight") or {}
         self._last_pred: datetime | None = None
         self.baseline = store.get_obj("model", "baseline") or {}
+        self.value = store.get_obj("model", "value") or {}
         self.paths = store.get_obj("model", "paths") or {"areas": [], "cells": []}
         self.last_door: datetime | None = None
         self._rare_seen: set[str] = set()
@@ -386,6 +387,8 @@ class Brain:
                 if len(part) >= 3:
                     names[part] = p.name
         self.evidence = evidence.learn(events, hind, self.meta)
+        self.value = value.judge(events, self.meta, self.evidence, model.get("doctor", []), duplicates, days)
+        self.store.put_obj("model", "value", self.value)
         self.baseline = baseline.learn(events, self.meta)
         self.store.put_obj("model", "baseline", self.baseline)
         self.paths = baseline.paths(events, self.meta, model.get("sides", {}))
