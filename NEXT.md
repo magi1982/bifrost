@@ -528,3 +528,37 @@ Every placed gateway and every calibration point fits a simple multi-wall model:
 **To discuss (reminder set for the maintainer)**: what Bifrost does when it says "everybody away" and a Bluetooth device moves inside the house.
 **Status**: 0.11a + 0.11b (map with tabs Live/Configuration/Signal, Aurora look, garden with outside areas, drawable hull, floor plan layers, all floors at once) built in 0.11.0. Next: 0.11c Bluetooth nearby, calibration (IRK device chosen before the start), zones and person location entities; 0.11d everyday life. Map look: 6 proposals (artifact "Bifrost Kartenwerkstatt") – waiting for the maintainer's choice.
 **Tests**: episode cutting and merged automation steps; closed-pattern filter; scoring on a simulated month (morning chain, cleaner Tuesday, pool timer, broken habit); floor decision with hysteresis and stairs; fingerprint room match; editor: rectangles, stairs, device placement saved per floor; GUI check light/dark/390 px.
+
+### Next versions · Entity safety, MQTT Discovery, entity card (27.11.) – waiting for "mach es"
+Problem (from the issue): Bifrost writes its entities with `POST /api/states`. If Bifrost stops writing – stop, crash, or an error in `evaluate()` – `binary_sensor.bifrost_empty_confirmed` stays `on` in HA. Checked in the code (0.11.0): nothing writes `off` on stop (`__main__.shutdown` only stops the loop), on an error in the loop (`run_forever` logs and waits) or on start; nothing marks a value as stale.
+
+**1 · Safety: no stale "house empty confirmed" (priority: before every release, in any case before `empty_confirmed` is connected to Loxone)**
+Three safeguards that also stay as the fallback without MQTT (proposal – the list was missing in the request):
+1. *Fail closed on stop*: SIGTERM/SIGINT → write `empty_confirmed = off` and `house_empty = off` (short timeout) before the process ends.
+2. *Fail closed on error and on start*: the first write after start is `off`; any exception in `evaluate()`/`publish()` or an unreachable HA → `off` at the next possible write. A watchdog thread writes `off` if no evaluation succeeded for 3 × the evaluate interval (hung loop).
+3. *Freshness for the consumer*: every Bifrost entity carries `updated_at` and `valid_until` (now + 3 × interval); `empty_confirmed` only counts as on while `valid_until` is in the future. DOCS get a ready template / Loxone hint ("arm only if on **and** not older than 3 min"). This is the only guard that also covers a hard kill (`kill -9`, power loss) without MQTT.
+Tests: stop → off; exception in evaluate → off; start → off first; watchdog → off; attributes present.
+
+**2 · MQTT Discovery (decided: we do it)**
+- *Access*: credentials of the Mosquitto broker come automatically from the Supervisor (`GET http://supervisor/services/mqtt`, needs `services: [mqtt:want]` in `config.yaml` – "want", so Bifrost still starts without a broker).
+- *Device*: all entities under one device "Bifrost" with a `unique_id` each → renamable, assignable to an area. Existing entity ids are kept (`default_entity_id`), so automations keep working; the old `/api/states` entities disappear after the switch.
+- *Classes*: zones as occupancy `binary_sensor`, person location as `sensor`, patterns and zones as `binary_sensor`, state/confidence/probabilities as `sensor` with units.
+- *Crash*: `availability_topic` with Last Will `offline` → on a crash all entities become *unavailable* (and `empty_confirmed` is never `on`); additionally `expire_after` for a hung Bifrost.
+- *Storage*: states are retained → there right after an HA restart; Bifrost re-sends discovery when HA announces `homeassistant/status = online`.
+- *Fallback*: no broker → `/api/states` with the three safeguards from point 1.
+- *Implementation*: standard library only – a small MQTT 3.1.1 client: CONNECT (user/password, Last Will), CONNACK, PUBLISH QoS 0/1 with retain, PUBACK, SUBSCRIBE (`homeassistant/status`), PINGREQ/PINGRESP keep-alive, DISCONNECT, reconnect with back-off. No TLS needed (internal Supervisor network).
+- *Effort estimate*: client ≈ 300–400 lines, discovery mapping and entity registry ≈ 150–200, tests with an in-process fake broker ≈ 250 – about the size of one stage (like 0.11b). Risks: id migration (old ghost entities), broker restarts, HA versions without `default_entity_id` (fallback `object_id`).
+
+**3 · Setup: card "Bifrost entities" with on/off**
+- *List*: every entity Bifrost creates – name, id, kind, current value, last updated, MQTT status (connected / unavailable).
+- *On/off per entity*: "off" = Bifrost stops publishing it and removes it cleanly from HA (empty retained discovery config; with `/api/states`: state `unavailable` and no more writes). Internally Bifrost keeps computing it, also for pattern recognition.
+- *Safety entities* (`empty_confirmed`, `house_empty`): switching off only after a warning; Bifrost first writes "not empty", then removes them.
+- *Filters*: all, on, off, by kind (state, zones, people, patterns, visitors).
+- The entity list in the ⓘ info window is replaced by this card.
+
+**4 · Pattern recognition**
+- *No loop*: Bifrost's own `bifrost_*` entities stay excluded as input (already the case in the scan – kept and tested).
+- *Internal path*: zones and person locations flow into pattern recognition directly inside Bifrost, not via HA.
+
+**Priority**: point 1 before any release (proposal: 0.11.1 right away). Points 2 and 3 as the next version – proposal **0.12 before 0.11c**, because 0.11c adds many new entities (zones, person locations, visitors) that should be born as MQTT entities right away.
+**Open questions**: the three safeguards as proposed? Freshness window 3 × interval (≈ 3 min) ok? Keep the existing entity ids under MQTT? 0.12 before 0.11c?
