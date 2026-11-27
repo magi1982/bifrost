@@ -13,6 +13,7 @@ import base64
 import logging
 import secrets
 import threading
+import time
 from collections import deque
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -671,12 +672,29 @@ class Brain:
             "evidence": {"ready": bool(self.evidence.get("ready")), "samples": self.evidence.get("samples", {}), "min": evidence.MIN_SAMPLES},
         }
 
+    def has_floorplan(self, key: str = "") -> bool:
+        """Cheap check (cached): the live view asks this for every floor and picture every few seconds."""
+        cache = self.__dict__.setdefault("_fp_has", {})
+        if key not in cache:
+            cache[key] = bool(self.store.get_value("floorplan_type" + (f":{key}" if key else "")))
+        return cache[key]
+
+    def floorplan_version(self, key: str = "") -> str:
+        """Changes with every upload – part of the picture URL so the browser can cache it."""
+        cache = self.__dict__.setdefault("_fp_v", {})
+        if key not in cache:
+            cache[key] = self.store.get_value("floorplan_v" + (f":{key}" if key else "")) or "1"
+        return cache[key]
+
     def floorplan(self, b64: str, key: str = "") -> None:
         """Store a floor plan picture – one per floor (key from house.floor_key), "" = the single legacy plan."""
         data, ctype = validate_floorplan(b64)
         suffix = f":{key}" if key else ""
         self.store.set_value("floorplan" + suffix, base64.b64encode(data).decode())
         self.store.set_value("floorplan_type" + suffix, ctype)
+        self.store.set_value("floorplan_v" + suffix, str(int(time.time())))
+        self.__dict__.setdefault("_fp_has", {})[key] = True
+        self.__dict__.setdefault("_fp_v", {}).pop(key, None)
 
     def floorplan_bytes(self, key: str = "") -> tuple[bytes, str] | None:
         suffix = f":{key}" if key else ""
@@ -686,3 +704,4 @@ class Brain:
     def delete_floorplan(self, key: str) -> None:
         for k in (f"floorplan:{key}", f"floorplan_type:{key}"):
             self.store.set_value(k, "")
+        self.__dict__.setdefault("_fp_has", {})[key] = False

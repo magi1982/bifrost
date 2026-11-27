@@ -12,6 +12,13 @@ All notable changes to Bifrost are documented here. The format follows [Keep a C
 - **Where is everybody**: `sensor.bifrost_<person>_location` (room, outside area or floor) for every person with an IRK phone; the People tab shows the last 10 movements.
 - API: `/api/bluetooth`, `/api/calib`, `/api/calib/start`, `/api/calib/delete` (validated: addresses, floors, points inside the floor, sizes).
 
+### Changed
+- **House map**: floors without a name ("unassigned") are no longer shown; a floor whose areas are all drawn as outside areas on another floor (e.g. the garden on the ground floor) is shown on that map only.
+
+### Fixed
+- **The map no longer stalls.** Floor plan pictures were sent with `no-store`, so the browser loaded every picture again on every redraw (every 5 s and on every mouse move while editing). Pictures now carry a version in their URL and are cached; the live view checks for pictures without reading them; the 5-second refresh pauses while you edit and skips redraws when nothing changed.
+- Bifrost's own MQTT entities were reported as "new sensors" – they are now recognised by their unique id and ignored.
+
 ## [0.12.0] – 2026-11-27
 
 ### Added

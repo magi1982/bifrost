@@ -146,12 +146,13 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
             self._send(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
             return False
 
-        def _send(self, code: HTTPStatus, obj: object, ctype: str = "application/json") -> None:
+        def _send(self, code: HTTPStatus, obj: object, ctype: str = "application/json", cache: bool = False) -> None:
             data = obj if isinstance(obj, bytes) else json.dumps(obj, ensure_ascii=False, default=str).encode()
             self.send_response(code)
             self.send_header("Content-Type", ctype + ("; charset=utf-8" if ctype.startswith(("text", "application/json")) else ""))
             self.send_header("Content-Length", str(len(data)))
-            self.send_header("Cache-Control", "no-store")
+            # pictures carry a version in their URL, so the browser may keep them; everything else is always fresh
+            self.send_header("Cache-Control", "private, max-age=604800, immutable" if cache else "no-store")
             for k, v in SECURITY_HEADERS.items():
                 self.send_header(k, v)
             self.end_headers()
@@ -225,7 +226,7 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
                 fp = service.brain.floorplan_bytes(key)
                 if not fp:
                     return self._send(HTTPStatus.NOT_FOUND, {"error": "no floor plan"})
-                return self._send(HTTPStatus.OK, fp[0], fp[1])
+                return self._send(HTTPStatus.OK, fp[0], fp[1], cache=True)
             self._send(HTTPStatus.NOT_FOUND, {"error": "not found"})
 
         def do_POST(self) -> None:  # noqa: N802

@@ -201,7 +201,9 @@ class BifrostService:
 
         regs = {e["entity_id"]: e for e in reg["entities"]}
         for eid in sorted(set(states) | set(regs)):
-            if eid.startswith("sensor.bifrost_") or eid.startswith("binary_sensor.bifrost_"):
+            re0 = regs.get(eid, {})
+            own_mqtt = re0.get("platform") == "mqtt" and str(re0.get("unique_id") or "").startswith("bifrost_")
+            if own_mqtt or eid.startswith("sensor.bifrost_") or eid.startswith("binary_sensor.bifrost_"):
                 continue  # never classify our own output
             st, re_ = states.get(eid, {}), regs.get(eid, {})
             attrs = st.get("attributes", {})
@@ -1018,10 +1020,14 @@ class BifrostService:
                 "key": key,
                 "cells": cells,
                 "saved": bool(saved),
-                "plan": bool(self.brain.floorplan_bytes(key)),
+                "plan": self.brain.has_floorplan(key),
                 "map": hmap,
                 "map_saved": bool(stored),
-                "plans": [{"n": n, "key": _housemap.layer_key(key, n)} for n in range(_housemap.MAX_LAYERS) if self.brain.floorplan_bytes(_housemap.layer_key(key, n))],
+                "plans": [
+                    {"n": n, "key": _housemap.layer_key(key, n), "v": self.brain.floorplan_version(_housemap.layer_key(key, n))}
+                    for n in range(_housemap.MAX_LAYERS)
+                    if self.brain.has_floorplan(_housemap.layer_key(key, n))
+                ],
             }
         lane = self._lane(now, ents)
         room_src = {p.id: [e for e in p.sources if is_room_source(e, self.brain.meta.get(e))] for p in self.brain.people.all()}
