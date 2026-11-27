@@ -482,6 +482,18 @@ Needs ≥ 1 scanner per floor (better 2–3); the floor plan heights are not nee
 - *Result*: a radio map per floor (fingerprints at known positions), an estimated accuracy from leave-one-out (*±1.4 m on the ground floor*), coverage gaps marked on the map ("upper floor east: only 1 gateway hears it"). Re-calibrate a single room later.
 - *Wooden house*: points on every floor are what makes floors separable at all; Bifrost shows how well each floor separates after the walk.
 
+**5b · "Show signal" – accuracy map after calibrating (maintainer's idea 27.11.)**
+- Button **Show signal** in the House tab: a heat map over the floor like a Wi-Fi planner – green = position accurate (± < 1.5 m), yellow = room-level, red = only "in the house" or not heard. Computed from leave-one-out errors of the calibration points, the number of gateways that hear each spot and the wall model in between.
+- Tap a red or yellow spot → **Measure here** adds a calibration point at exactly that place; the map updates after each measurement.
+- Hints next to the map: "Garage: only 1 gateway – a Shelly near the back door would help"; per floor the share of the area that is accurate.
+
+**5c · Zones on the map that become entities ("phones as motion sensors", maintainer's idea 27.11.)**
+- New map tool **Zone**: draw a rectangle (or several joined, like rooms) anywhere – *Sofa*, *Desk*, *Bed parents*, *Front door inside*, *Driveway*. A zone may cross room borders and may lie outside.
+- Each zone becomes `binary_sensor.bifrost_zone_<slug>` (device class *occupancy*): on while a tracked device of a family member is inside. Attributes: `people` (names), `devices`, `since`, `accuracy` (expected ± m at this spot). Optional per zone: one entity per person (`binary_sensor.bifrost_zone_sofa_alex`) and a count sensor.
+- Usable in automations like any presence sensor – and Bifrost itself uses them as an extra, person-bound motion signal (with its learned value, never alone for "empty").
+- Against flapping: enter after ~20 s inside, leave after ~60 s outside (adjustable per zone); a zone smaller than the local accuracy is flagged ("Desk is 1 × 1 m, accuracy here ± 2 m – make it bigger or measure more here").
+- Only devices that are bound to a person (phone with HA app / IRK, watch, tag) count; anonymous or visitor devices never switch a zone, named visitors optionally.
+
 **6 · Learning how walls and floors damp the signal (continuous)**
 Every placed gateway and every calibration point fits a simple multi-wall model: *strength = transmit power − distance loss − Σ losses of the walls/ceilings crossed*. The rooms on the map give the walls; Bifrost fits one loss per wall type it can tell apart (outer wall, inner wall, ceiling) per house – so it learns e.g. "ceiling 4 dB, inner wall 3 dB" by itself. Afterwards it keeps learning without the owner: whenever exactly one room's motion sensor fires while a known device is heard, that is an extra sample at "somewhere in this room"; samples that contradict the model are dropped. The model fills the gaps between calibration points, the fingerprints stay the reference.
 
