@@ -37,8 +37,16 @@ EXTRA = [
     ("sensor.bath_humidity", "Bathroom humidity", "55", {"device_class": "humidity", "unit_of_measurement": "%"}),
     ("vacuum.robot", "Robot vacuum", "docked", {}),
     ("sensor.front_door_last_user", "Front door last user", "", {}),
+    ("binary_sensor.living_window_garden", "Living window garden", "off", {"device_class": "window"}),
 ]
-EXTRA_AREA = {"sensor.front_door_last_user": "Entrance", "light.kitchen": "Kitchen", "light.garden": "Driveway", "sensor.bath_humidity": "Bathroom", "vacuum.robot": "Living"}
+EXTRA_AREA = {
+    "binary_sensor.living_window_garden": "Living",
+    "sensor.front_door_last_user": "Entrance",
+    "light.kitchen": "Kitchen",
+    "light.garden": "Driveway",
+    "sensor.bath_humidity": "Bathroom",
+    "vacuum.robot": "Living",
+}
 
 
 class DemoClient:

@@ -8,7 +8,7 @@ Bifrost tells you whether anybody is home – with a confidence and the reasons.
 
 ### First steps
 1. Start the app and open **Bifrost** in the sidebar. The language follows Home Assistant; change it in **Setup**.
-2. **Setup** – Bifrost has already scanned your Home Assistant and switched on the signals it is sure about. Check the **Suggested** filter and correct wrong guesses (**Why?** shows the reasons).
+2. **Setup** – Bifrost has already scanned your Home Assistant and switched on the signals it is sure about. Go through **Optimisations** (one suggestion per signal) and the **Suggested** filter; **Why?** shows the reasons, “Which role for what?” explains the roles.
 3. **People** – add everybody who lives here, children without phones too. Pick their phones and calendars; optionally pick the user in your access system and enter the iPhone IRK (stored locally, never shown again). No Home Assistant users are needed.
 4. Assign your sensors to **areas** (and areas to **floors**) in Home Assistant – the **House** tab is built from them.
 5. Let Bifrost learn for a few days. It runs in **shadow mode** and does not trigger anything.
@@ -59,7 +59,7 @@ Entities created by an app through the REST API disappear after a Home Assistant
 
 ### Erste Schritte
 1. App starten und **Bifrost** in der Seitenleiste öffnen. Die Sprache folgt Home Assistant; umstellen im **Setup**.
-2. **Setup** – Bifrost hat dein Home Assistant schon gescannt und die sicheren Signale eingeschaltet. Filter **Vorgeschlagen** prüfen und falsche Vermutungen korrigieren (**Warum?** zeigt die Gründe).
+2. **Setup** – Bifrost hat dein Home Assistant schon gescannt und die sicheren Signale eingeschaltet. **Optimierungen** durchgehen (ein Vorschlag pro Signal) und den Filter **Vorgeschlagen** prüfen; **Warum?** zeigt die Gründe, „Welche Rolle wofür?“ erklärt die Rollen.
 3. **Personen** – alle anlegen, die hier wohnen, auch Kinder ohne Handy. Handys und Kalender wählen; optional den Benutzer im Zugangssystem wählen und das iPhone-IRK eintragen (lokal gespeichert, nie wieder angezeigt). Benutzer in Home Assistant braucht es nicht.
 4. Sensoren in Home Assistant **Bereichen** zuweisen (und Bereiche **Stockwerken**) – daraus entsteht der Tab **Haus**.
 5. Bifrost ein paar Tage lernen lassen. Es läuft im **Schattenmodus** und löst nichts aus.

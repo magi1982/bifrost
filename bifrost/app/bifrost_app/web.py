@@ -71,6 +71,13 @@ def validate_pattern(body: object) -> tuple[str, str]:
     return body["id"], body["status"]
 
 
+def _entity(body: dict) -> str:
+    v = body.get("entity_id")
+    if not isinstance(v, str) or not ENTITY_RE.match(v):
+        raise ValueError("invalid entity_id")
+    return v
+
+
 def _str(body: dict, key: str, maxlen: int = 80) -> str:
     v = body.get(key)
     if not isinstance(v, str) or not v or len(v) > maxlen:
@@ -81,6 +88,7 @@ def _str(body: dict, key: str, maxlen: int = 80) -> str:
 VIEWS = {
     "/api/i18n": "i18n_view",
     "/api/live": "live_view",
+    "/api/optimizations": "optimizations_view",
     "/api/people": "people_view",
     "/api/house": "house_view",
     "/api/recognition": "recognition_view",
@@ -92,6 +100,8 @@ VIEWS = {
 ACTIONS = {
     "/api/person": lambda svc, b: svc.save_person(b if isinstance(b, dict) else {}),
     "/api/person/delete": lambda svc, b: svc.delete_person(_str(b, "id", 40)),
+    "/api/optimization/dismiss": lambda svc, b: svc.dismiss_optimization(_entity(b), _str(b, "key", 30)),
+    "/api/optimization/reset": lambda svc, b: svc.reset_optimizations(),
     "/api/access_entities": lambda svc, b: svc.set_access_entities(b.get("entities")),
     "/api/shared_access": lambda svc, b: {"shared_access": svc.brain.people.set_shared_access(b.get("names"))},
     "/api/answer": lambda svc, b: svc.answer(_str(b, "id", 40), _str(b, "answer", 10), b.get("label") if isinstance(b.get("label"), str) else None),

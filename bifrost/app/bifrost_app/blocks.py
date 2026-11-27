@@ -35,6 +35,8 @@ OUTSIDE_WORDS = ("aussen", "außen", "outside", "outdoor", "garten", "garden", "
 DOOR_CLASSES = ("door", "garage_door", "opening")
 DOOR_WORDS = ("tür", "tuer", "türe", "door", "tor", "gate")
 WINDOW_WORDS = ("fenster", "window")
+# windows people walk through: sliding doors and floor-length windows to the garden or terrace
+PASSAGE_WORDS = ("schiebe", "hebeschiebe", "hst", "bodentief", "terrass", "terrace", "garten", "garden", "sitzplatz", "balkon", "balcony", "patio", "sliding", "french")
 
 ENTRY, EXIT, INSIDE_ONLY, UNKNOWN = "entry", "exit", "inside_only", "unknown"
 BUCKETS = (("night", 0, 6), ("morning", 6, 12), ("afternoon", 12, 18), ("evening", 18, 24))
@@ -53,11 +55,17 @@ def bucket(ts: datetime) -> str:
 
 
 def is_door(meta: dict) -> bool:
+    """Doors and passable windows. The name wins over the device class: many contacts are set up as "window"."""
     dc = (meta.get("device_class") or "").lower()
     name = (meta.get("name") or "").lower() + " " + meta.get("entity_id", "").lower()
+    opening = dc in DOOR_CLASSES or dc == "window" or meta.get("category") == "openings"
+    if not opening:
+        return False
+    if any(w in name for w in DOOR_WORDS) or any(w in name for w in PASSAGE_WORDS):
+        return True
     if dc == "window" or any(w in name for w in WINDOW_WORDS):
         return False
-    return dc in DOOR_CLASSES or (meta.get("category") == "openings" and any(w in name for w in DOOR_WORDS))
+    return dc in DOOR_CLASSES
 
 
 def is_motion(meta: dict) -> bool:

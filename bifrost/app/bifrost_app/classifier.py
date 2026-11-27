@@ -71,7 +71,8 @@ KW_GUEST = _kw("guest", "gast", "gäste", "gaste", "gaeste")
 KW_ROOM_NOT_MODE = _kw(r"\bwc\b", "_wc", "toilet", "zimmer", "room", "bad")
 KW_MODE = _kw("mode", "modus", "aktiv", "active", r"\bon\b")
 KW_KIDS = _kw("kid", "kids", "kinder", "child")
-KW_FRONT = _kw("front.?door", "haust", "entrance", "eingang", "garage")
+KW_FRONT = _kw("front.?door", "haust", "entrance", "eingang", "garage", "terrass", "terrace", "sitzplatz", "balkon", "balcony", "patio")
+KW_DOORNAME = _kw("tür", "tuer", r"\btor\b", "garagentor", "gartentor", "door", r"\bgate\b", "schiebe")
 KW_FRIDGE = _kw("fridge", "kühlschrank", "kuehlschrank", "kuhlschrank", "freezer", "gefrier")
 KW_DOORBELL = _kw("doorbell", "klingel", "ring")
 KW_PHONE = _kw("phone", "iphone", "handy", "pixel", "galaxy", "android", "smartphone")
@@ -338,7 +339,7 @@ def classify(e: EntityInfo) -> Classification:  # noqa: C901 – a flat rule lis
             if outdoor:
                 return c("motion", "Evidence", 0.55, f"Device class: {dc or 'presence'}", "Outdoors – wind, animals and passers-by trigger it")
             return c("motion", "Evidence", 0.92, f"Device class: {dc or 'presence (from name)'}", "Inside the house – a strong presence signal")
-        if dc in {"door", "garage_door"}:
+        if dc in {"door", "garage_door"} or (dc in {"window", "opening"} and KW_DOORNAME.search(t)):
             if KW_FRONT.search(t):
                 return c("openings", "Trigger", 0.95, f"Device class: {dc}", "Main entrance – starts a new check")
             return c("openings", "Evidence", 0.75, f"Device class: {dc}")
