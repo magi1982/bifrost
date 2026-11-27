@@ -71,6 +71,36 @@ In parallel the guard watches entries: an entry nothing explains becomes a hint 
 - Signal "house empty confirmed" and "suspicion" as entities ✅ (off by default); ⏳ wiring to the alarm system in Loxone. **Never disarm.**
 
 
+### Next version · Bluetooth check – which Bluetooth entities make sense (requested 27.11.)
+Goal: with Shelly proxies, Private BLE Device, Bermuda or iBeacon a house quickly gets dozens of Bluetooth entities (one distance and one signal strength per scanner and device, trackers for TVs, watches, neighbours' phones). Bifrost recognises by itself which of them help and suggests the rest to switch off.
+
+**Kinds Bifrost recognises (HA standards, integration as fallback)**
+- *Presence of a device*: `device_tracker` with `source_type: bluetooth_le` (Private BLE Device, iBeacon) → useful as a person source.
+- *Room of a device*: Bermuda "Area" sensor → useful as a room source (already used for avatars).
+- *Distance / signal strength per scanner*: Bermuda `distance_to_*`, `*_rssi`, Private BLE `*_signal_strength` / `*_estimated_distance` → raw values; noisy, Bifrost does not need them once a tracker or area exists → suggest switching off.
+- *Scanner itself*: Shelly / ESP Bluetooth proxy entities → not a signal of presence.
+
+**Checks per Bluetooth device (learned, no setting)**
+- *Moves with a person*: comes home / leaves within minutes of a phone or an access code that belongs to a person (co-occurrence ≥ 80 % over ≥ 5 arrivals) → suggest "belongs to <person>".
+- *Stationary*: practically always "home" for weeks, never away (TV, speaker, a fridge, the neighbour's device behind the wall) → "not a person – switch off?".
+- *Rarely seen / flapping*: appears briefly and disappears (passers-by, random addresses) → "brings nothing".
+- *Room reliability*: how often the area changes within a minute (ping-pong between two scanners) → if high, the room is shown only as "in the house" (already the avatar rule) and the source counts as weak.
+- *Coverage*: rooms that no scanner ever reports → hint "no Bluetooth scanner here".
+
+**UI**
+- Setup card "Bluetooth" (replaces the help card when Bluetooth entities exist): devices found, per device the verdict (person source / room source / stationary / rarely seen / raw value) and the suggested action; one-tap "belongs to" suggestion.
+- The existing filters "Brings nothing" / "Slow" also cover Bluetooth raw values.
+
+**Limits**
+- iPhones only appear with their IRK in Private BLE Device; without it they are random addresses and can only be "rarely seen".
+- Co-occurrence needs a few arrivals per person (about a week).
+
+**Open questions**
+1. Suggest switching off raw distance/RSSI entities in one go ("switch off all 24 raw values"), or one by one?
+2. Should a stationary device that is "home" exactly when somebody is home (e.g. a laptop) be offered as a weak person source?
+
+**Tests**: classification of Bermuda / Private BLE / iBeacon entity names and attributes, co-occurrence suggestion on the simulator, stationary and flapping devices, room ping-pong, GUI check.
+
 ### Done in 0.10.0 · Signal value – which sensors help, which are useless (requested 27.11.)
 Decisions: only suggest switching off; useless/slow signals disappear from the House tab, a separate button shows the archived ones.
 Goal: Bifrost reads every entity and learns by itself which signals help to tell "home" from "empty" – and which bring nothing (e.g. aggregated presence zones from another system that stay "on" for a long time, sensors that hardly change). Filterable in Setup.
