@@ -475,5 +475,7 @@ Needs ≥ 1 scanner per floor (better 2–3); the floor plan heights are not nee
 - Bluetooth also travels further through wooden walls: more neighbours and passers-by are heard, so the "outside" zone and the passer-by filter matter more.
 
 **Limits**: room-level accuracy; rotating phones are only placed while their address lasts (~15 min); everything stays local.
-**Open questions**: retention 14 days and Bluetooth off by default – ok? Push for named visitors? Anonymous phone count only displayed or as weak evidence? Design proposals for the map editor first (2–3 variants) or straight to building?
+**Decided (27.11.)**: build straight away (no design round), in stages 0.11a map → 0.11b Bluetooth and visitors → 0.11c everyday life. Push for **named** visitors, switchable per visitor. Phones: family phones shown **with the family member's name** (HA app / Private BLE Device), other phones only counted.
+**Still open**: Bluetooth recording off by default and 14 days retention (explained again to the maintainer).
+**Status**: 0.11a (house map 2.0, device placement) built in 0.11.0.
 **Tests**: episode cutting and merged automation steps; closed-pattern filter; scoring on a simulated month (morning chain, cleaner Tuesday, pool timer, broken habit); floor decision with hysteresis and stairs; fingerprint room match; editor: rectangles, stairs, device placement saved per floor; GUI check light/dark/390 px.
