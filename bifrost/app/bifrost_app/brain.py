@@ -382,15 +382,17 @@ class Brain:
             ein = [{"t": "opt", "label": nm(en["outside"]), "entity": en["outside"]}] if en.get("outside") else []
             items["in_" + en["door"]] = {
                 "id": "in_" + en["door"], "type": "block", "goal": "arriving", "title": f"Entry via {nm(en['door'])}", "who": "house",
+                "tkey": "rt_entry", "targs": {"door": nm(en["door"])},
                 "seen": role.get("entry", 0), "status": "active",
                 "steps": ein + [{"t": "step", "label": nm(en["door"]), "entity": en["door"]}, {"t": "step", "label": nm(en["inside"]), "entity": en["inside"]}],
             }  # fmt: skip
             eout = [{"t": "opt", "label": nm(en["outside"]), "entity": en["outside"]}] if en.get("outside") else []
             items["out_" + en["door"]] = {
                 "id": "out_" + en["door"], "type": "block", "goal": "leaving", "title": f"Exit via {nm(en['door'])}", "who": "house",
+                "tkey": "rt_exit", "targs": {"door": nm(en["door"])},
                 "seen": role.get("exit", 0), "status": "active",
                 "steps": [{"t": "step", "label": nm(en["inside"]), "entity": en["inside"]}, {"t": "step", "label": nm(en["door"]), "entity": en["door"]}, *eout,
-                          {"t": "not", "label": "no motion inside", "minutes": blocks.EXIT_SILENCE // 60}],
+                          {"t": "not", "label": "no motion inside", "lkey": "l_no_motion_inside", "minutes": blocks.EXIT_SILENCE // 60}],
             }  # fmt: skip
         for door, role in m.get("roles", {}).items():
             if role.get("role") == "inside_only":
@@ -399,10 +401,16 @@ class Brain:
                     "type": "block",
                     "goal": "home",
                     "title": f"Opened from inside: {nm(door)}",
+                    "tkey": "rt_inside",
+                    "targs": {"door": nm(door)},
                     "who": "house",
                     "seen": role.get("inside_only", 0),
                     "status": "suggestion",
-                    "steps": [{"t": "step", "label": "motion inside"}, {"t": "step", "label": nm(door), "entity": door}, {"t": "step", "label": "motion inside"}],
+                    "steps": [
+                        {"t": "step", "label": "motion inside", "lkey": "l_motion_inside"},
+                        {"t": "step", "label": nm(door), "entity": door},
+                        {"t": "step", "label": "motion inside", "lkey": "l_motion_inside"},
+                    ],
                 }
         dist_counts = {d["sensor"]: d["count"] for d in m.get("disturbances", [])}
         for x in self.inbox.exceptions():
@@ -411,10 +419,15 @@ class Brain:
                 "type": "block",
                 "goal": "house",
                 "title": f"Disturbance: {x.get('label')} at {nm(x['sensor'])}",
+                "tkey": "rt_dist",
+                "targs": {"label": x.get("label") or "", "sensor": nm(x["sensor"])},
                 "who": "house",
                 "seen": dist_counts.get(x["sensor"], 0),
                 "status": "active",
-                "steps": [{"t": "step", "label": nm(x["sensor"]) + " alone", "entity": x["sensor"]}, {"t": "not", "label": "no door, no neighbour", "minutes": 2}],
+                "steps": [
+                    {"t": "step", "label": nm(x["sensor"]) + " alone", "lkey": "l_alone", "largs": {"x": nm(x["sensor"])}, "entity": x["sensor"]},
+                    {"t": "not", "label": "no door, no neighbour", "lkey": "l_no_door_neighbour", "minutes": 2},
+                ],
             }
         entries = [k for k in items if k.startswith("in_")]
         stats = self.store.get_obj("stats", "person_entries") or {}
@@ -423,6 +436,7 @@ class Brain:
                 continue
             items["p_" + p.id] = {
                 "id": "p_" + p.id, "type": "person", "goal": "arriving", "title": f"{p.name} comes home", "who": p.name, "seen": stats.get(p.id, 0), "status": "active",
+                "tkey": "rt_person", "targs": {"name": p.name},
                 "steps": [{"t": "or", "items": [{"ref": k} for k in entries]}] if entries else [],
                 "companions": [{"label": nm(t), "entity": t, "window": "−3…+2 min"} for t in p.sources],
             }  # fmt: skip
@@ -447,13 +461,17 @@ class Brain:
                         eid, k = tok.rsplit(":", 1)
                         its.append({"label": nm(eid) + ("" if k == "on" else f" → {k}"), "entity": eid})
                 kind = {"step": "step", "optional": "opt", "and": "and", "or": "or"}[s["kind"]]
+                share = round(s.get("share", 0), 2) if s.get("share") is not None else None
                 if kind in ("step", "opt") and len(its) == 1:
-                    steps.append({"t": kind, **its[0], "span": s.get("span")})
+                    steps.append({"t": kind, **its[0], "span": s.get("span"), "share": share})
                 else:
-                    steps.append({"t": kind, "items": its, "span": s.get("span")})
+                    steps.append({"t": kind, "items": its, "span": s.get("span"), "share": share})
             if r.get("not"):
-                steps.append({"t": "not", "label": "no motion", "minutes": r["not"]["minutes"]})
-            comps = [{"label": nm(c["token"].rsplit(":", 1)[0]), "entity": c["token"].rsplit(":", 1)[0], "window": f"{c['window']['from']}…{c['window']['to']} min"} for c in r.get("companions", [])]
+                steps.append({"t": "not", "label": "no motion", "lkey": "l_no_motion", "minutes": r["not"]["minutes"], "share": r["not"].get("share")})
+            comps = [
+                {"label": nm(c["token"].rsplit(":", 1)[0]), "entity": c["token"].rsplit(":", 1)[0], "window": f"{c['window']['from']}…{c['window']['to']} min", "share": c.get("share")}
+                for c in r.get("companions", [])
+            ]
             items[r["id"]] = {
                 "id": r["id"], "type": "routine", "goal": GOAL_OF.get(r["goal"], r["goal"]), "title": r["goal"], "who": ", ".join(r.get("who") or ["family"]),
                 "seen": r["seen"], "precision": r["precision"], "status": "active", "conditions": r.get("conditions"), "steps": steps, "companions": comps,
