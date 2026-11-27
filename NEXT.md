@@ -376,5 +376,9 @@ Proposal: a **value per purpose**, learned for every signal, no setting needed.
 - Gaps become questions/tips: "Your terrace door has a contact but no motion sensor behind it – an intruder through the terrace would only be seen as 'door opened'."
 
 Limits: security value is a judgement of **coverage**, not a learned intrusion detector – Bifrost never claims to replace the alarm system. Learning needs ≥ 7 days and some hindsight "certainly empty" hours; before that the verdict is "learning".
-Open questions: show the security coverage as its own card (house outline with guarded and unguarded entrances) or only as a list? Should purposes also weigh the evidence scale (e.g. ignore windows for presence completely)?
+**Decided (27.11.):**
+- Windows are **ignored for presence** (no evidence weight, never "activity right now").
+- **Window alarm:** a window on the ground floor or basement (floor level ≤ 0 from the HA floor registry, or set in the House tab) that opens while the house is *empty* or everybody is *asleep* is a **high-severity incident** at once (no waiting, no pattern needed): incident chain "access → window", push message via the notify service, `binary_sensor.bifrost_window_alarm` on. Bifrost only reports – it never arms, disarms or triggers the siren itself; the owner can use the entity in an automation.
+- Upper floors: reported as a normal incident, not as an alarm.
+Open questions: security coverage as its own card (house outline) or a list? Window alarm also while *leaving* (last person just went out)? Ignore a window that was opened from inside shortly before everybody fell asleep (tilted for the night)?
 Tests: window contact = presence little / security valuable; outdoor motion = security valuable; summary zone = presence slow; "off" suggestion only if weak everywhere; GUI check light/dark/390 px.
