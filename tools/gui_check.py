@@ -78,9 +78,9 @@ def run() -> int:
             for tab in ("recog", "people", "dev", "status", "house"):
                 pg.click(f'#tabs button[data-v="{tab}"]')
                 pg.wait_for_timeout(400)
-                n = pg.evaluate("() => document.querySelectorAll('main button:not([data-pdel]):not([data-exdel]):not([data-ans]):not([data-wrong])').length")
+                n = pg.evaluate("() => document.querySelectorAll('main button:not([disabled]):not([data-pdel]):not([data-exdel]):not([data-ans]):not([data-wrong])').length")
                 for i in range(min(n, 25)):
-                    btns = pg.query_selector_all("main button:not([data-pdel]):not([data-exdel]):not([data-ans]):not([data-wrong])")
+                    btns = pg.query_selector_all("main button:not([disabled]):not([data-pdel]):not([data-exdel]):not([data-ans]):not([data-wrong])")
                     if i >= len(btns) or not btns[i].is_visible():
                         continue
                     try:
@@ -92,7 +92,7 @@ def run() -> int:
                             continue
                         # the page re-rendered after an async action (e.g. "Learn now") – try the fresh button once
                         pg.wait_for_timeout(1200)
-                        fresh = pg.query_selector_all("main button:not([data-pdel]):not([data-exdel]):not([data-ans]):not([data-wrong])")
+                        fresh = pg.query_selector_all("main button:not([disabled]):not([data-pdel]):not([data-exdel]):not([data-ans]):not([data-wrong])")
                         try:
                             if i < len(fresh) and fresh[i].is_visible():
                                 fresh[i].click(timeout=1500)

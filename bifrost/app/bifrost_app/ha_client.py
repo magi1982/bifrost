@@ -83,6 +83,12 @@ class HAClient:
         res = self._request("GET", f"calendars/{urllib.parse.quote(entity_id)}?{q}")
         return res if isinstance(res, list) else []
 
+    def get_history(self, entity_id: str, start: str, end: str) -> list[dict]:
+        """State history of one entity between start and end (ISO), minimal – for the entity detail in Setup."""
+        q = urllib.parse.urlencode({"filter_entity_id": entity_id, "end_time": end, "minimal_response": "", "no_attributes": ""})
+        res = self._request("GET", f"history/period/{urllib.parse.quote(start)}?{q}")
+        return res[0] if isinstance(res, list) and res and isinstance(res[0], list) else []
+
     # --- WebSocket (registries) ------------------------------------------------
     def registries(self) -> dict[str, list[dict]]:
         """Read entity, device and area registries via the WebSocket API."""
