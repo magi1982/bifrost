@@ -2,6 +2,17 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.12.0] – 2026-11-27
+
+### Added
+- **MQTT Discovery.** With the Mosquitto broker installed, Bifrost publishes all its entities via MQTT under one device **Bifrost** – each with a `unique_id` (renamable, assignable to an area), the right class and unit, retained values (there right after an HA restart) and an availability topic. Credentials come from the Supervisor (`services: mqtt:want`); without a broker Bifrost keeps writing via `/api/states`. MQTT client written with the standard library only.
+- **Setup card "Bifrost entities"** – every entity with value, last update and the MQTT status; switch each one **on/off** (off = removed cleanly from HA, Bifrost keeps computing it internally); filters all / on / off / by kind. Replaces the entity list in the ⓘ info window.
+- **Clean-up**: once MQTT works, Bifrost removes its old `/api/states` entities itself; leftovers are listed in the card with a remove button.
+
+### Security
+- **No stale "house empty confirmed".** On start, on stop, after an error in the evaluation, when Home Assistant is unreachable and when the loop hangs (watchdog), `empty_confirmed` and `house_empty` are written **off** first. With MQTT: a Last Will makes every entity *unavailable* on a crash, a clean stop sends *offline*, and `expire_after` catches a hung Bifrost. Every entity carries `updated_at` and `valid_until`.
+- Switching off a safety entity needs a confirmation and writes "not empty" first.
+
 ## [0.11.0] – 2026-11-27
 
 ### Added

@@ -22,7 +22,9 @@ from .engine import ARRIVING, AWAY, HOME, Decision, Settings, Signal, decide, pa
 from .ha_client import HAClient, HAError
 from .housemap import clean as _clean_map
 from .live import AUTOMATION, SCHEDULED, LiveBoard, NumericEvents, OriginLearner, classify_origin
+from .mqtt import MQTTClient
 from .optimize import suggestions as opt_suggestions
+from .outlet import AVAIL, Outlet
 from .people import is_room_source
 from .people import public as person_public
 from .preprocess import DuplicateDetector, Edge, EdgeFilter
@@ -152,6 +154,8 @@ class BifrostService:
             LOG.warning("Stored origin data unreadable – starting fresh")
         self.floors: dict[str, dict] = {}
         self.scanners: list[dict] = []
+        self.out = Outlet(client, store, int(options.get("update_interval", 30)), __version__)
+        self._last_ok: datetime | None = None
         self.source_types: dict[str, str | None] = {}
         self._states: dict[str, dict] = {}
         self.snap = Snapshot()
@@ -407,6 +411,8 @@ class BifrostService:
             self.publish(d)
             self.publish_extra(d, signals, now)
             self.publish_pattern_entities(now)
+        self.out.ok()
+        self._last_ok = datetime.now(UTC)
         return d
 
     def _record_polled(self, signals: list[Signal], now: datetime) -> None:
@@ -424,7 +430,7 @@ class BifrostService:
         """Expose Bifrost's result as Home Assistant entities."""
         common = {"attribution": "Bifrost (shadow mode)" if self.options.get("shadow_mode", True) else "Bifrost"}
         try:
-            self.client.set_state(
+            self.out.set_state(
                 "sensor.bifrost_home_status",
                 d.state,
                 {
@@ -438,7 +444,7 @@ class BifrostService:
                     "data_health": d.data_health,
                 },
             )
-            self.client.set_state(
+            self.out.set_state(
                 "binary_sensor.bifrost_house_empty",
                 "on" if d.house_empty else "off",
                 {
@@ -448,7 +454,7 @@ class BifrostService:
                     "icon": "mdi:home-export-outline",
                 },
             )
-            self.client.set_state(
+            self.out.set_state(
                 "sensor.bifrost_confidence",
                 str(d.confidence),
                 {
@@ -459,7 +465,7 @@ class BifrostService:
                     "icon": "mdi:gauge",
                 },
             )
-            self.client.set_state(
+            self.out.set_state(
                 "sensor.bifrost_reason",
                 self.tr(d.reasons[0] if d.reasons else "")[:250],
                 {
@@ -469,7 +475,7 @@ class BifrostService:
                     "icon": "mdi:comment-text-outline",
                 },
             )
-            self.client.set_state(
+            self.out.set_state(
                 "sensor.bifrost_data_health",
                 str(d.data_health),
                 {
@@ -505,7 +511,7 @@ class BifrostService:
         common = {"attribution": "Bifrost"}
         try:
             ret = self.expected_return(now) if d.state == AWAY else None
-            self.client.set_state(
+            self.out.set_state(
                 "sensor.bifrost_expected_return",
                 ret.isoformat() if ret else "unknown",
                 {
@@ -515,7 +521,7 @@ class BifrostService:
                     "icon": "mdi:home-clock",
                 },
             )
-            self.client.set_state(
+            self.out.set_state(
                 "binary_sensor.bifrost_anomaly",
                 "on" if d.anomaly else "off",
                 {
@@ -525,7 +531,7 @@ class BifrostService:
                     "description": "Activity while every tracked phone is away – a guest, a person without phone, or something unusual",
                 },
             )
-            self.client.set_state(
+            self.out.set_state(
                 "binary_sensor.bifrost_guest_mode",
                 "on" if self.settings.guest_mode else "off",
                 {
@@ -536,25 +542,25 @@ class BifrostService:
             )
             ex = self.extra or {}
             sus = ex.get("suspicion")
-            self.client.set_state(
+            self.out.set_state(
                 "binary_sensor.bifrost_suspicious_entry",
                 "on" if sus and int(self.options.get("suspicious_entry_level", 2)) >= 2 else "off",
                 {**common, "friendly_name": "Bifrost suspicious entry", "device_class": "safety", "icon": "mdi:shield-alert", "door": (sus or {}).get("door")},
             )
             q = ex.get("questions") or {}
-            self.client.set_state(
+            self.out.set_state(
                 "sensor.bifrost_open_questions",
                 str(q.get("question", 0) + q.get("suggestion", 0)),
                 {**common, "friendly_name": "Bifrost open questions", "icon": "mdi:help-circle-outline", "questions": q.get("question", 0), "suggestions": q.get("suggestion", 0)},
             )
-            self.client.set_state(
+            self.out.set_state(
                 "sensor.bifrost_unknown_people",
                 str(ex.get("unknown_min", 0)),
                 {**common, "friendly_name": "Bifrost unknown people (at least)", "icon": "mdi:account-question"},
             )
             for row in (ex.get("ledger") or {}).get("people", []):
                 if self.options.get("person_entities", True):
-                    self.client.set_state(
+                    self.out.set_state(
                         f"sensor.bifrost_person_{row['id']}",
                         row["state"],
                         {**common, "friendly_name": f"Bifrost {row['name']}", "icon": "mdi:account", "reason": row["reason"], "strength": row.get("strength")},
@@ -563,14 +569,14 @@ class BifrostService:
             pr = ex.get("probabilities") or {}
             for k in ("home", "asleep", "away"):
                 if k in pr:
-                    self.client.set_state(
+                    self.out.set_state(
                         f"sensor.bifrost_p_{k}",
                         str(pr[k]),
                         {**common, "friendly_name": f"Bifrost probability {k}", "unit_of_measurement": "%", "state_class": "measurement", "icon": "mdi:percent", "source": pr.get("source")},
                     )
             checks = ex.get("checks") or []
             guard_ok = bool(checks) and all(c["ok"] for c in checks)  # no checks = the guard did not run = not ok
-            self.client.set_state(
+            self.out.set_state(
                 "binary_sensor.bifrost_empty_confirmed",
                 "on" if _signal(bal["signal_option"], bal["gate"]["passed"], d.state, d.confidence, guard_ok) else "off",
                 {**common, "friendly_name": "Bifrost house empty confirmed", "icon": "mdi:shield-home", "gate_passed": bal["gate"]["passed"], "option": bal["signal_option"]},
@@ -578,7 +584,7 @@ class BifrostService:
             for s in signals:
                 if s.entity_id.startswith("person.") and s.available:
                     obj = re.sub(r"[^a-z0-9_]", "_", s.entity_id.split(".", 1)[1])[:60]
-                    self.client.set_state(
+                    self.out.set_state(
                         f"sensor.bifrost_person_{obj}",
                         "home" if s.active else "away",
                         {
@@ -1168,7 +1174,7 @@ class BifrostService:
                 state = "on" if last.get("result") == want and now - last.get("at", now - _house.PULSE * 2) <= _house.PULSE else "off"
                 attrs.update(goal=it.get("goal"), door=door)
             try:
-                self.client.set_state(f"binary_sensor.bifrost_{slug}", state, attrs)
+                self.out.set_state(f"binary_sensor.bifrost_{slug}", state, attrs)
             except HAError as err:
                 LOG.warning("Publishing pattern entity failed: %s", err)
 
@@ -1335,10 +1341,41 @@ class BifrostService:
             return {**self.stream, "flicker_ignored": self.edges.flicker_count(), "duplicates": self.duplicates.candidates()}
 
     # --- loop --------------------------------------------------------------------
+    def start_outlet(self) -> None:
+        """MQTT when a broker is available, safety entities off until the first good evaluation."""
+        try:
+            svc = self.client.mqtt_service() if hasattr(self.client, "mqtt_service") else None
+        except Exception:  # noqa: BLE001
+            svc = None
+        if svc:
+            m = MQTTClient(svc["host"], int(svc.get("port") or 1883), svc.get("username"), svc.get("password"), client_id="bifrost-app", will=(AVAIL, b"offline", True))
+            self.out.attach_mqtt(m, f"{svc['host']}:{svc.get('port') or 1883}")
+            m.start()
+            for _ in range(50):  # give the broker a moment, so the first writes already go via MQTT
+                if m.connected:
+                    break
+                self._stop.wait(0.1)
+            LOG.info("MQTT broker found at %s – entities via MQTT Discovery", self.out.broker)
+        else:
+            LOG.info("No MQTT broker – entities via /api/states")
+        if self.options.get("publish_entities", True):
+            self.out.fail_safe("Bifrost started")
+
+    def _watchdog(self, interval: int) -> None:
+        """A hung loop must not leave "house empty confirmed" on."""
+        limit = timedelta(seconds=3 * max(5, interval))
+        started = datetime.now(UTC)
+        while not self._stop.wait(10):
+            last = self._last_ok or started
+            if datetime.now(UTC) - last > limit and not self.out.failed_safe:
+                self.out.fail_safe("no evaluation for too long")
+
     def run_forever(self) -> None:
         interval = int(self.options.get("update_interval", 30))
         last_scan_day = None
         stream_started = False
+        self.start_outlet()
+        threading.Thread(target=self._watchdog, args=(interval,), name="bifrost-watchdog", daemon=True).start()
         while not self._stop.is_set():
             try:
                 today = datetime.now(UTC).date()
@@ -1358,10 +1395,31 @@ class BifrostService:
                 LOG.error("Home Assistant not reachable: %s", err)
                 with self._lock:
                     self.snap.error = str(err)
+                self.out.fail_safe("Home Assistant not reachable")
             except Exception:  # noqa: BLE001 – keep the loop alive, log the details
                 LOG.exception("Unexpected error in main loop")
+                self.out.fail_safe("error in the evaluation")
             self._scan_requested.wait(timeout=interval)
 
     def stop(self) -> None:
         self._stop.set()
         self._scan_requested.set()
+        try:
+            self.out.stop()
+        except Exception:  # noqa: BLE001 – stopping must always finish
+            LOG.exception("Could not stop the outlet cleanly")
+
+    # --- own entities (Setup card) ----------------------------------------------------
+    def own_entities_view(self) -> dict:
+        return {**self.out.view(), "leftovers": self.out.leftovers() if self.out.mode == "mqtt" else []}
+
+    def set_own_entity(self, body: object) -> dict:
+        if not isinstance(body, dict) or not isinstance(body.get("on"), bool):
+            raise ValueError("expected {entity_id, on}")
+        return self.out.set_enabled(str(body.get("entity_id") or ""), body["on"], bool(body.get("confirm")))
+
+    def remove_leftover(self, body: object) -> dict:
+        eid = body.get("entity_id") if isinstance(body, dict) else None
+        if eid is not None and not isinstance(eid, str):
+            raise ValueError("invalid entity id")
+        return {"removed": self.out.remove_leftovers(eid)}

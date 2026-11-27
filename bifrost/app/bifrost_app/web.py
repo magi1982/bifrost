@@ -91,6 +91,7 @@ VIEWS = {
     "/api/balance": "balance_view",
     "/api/catalog": "catalog_view",
     "/api/notify": "notify_view",
+    "/api/own_entities": "own_entities_view",
     "/api/incidents": "incidents_view",
 }
 
@@ -114,6 +115,8 @@ ACTIONS = {
     "/api/layout": lambda svc, b: svc.set_layout(b),
     "/api/layout/reset": lambda svc, b: svc.reset_layout(b.get("floor")),
     "/api/map": lambda svc, b: svc.set_map(b),
+    "/api/own_entities": lambda svc, b: svc.set_own_entity(b),
+    "/api/own_entities/remove": lambda svc, b: svc.remove_leftover(b),
     "/api/map/reset": lambda svc, b: svc.reset_map(b.get("floor")),
     "/api/pattern_entity": lambda svc, b: svc.set_pattern_entity(b),
     "/api/entities/seen": lambda svc, b: svc.mark_seen(b.get("entity_id")),

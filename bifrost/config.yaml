@@ -1,5 +1,5 @@
 name: Bifrost
-version: "0.11.0"
+version: "0.12.0"
 slug: bifrost
 description: Local, learning presence detection – knows when your home is empty.
 url: https://github.com/magi1982/bifrost
@@ -11,6 +11,8 @@ ingress: true
 panel_icon: mdi:bridge
 panel_title: Bifrost
 homeassistant_api: true
+services:
+  - mqtt:want
 stage: experimental
 options:
   update_interval: 30
