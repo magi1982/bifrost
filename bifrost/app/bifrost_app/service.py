@@ -660,7 +660,11 @@ class BifrostService:
         return {"items": self.brain.inbox.deviations(), "names": self._names()}
 
     def questions_view(self) -> dict:
-        return {"items": [q for q in self.brain.inbox.all() if q["status"] in ("open", "waiting")][:60], "done": [q for q in self.brain.inbox.all() if q["status"] == "answered"][:30], "names": self._names()}
+        return {
+            "items": [q for q in self.brain.inbox.all() if q["status"] in ("open", "waiting")][:60],
+            "done": [q for q in self.brain.inbox.all() if q["status"] == "answered"][:30],
+            "names": self._names(),
+        }
 
     def answer(self, qid: str, answer: str, label: str | None) -> dict:
         return self.brain.answer(qid, answer, label, datetime.now(UTC), self.store.set_override)

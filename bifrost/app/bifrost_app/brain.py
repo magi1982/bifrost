@@ -326,9 +326,27 @@ class Brain:
             }  # fmt: skip
         for door, role in m.get("roles", {}).items():
             if role.get("role") == "inside_only":
-                items["io_" + door] = {"id": "io_" + door, "type": "block", "goal": "home", "title": f"Opened from inside: {nm(door)}", "who": "house", "seen": role.get("inside_only", 0), "status": "suggestion", "steps": [{"t": "step", "label": "motion inside"}, {"t": "step", "label": nm(door), "entity": door}, {"t": "step", "label": "motion inside"}]}
+                items["io_" + door] = {
+                    "id": "io_" + door,
+                    "type": "block",
+                    "goal": "home",
+                    "title": f"Opened from inside: {nm(door)}",
+                    "who": "house",
+                    "seen": role.get("inside_only", 0),
+                    "status": "suggestion",
+                    "steps": [{"t": "step", "label": "motion inside"}, {"t": "step", "label": nm(door), "entity": door}, {"t": "step", "label": "motion inside"}],
+                }
         for x in self.inbox.exceptions():
-            items["dist_" + x["sensor"]] = {"id": "dist_" + x["sensor"], "type": "block", "goal": "house", "title": f"Disturbance: {x.get('label')} at {nm(x['sensor'])}", "who": "house", "seen": 0, "status": "active", "steps": [{"t": "step", "label": nm(x["sensor"]) + " alone", "entity": x["sensor"]}, {"t": "not", "label": "no door, no neighbour", "minutes": 2}]}
+            items["dist_" + x["sensor"]] = {
+                "id": "dist_" + x["sensor"],
+                "type": "block",
+                "goal": "house",
+                "title": f"Disturbance: {x.get('label')} at {nm(x['sensor'])}",
+                "who": "house",
+                "seen": 0,
+                "status": "active",
+                "steps": [{"t": "step", "label": nm(x["sensor"]) + " alone", "entity": x["sensor"]}, {"t": "not", "label": "no door, no neighbour", "minutes": 2}],
+            }
         entries = [k for k in items if k.startswith("in_")]
         stats = self.store.get_obj("stats", "person_entries") or {}
         for p in self.people.all():
@@ -384,4 +402,3 @@ class Brain:
     def floorplan_bytes(self) -> tuple[bytes, str] | None:
         v, t = self.store.get_value("floorplan"), self.store.get_value("floorplan_type")
         return (base64.b64decode(v), t) if v and t else None
-
