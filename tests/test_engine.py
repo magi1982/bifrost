@@ -120,3 +120,21 @@ def test_energy_and_air_values_are_never_activity():
     ]
     d = decide(sigs, Settings(10, 15), now)
     assert d.state == "away" and not any("Server power" in r for r in d.reasons)
+
+
+def test_open_blind_or_light_left_on_is_not_activity_right_now():
+    """A blind opened in the morning or a light left on must not keep the house "home" all day."""
+    sigs = [
+        sig("person.a", "devices", "Evidence", "not_home", 120),
+        sig("binary_sensor.hall", "motion", "Evidence", "off", 120),
+        sig("cover.living", "manual", "Evidence", "open", 240),
+        sig("light.kitchen", "manual", "Evidence", "on", 180),
+    ]
+    d = decide(sigs, S, NOW)
+    assert d.state != HOME and not any("Activity right now" in r for r in d.reasons)
+
+
+def test_fresh_manual_change_is_activity_right_now():
+    sigs = [sig("person.a", "devices", "Evidence", "not_home", 120), sig("light.kitchen", "manual", "Evidence", "on", 1)]
+    d = decide(sigs, S, NOW)
+    assert d.state == HOME and any("Activity right now" in r for r in d.reasons)

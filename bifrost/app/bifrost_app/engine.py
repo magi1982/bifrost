@@ -74,6 +74,9 @@ class Decision:
         return self.state == AWAY
 
 
+MANUAL_FRESH_MINUTES = 5  # how long a manual change (light, blind, thermostat) counts as "activity right now"
+
+
 def _minutes(now: datetime, then: datetime) -> float:
     return max(0.0, (now - then).total_seconds() / 60)
 
@@ -133,7 +136,9 @@ def decide(signals: list[Signal], settings: Settings, now: datetime, unreliable:
         activity = [s for s in activity if s.entity_id not in automated]
     # Every state change of an activity signal counts – a motion sensor that just switched off saw someone a moment ago
     last_act = max((s.last_changed for s in activity), default=None)
-    active_now = [s for s in activity if s.active and s.category in ("motion", "manual", "media")]
+    # Motion and media say "somebody is here" while they are on. A light that is on or a blind that is open says
+    # nothing by itself – it may have been left like that hours ago. Manual use only counts right after the change.
+    active_now = [s for s in activity if s.active and (s.category in ("motion", "media") or (s.category == "manual" and _minutes(now, s.last_changed) < MANUAL_FRESH_MINUTES))]
     if active_now:
         names = ", ".join(s.name for s in active_now[:2])
         reason = [f"Activity right now: {names}"]
