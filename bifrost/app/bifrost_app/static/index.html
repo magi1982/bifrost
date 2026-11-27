@@ -354,7 +354,7 @@ function bindSetup(){
     var inc=row.querySelector(".inc").checked,cat=row.querySelector(".cat").value||null;
     var status=ev.target.classList.contains("inc")?(inc?"included":"ignored"):(inc?"included":"suggested");
     if(status==="included"&&!cat&&!S.ents.entities.filter(function(x){return x.entity_id===id;}).map(function(x){return x.category;})[0]){ev.target.checked=false;toast(trText("Pick a category first – Bifrost does not know what this signal means."),true);return;}
-    api("api/entity",{entity_id:id,status:status,category:cat}).then(function(u){toast(u.status==="included"?"Used by Bifrost":u.status==="ignored"?"Ignored":"Saved");S.ents.entities.forEach(function(e,i){if(e.entity_id===id)S.ents.entities[i]=u;});el.innerHTML=entityRows();}).catch(function(e){toast("Could not save ("+e.message+")",true);});};
+    api("api/entity",{entity_id:id,status:status,category:cat}).then(function(u){S.keep=S.keep||{};S.keep[id]=1;/* a row you just switched stays visible, whatever the filter */toast(u.status==="included"?"Used by Bifrost":u.status==="ignored"?"Ignored":"Saved");S.ents.entities.forEach(function(e,i){if(e.entity_id===id)S.ents.entities[i]=u;});el.innerHTML=entityRows();}).catch(function(e){toast("Could not save ("+e.message+")",true);});};
 }
 function toast(msg,err){var t=document.getElementById("toast");t.textContent=msg;t.style.background=err?"var(--err)":"var(--ok)";t.style.display="block";clearTimeout(t._h);t._h=setTimeout(function(){t.style.display="none";},3500);}
 function render(){
@@ -1057,7 +1057,7 @@ function eNoOwner(e){var d=V4.src;if(!d||e.status!=="included")return false;var 
 function eOpt(e){return !!(V4.opt&&V4.opt.items.some(function(o){return o.entity_id===e.entity_id;}));}
 function filterEnts(skip){var E=S.ents,q=(S.q||"").toLowerCase();
   return E.entities.filter(function(e){
-    if(skip!=="status"){var f=S.filter||"all";if(f==="problem"){if(!eProblem(e))return false;}else if(f!=="all"&&e.status!==f)return false;if(f==="all"&&e.status==="ignored"&&!q&&!S.special.length)return false;}
+    if(skip!=="status"&&!(S.keep&&S.keep[e.entity_id])){var f=S.filter||"all";if(f==="problem"){if(!eProblem(e))return false;}else if(f!=="all"&&e.status!==f)return false;if(f==="all"&&e.status==="ignored"&&!q&&!S.special.length)return false;}
     if(skip!=="cat"&&S.cats.length&&S.cats.indexOf(e.category||"none")<0)return false;
     if(S.floor&&(e.floor||"–")!==S.floor)return false;
     if(S.area&&e.area!==S.area)return false;if(S.integ&&e.integration!==S.integ)return false;if(S.dom&&e.domain!==S.dom)return false;

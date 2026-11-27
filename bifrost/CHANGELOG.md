@@ -6,6 +6,7 @@ All notable changes to Bifrost are documented here. The format follows [Keep a C
 
 ### Fixed
 - Setup: an entity that is disabled in Home Assistant but still used by Bifrost (e.g. a phone tracker that UniFi disabled) could not be switched off. Switching off now always works; only switching on stays blocked while the entity is disabled in Home Assistant.
+- Setup: switching an entity off made it vanish at once from the list (the filter “All” hides ignored entities), so the switch seemed to do nothing. A row you just switched now stays visible with its new state.
 - Tapping a locked switch (entity disabled in Home Assistant, e.g. camera motion that Reolink or UniFi Protect disable by default) now explains why and where to enable it, instead of doing nothing.
 
 ## [0.10.1] – 2026-11-27
