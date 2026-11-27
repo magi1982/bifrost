@@ -36,8 +36,9 @@ EXTRA = [
     ("light.garden", "Garden light", "off", {}),
     ("sensor.bath_humidity", "Bathroom humidity", "55", {"device_class": "humidity", "unit_of_measurement": "%"}),
     ("vacuum.robot", "Robot vacuum", "docked", {}),
+    ("sensor.front_door_last_user", "Front door last user", "", {}),
 ]
-EXTRA_AREA = {"light.kitchen": "Kitchen", "light.garden": "Driveway", "sensor.bath_humidity": "Bathroom", "vacuum.robot": "Living"}
+EXTRA_AREA = {"sensor.front_door_last_user": "Entrance", "light.kitchen": "Kitchen", "light.garden": "Driveway", "sensor.bath_humidity": "Bathroom", "vacuum.robot": "Living"}
 
 
 class DemoClient:
@@ -137,6 +138,9 @@ def build(path: str) -> BifrostService:
         ("light.kitchen", "on", 14, "device"),
         ("binary_sensor.motion_hallway", "on", 9, "device"),
     ]
+    svc.set_access_entities(["sensor.front_door_last_user"])
+    live += [("sensor.front_door_last_user", "Person B", 3000, "device"), ("sensor.front_door_last_user", "", 2990, "device"), ("sensor.front_door_last_user", "Family code", 1500, "device")]
+    live.sort(key=lambda x: -x[2])
     for eid, st, ago, origin in live:
         svc.on_state_changed(eid, st, now - timedelta(seconds=ago), origin=origin)
     return svc

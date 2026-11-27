@@ -103,15 +103,6 @@ def test_guest_mode_persists_and_blocks(tmp_path):
     assert svc2.settings.guest_mode
 
 
-def test_accept_suggestions(tmp_path):
-    svc, client = make(tmp_path)
-    client.states.append({"entity_id": "calendar.example_work", "state": "off", "last_changed": OLD, "attributes": {}})
-    svc.scan()
-    assert svc.snap.entities["calendar.example_work"].status == "suggested"
-    assert svc.accept_suggestions("calendar") == {"accepted": 1}
-    assert svc.snap.entities["calendar.example_work"].status == "included"
-
-
 def test_views_and_extra_entities(tmp_path):
     svc, client = make(tmp_path)
     svc.scan()

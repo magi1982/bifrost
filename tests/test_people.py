@@ -78,3 +78,26 @@ def test_ledger_unknown_people_block_empty_and_strength_is_reported():
 
 def test_ledger_without_people_returns_none():
     assert ledger([], {})["all_away"] is None
+
+
+def test_access_users_unique_and_shared_codes(tmp_path):
+    ps = PeopleStore(Store(str(tmp_path / "a.db")))
+    ps.save({"name": "Alex", "nfc_user": "Alex"})
+    with pytest.raises(ValueError):
+        ps.save({"name": "Sam", "nfc_user": "alex"})
+    assert ps.set_shared_access(["Family code"]) == ["Family code"]
+    with pytest.raises(ValueError):
+        ps.save({"name": "Mia", "nfc_user": "Family code"})
+    with pytest.raises(ValueError):
+        ps.set_shared_access(["Alex"])
+    with pytest.raises(ValueError):
+        ps.set_access_entities(["switch.x"])
+    assert ps.set_access_entities(["sensor.door_user"]) == ["sensor.door_user"]
+
+
+def test_access_match_whole_words_only():
+    from bifrost_app.people import access_match
+
+    assert access_match("Ben", "Unlocked by Ben")
+    assert not access_match("Ben", "Benjamin")
+    assert not access_match("", "Ben")

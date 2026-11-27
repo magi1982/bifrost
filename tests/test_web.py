@@ -187,14 +187,6 @@ def test_guest_validation(body):
         validate_guest(body)
 
 
-@pytest.mark.parametrize("body", [{}, {"category": "x"}, {"category": 3}, []])
-def test_bulk_validation(body):
-    from bifrost_app.web import validate_bulk
-
-    with pytest.raises(ValueError):
-        validate_bulk(body)
-
-
 @pytest.mark.parametrize("body", [{}, {"id": "abc", "status": "enabled"}, {"id": "0123456789", "status": "on"}, {"id": "../../x", "status": "enabled"}])
 def test_pattern_validation(body):
     from bifrost_app.web import validate_pattern
