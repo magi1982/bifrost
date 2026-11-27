@@ -11,20 +11,20 @@ from collections import Counter
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 
-from . import __version__, i18n
-from . import calendars as cal
-from . import patterns as pat
+from . import __version__, calwords, guard, i18n
+from . import house as _house
 from .balance import signal as _signal
 from .brain import Brain
 from .categories import CATEGORIES, STATUS_IGNORED, STATUS_INCLUDED, derive_role
 from .classifier import Classification, EntityInfo, classify
 from .engine import ARRIVING, AWAY, HOME, Decision, Settings, Signal, decide, parse_time
 from .ha_client import HAClient, HAError
-from .learning import Learner, is_unreliable, trust_score
 from .live import AUTOMATION, SCHEDULED, LiveBoard, NumericEvents, OriginLearner, classify_origin
 from .optimize import suggestions as opt_suggestions
+from .people import is_room_source
 from .people import public as person_public
 from .preprocess import DuplicateDetector, Edge, EdgeFilter
+from .routines import outcomes_from_decisions
 from .store import Store
 
 LOG = logging.getLogger(__name__)
@@ -71,6 +71,54 @@ class Snapshot:
     error: str | None = None
 
 
+CATALOG_KINDS = ("motion", "openings", "access", "phones", "bluetooth", "light", "media", "air_water", "power", "calendars", "modes", "alarm", "cameras", "robots_cars")
+_CAR_WORDS = ("car", "auto", "tesla", "vehicle", "fahrzeug")
+
+
+def catalog_kind(info: EntityInfo, category: str | None, source_type: str | None = None) -> str | None:  # noqa: C901
+    """Map an entity to a catalogue kind by HA standards only."""
+    d, dc, eid = info.domain, (info.device_class or "").lower(), info.entity_id.lower()
+    text = eid + " " + (info.name or "").lower()
+    st = (source_type or "").lower()
+    if d == "alarm_control_panel":
+        return "alarm"
+    if d in ("vacuum", "lawn_mower") or (d == "device_tracker" and any(w in text for w in _CAR_WORDS)):
+        return "robots_cars"
+    if d == "device_tracker":
+        if st.startswith("bluetooth") or (info.integration or "") in ("private_ble_device", "ibeacon", "bluetooth_le_tracker"):
+            return "bluetooth"
+        return "phones"
+    if d == "person":
+        return "phones"
+    if (info.integration or "") == "bermuda":
+        return "bluetooth"
+    if (
+        "person" in eid
+        and (d == "sensor" and (info.unit in (None, "", "people", "persons")) or (d == "binary_sensor" and dc in ("occupancy", "motion", "")))
+        and any(w in (info.integration or "") for w in ("frigate", "unifiprotect", "reolink", "camera", "doods", "deepstack"))
+    ):
+        return "cameras"
+    if d == "binary_sensor" and dc in ("motion", "occupancy", "presence"):
+        return "motion"
+    if d == "binary_sensor" and dc in ("door", "window", "garage_door", "opening"):
+        return "openings"
+    if d == "lock" or category == "access":
+        return "access"
+    if d in ("light",) or (d in ("switch", "event", "button") and category == "manual"):
+        return "light"
+    if d == "media_player":
+        return "media"
+    if d == "sensor" and (dc in ("carbon_dioxide", "humidity", "water", "volume_flow_rate") or (info.unit or "") in ("ppm", "L/min", "m³/h")):
+        return "air_water"
+    if d == "sensor" and dc in ("power", "energy"):
+        return "power"
+    if d == "calendar":
+        return "calendars"
+    if category in ("mode_home", "mode_away"):
+        return "modes"
+    return None
+
+
 def _is_number(v: str | None) -> bool:
     try:
         float(v or "x")
@@ -88,7 +136,7 @@ class BifrostService:
             guest_mode=store.get_value("guest_mode") == "on",
             use_learning=bool(options.get("use_learning", True)),
         )
-        self.learner = Learner(store)
+        self._polled: dict[str, str] = {}  # last polled state per signal – events while the live stream is down
         self._last_learn: datetime | None = None
         self.language = self._initial_language()
         self.live = LiveBoard()
@@ -99,6 +147,7 @@ class BifrostService:
         except ValueError:
             LOG.warning("Stored origin data unreadable – starting fresh")
         self.floors: dict[str, dict] = {}
+        self.source_types: dict[str, str | None] = {}
         self._states: dict[str, dict] = {}
         self.snap = Snapshot()
         self._lock = threading.Lock()
@@ -176,9 +225,19 @@ class BifrostService:
             self.snap.entities = result
             self.snap.scanned_at = datetime.now(UTC)
             self.floors = area_floor
+            self.source_types = {k: (v.get("attributes") or {}).get("source_type") for k, v in states.items() if k.startswith("device_tracker.")}
         self.brain.set_meta(
             {
-                eid: {"name": e.info.name, "category": e.category, "device_class": e.info.device_class, "area": e.info.area, "integration": e.info.integration, "role": e.role}
+                eid: {
+                    "name": e.info.name,
+                    "category": e.category,
+                    "device_class": e.info.device_class,
+                    "area": e.info.area,
+                    "integration": e.info.integration,
+                    "role": e.role,
+                    "unit": e.info.unit,
+                    "source_type": (states.get(eid, {}).get("attributes") or {}).get("source_type"),
+                }  # fmt: skip
                 for eid, e in result.items()
                 if e.status == STATUS_INCLUDED
             }
@@ -229,8 +288,7 @@ class BifrostService:
                 signals.append(Signal(e.info.entity_id, e.info.name or e.info.entity_id, e.category, e.role, "unavailable", now))
                 continue
             signals.append(Signal(e.info.entity_id, e.info.name or e.info.entity_id, e.category, e.role, st["state"][:255], parse_time(st.get("last_changed"), now)))
-        trust = self.store.get_trust()
-        unreliable = {eid for eid, c in trust.items() if is_unreliable(c)}
+        unreliable = self.brain.unreliable() if self.settings.use_learning else set()
         automated = self.live.automated(timedelta(hours=24), now)
         d = decide(signals, self.settings, now, unreliable, automated)
         try:
@@ -239,15 +297,14 @@ class BifrostService:
             LOG.exception("Pattern/calendar context failed")
         try:
             d, self.extra = self.brain.tick(d, states, now, self.settings.guest_mode)
-        except Exception:  # noqa: BLE001 – fall back to the plain rule decision
+        except Exception:  # noqa: BLE001 – the guard failed: never fall back to an unchecked "empty"
             LOG.exception("Guard/recognition step failed")
-            self.extra = {}
+            d, checks = guard.failed(d)
+            self.extra = {"checks": checks}
         if not self.store.get_value("first_decision"):
             self.store.set_value("first_decision", now.isoformat())
-        try:
-            self.learner.observe(signals, d, now, record_events=not self.stream["connected"])
-        except Exception:  # noqa: BLE001 – learning must never stop detection
-            LOG.exception("Learning step failed")
+        if not self.stream["connected"]:
+            self._record_polled(signals, now)
         with self._lock:
             changed = not self.snap.decision or self.snap.decision.state != d.state
             self.snap.decision, self.snap.decided_at, self.snap.error = d, now, None
@@ -256,8 +313,19 @@ class BifrostService:
         if self.options.get("publish_entities", True):
             self.publish(d)
             self.publish_extra(d, signals, now)
-            self.publish_patterns()
+            self.publish_pattern_entities(now)
         return d
+
+    def _record_polled(self, signals: list[Signal], now: datetime) -> None:
+        """Without the live stream: record state changes seen by polling, so hindsight still has events."""
+        for s in signals:
+            prev = self._polled.get(s.entity_id)
+            if prev is not None and prev != s.state:
+                kind = "on" if s.active else "off"
+                if s.entity_id.startswith(("device_tracker.", "person.")):
+                    kind = "home" if s.active else "away"
+                self.store.add_event(now, s.entity_id, s.name, s.category, s.role, s.state, kind=kind)
+            self._polled[s.entity_id] = s.state
 
     def publish(self, d: Decision) -> None:
         """Expose Bifrost's result as Home Assistant entities."""
@@ -399,7 +467,16 @@ class BifrostService:
                         {**common, "friendly_name": f"Bifrost {row['name']}", "icon": "mdi:account", "reason": row["reason"], "strength": row.get("strength")},
                     )
             bal = self.brain.balance_view(now, d.data_health, self._departures(now))
-            guard_ok = all(c["ok"] for c in ex.get("checks", []))
+            pr = ex.get("probabilities") or {}
+            for k in ("home", "asleep", "away"):
+                if k in pr:
+                    self.client.set_state(
+                        f"sensor.bifrost_p_{k}",
+                        str(pr[k]),
+                        {**common, "friendly_name": f"Bifrost probability {k}", "unit_of_measurement": "%", "state_class": "measurement", "icon": "mdi:percent", "source": pr.get("source")},
+                    )
+            checks = ex.get("checks") or []
+            guard_ok = bool(checks) and all(c["ok"] for c in checks)  # no checks = the guard did not run = not ok
             self.client.set_state(
                 "binary_sensor.bifrost_empty_confirmed",
                 "on" if _signal(bal["signal_option"], bal["gate"]["passed"], d.state, d.confidence, guard_ok) else "off",
@@ -429,30 +506,10 @@ class BifrostService:
     def learn_job(self, now: datetime) -> None:
         """Mine patterns and learn calendars (every few hours). Never raises."""
         self._last_learn = now
-        try:
-            events = self.store.events_since(now - timedelta(days=56), limit=200000)
-            decisions = self.store.decisions_since(now - timedelta(days=56))
-            found = pat.mine(events, decisions, lambda v: parse_time(v, now), self._names())
-            known = self.store.get_patterns()
-            seen_ids = set()
-            for p in found:
-                seen_ids.add(p.id)
-                old = known.get(p.id)
-                status = old["status"] if old else "suggested"
-                baseline = old["baseline"] if old else None
-                if status == "enabled" and baseline is not None and p.precision < baseline - 0.10:
-                    status = "changed"  # drift: the pattern no longer holds as well as when it was switched on
-                self.store.upsert_pattern(p.id, p.to_dict(), status, baseline, now.isoformat())
-            for pid, old in known.items():
-                if pid not in seen_ids and old["status"] == "enabled":
-                    self.store.upsert_pattern(pid, old["data"], "changed", old["baseline"], old["seen"])
-            LOG.info("Pattern mining: %d patterns", len(found))
-        except Exception:  # noqa: BLE001
-            LOG.exception("Pattern mining failed")
         cal_entries: dict[str, list[dict]] = {}
         if self.options.get("learn_calendars", True):
             try:
-                start, end = cal.window(now, days=56)
+                start, end = calwords.window(now, days=56)
                 with self._lock:
                     cids = [e.info.entity_id for e in self.snap.entities.values() if e.info.domain == "calendar" and e.status == STATUS_INCLUDED]
                 for cid in cids:
@@ -468,83 +525,25 @@ class BifrostService:
             LOG.info("Recognition learned: %s", res)
         except Exception:  # noqa: BLE001
             LOG.exception("Recognition learning failed")
-        if not self.options.get("learn_calendars", True):
-            return
-        try:
-            start, end = cal.window(now)
-            decisions = self.store.decisions_since(start)
-            with self._lock:
-                cals = [e.info.entity_id for e in self.snap.entities.values() if e.info.domain == "calendar" and e.status == STATUS_INCLUDED]
-            for cid in cals:
-                entries = self.client.get_calendar(cid, start.isoformat(), end.isoformat())
-                self.store.set_calendar_stats(cid, cal.learn(cid, entries, decisions, lambda v: parse_time(v, now)))
-        except Exception:  # noqa: BLE001
-            LOG.exception("Calendar learning failed")
-
-    def set_pattern(self, pid: str, status: str) -> dict:
-        known = self.store.get_patterns()
-        if pid not in known:
-            raise KeyError(pid)
-        p = known[pid]
-        baseline = p["data"]["precision"] / 100 if status == "enabled" else p["baseline"]
-        self.store.upsert_pattern(pid, p["data"], status, baseline, p["seen"])
-        return {"id": pid, "status": status}
 
     def _add_context(self, d: Decision, states: dict, now: datetime) -> None:
-        """Add pattern progress and calendar hints to the reasons (context only – never changes the state)."""
-        recent = [(parse_time(e["ts"], now), tok) for e in self.store.events_since(now - pat.WINDOW) if (tok := pat.step_token(e["entity_id"], e["state"]))]
-        self._pattern_live = {}
-        for pid, p in self.store.get_patterns().items():
-            if p["status"] != "enabled":
-                continue
-            toks = [f"{s['entity_id']}:{s['state']}" for s in p["data"]["steps"]]
-            k = pat.progress(toks, recent, now)
-            self._pattern_live[pid] = k
-            if k == len(toks):
-                d.reasons.append(f"Pattern matched: {p['data']['outcome_label']} usually follows in ~{p['data']['lead']} min")
+        """Add calendar hints to the reasons (context only – never changes the state)."""
         if self.options.get("learn_calendars", True):
-            active = [(eid, st.get("attributes", {}).get("message", "")) for eid, st in states.items() if eid.startswith("calendar.") and st.get("state") == "on"]
-            d.reasons.extend(cal.active_hint(active, self.store.get_calendar_stats()))
-
-    def publish_patterns(self) -> None:
-        live = getattr(self, "_pattern_live", {})
-        for pid, p in self.store.get_patterns().items():
-            if p["status"] != "enabled":
-                continue
-            n, k = len(p["data"]["steps"]), live.get(pid, 0)
-            try:
-                self.client.set_state(
-                    f"binary_sensor.bifrost_pattern_{pid}",
-                    "on" if k == n else "off",
-                    {
-                        "friendly_name": f"Bifrost pattern: {p['data']['outcome_label']} ({n} steps)",
-                        "icon": "mdi:timeline-check",
-                        "progress": f"{k}/{n}",
-                        "outcome": p["data"]["outcome"],
-                        "precision": p["data"]["precision"],
-                        "attribution": "Bifrost",
-                    },
-                )
-            except HAError as err:
-                LOG.warning("Publishing pattern failed: %s", err)
-
-    def patterns_view(self) -> dict:
-        live = getattr(self, "_pattern_live", {})
-        out = []
-        for pid, p in self.store.get_patterns().items():
-            out.append({**p["data"], "status": p["status"], "seen": p["seen"], "baseline": round(100 * p["baseline"]) if p["baseline"] else None, "progress": live.get(pid, 0)})
-        order = {"changed": 0, "suggested": 1, "enabled": 2, "disabled": 3}
-        out.sort(key=lambda x: (order.get(x["status"], 9), -x["precision"]))
-        return {"patterns": out, "last_learn": self._last_learn.isoformat() if self._last_learn else None, "min_support": pat.MIN_SUPPORT, "min_precision": round(100 * pat.MIN_PRECISION)}
+            active = [str((st.get("attributes") or {}).get("message", "")) for eid, st in states.items() if eid.startswith("calendar.") and st.get("state") == "on"]
+            d.reasons.extend(calwords.hints(active, self.brain.words))
 
     def calendars_view(self) -> dict:
+        """Calendar words Bifrost learned (only words and counters, never titles)."""
         names = self._names()
-        out = []
-        for cid, st in self.store.get_calendar_stats().items():
-            out.append({"calendar": cid, "name": names.get(cid, cid), "entries": st.get("entries", 0), "away": st.get("away", 0), "insights": cal.insights(st), "updated": st.get("updated")})
         with self._lock:
             used = [e.info.entity_id for e in self.snap.entities.values() if e.info.domain == "calendar" and e.status == STATUS_INCLUDED]
-        return {"calendars": out, "used": used, "enabled": bool(self.options.get("learn_calendars", True)), "min_obs": cal.MIN_OBS}
+        words = self.brain.words.get("words", {})
+        return {
+            "used": [{"entity_id": c, "name": names.get(c, c)} for c in used],
+            "enabled": bool(self.options.get("learn_calendars", True)),
+            "min_word": calwords.MIN_WORD,
+            "words": [{"word": w, **v, "calendars": [names.get(c, c) for c in v.get("calendars", [])]} for w, v in words.items()],
+        }
 
     def _initial_language(self) -> str:
         """Stored choice, otherwise the Home Assistant language on first start."""
@@ -578,80 +577,6 @@ class BifrostService:
         self.settings.guest_mode = on
         return {"guest_mode": on}
 
-    def timeline_view(self, hours: int = 24) -> dict:
-        now = datetime.now(UTC)
-        since = now - timedelta(hours=hours)
-        events = self.store.events_since(since)
-        changes = []
-        prev = None
-        for h in self.store.decisions_since(since):
-            if h["state"] != prev:
-                changes.append({"ts": h["ts"], "state": h["state"], "confidence": h["confidence"]})
-            prev = h["state"]
-        return {"since": since.isoformat(), "events": events, "decisions": changes, "categories": CATEGORIES}
-
-    def dashboard_view(self, days: int = 14) -> dict:
-        now = datetime.now(UTC)
-        start = (now - timedelta(days=days - 1)).replace(hour=0, minute=0, second=0, microsecond=0)
-        hist = self.store.decisions_since(start - timedelta(days=1))
-        per_day: dict[str, dict] = {}
-        for i in range(days):
-            day = (start + timedelta(days=i)).date().isoformat()
-            per_day[day] = {"day": day, "minutes": {}, "conf_sum": 0.0, "conf_n": 0, "short_away": 0}
-        # minutes per state, by walking the decision timeline
-        for i, h in enumerate(hist):
-            t0 = max(parse_time(h["ts"], now), start)
-            t1 = parse_time(hist[i + 1]["ts"], now) if i + 1 < len(hist) else now
-            while t0 < t1:
-                day_end = (t0 + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-                seg_end = min(t1, day_end)
-                key = t0.date().isoformat()
-                if key in per_day:
-                    mins = (seg_end - t0).total_seconds() / 60
-                    m = per_day[key]["minutes"]
-                    m[h["state"]] = m.get(h["state"], 0) + mins
-                    per_day[key]["conf_sum"] += h["confidence"] * mins
-                    per_day[key]["conf_n"] += mins
-                t0 = seg_end
-            # an "Away" that ends within 15 minutes is a likely wrong decision
-            if h["state"] == AWAY and i + 1 < len(hist) and hist[i + 1]["state"] != AWAY:
-                if (parse_time(hist[i + 1]["ts"], now) - parse_time(h["ts"], now)) < timedelta(minutes=15):
-                    key = parse_time(h["ts"], now).date().isoformat()
-                    if key in per_day:
-                        per_day[key]["short_away"] += 1
-        out = []
-        for v in per_day.values():
-            total = sum(v["minutes"].values()) or 0
-            unknown = v["minutes"].get("unknown", 0)
-            out.append(
-                {
-                    "day": v["day"],
-                    "minutes": {k: round(x) for k, x in v["minutes"].items()},
-                    "avg_confidence": round(v["conf_sum"] / v["conf_n"]) if v["conf_n"] else None,
-                    "decided_share": round(100 * (total - unknown) / total) if total else None,
-                    "short_away": v["short_away"],
-                }
-            )
-        trust = self.store.get_trust()
-        with self._lock:
-            names = {e.info.entity_id: (e.info.name or e.info.entity_id, e.category) for e in self.snap.entities.values()}
-        sensors = sorted(
-            (
-                {
-                    "entity_id": k,
-                    "name": names.get(k, (k, None))[0],
-                    "category": names.get(k, (k, None))[1],
-                    "agree": a,
-                    "disagree": dis,
-                    "score": round(100 * trust_score(a, dis)),
-                    "unreliable": is_unreliable((a, dis)),
-                }
-                for k, (a, dis) in trust.items()
-            ),
-            key=lambda x: x["score"],
-        )
-        return {"days": out, "sensors": sensors, "use_learning": self.settings.use_learning}
-
     # --- user changes ----------------------------------------------------------
     def update_entity(self, entity_id: str, status: str, category: str | None, role: str | None) -> dict:
         with self._lock:
@@ -681,6 +606,7 @@ class BifrostService:
             "stream": self.stream_view(),
             "guard": {k: (self.extra or {}).get(k) for k in ("checks", "suspicion", "unknown_min", "people_inside_min", "in_progress", "learning", "questions")},
             "ledger": (self.extra or {}).get("ledger"),
+            "probabilities": (self.extra or {}).get("probabilities"),
             "capability": self.brain.detector.model.get("capability", {}),
         }
 
@@ -693,7 +619,7 @@ class BifrostService:
             dismissed = set(json.loads(self.store.get_value("opt_dismissed") or "[]"))
         except ValueError:
             dismissed = set()
-        items = opt_suggestions(ents, model.get("roles", {}), model.get("doctor", []), dismissed)
+        items = opt_suggestions(ents, model.get("roles", {}), model.get("doctor", []), dismissed, self.brain.value)
         return {"items": items, "dismissed": len(dismissed)}
 
     def dismiss_optimization(self, entity_id: str, key: str) -> dict:
@@ -712,7 +638,8 @@ class BifrostService:
     def entities_view(self) -> dict:
         with self._lock:
             floors = dict(self.floors)
-            ents = [{**e.to_dict(), "floor": (floors.get(e.info.area) or {}).get("floor") if e.info.area else None} for e in self.snap.entities.values()]
+            vals = self.brain.value or {}
+            ents = [{**e.to_dict(), "floor": (floors.get(e.info.area) or {}).get("floor") if e.info.area else None, "value": vals.get(e.info.entity_id)} for e in self.snap.entities.values()]
             at = self.snap.scanned_at
         status = Counter(e["status"] for e in ents)
         by_domain: dict[str, list[int]] = {}
@@ -738,8 +665,31 @@ class BifrostService:
 
     # --- 0.4–1.0 views and actions --------------------------------------------------
     def _departures(self, now: datetime) -> int:
+        hind = self.brain.hind or {}
+        if "departures" in hind:
+            return int(hind["departures"])  # 0.8: departures confirmed in hindsight (exit … entry), not decisions
         dec = self.store.decisions_since(now - timedelta(days=60))
-        return sum(1 for g, _ in pat.outcomes_from_decisions(dec, lambda v: parse_time(v, now)) if g == "departure")
+        return sum(1 for g, _ in outcomes_from_decisions(dec, lambda v: parse_time(v, now)) if g == "departure")
+
+    def catalog_view(self) -> dict:
+        """ "What Bifrost sees in your home": per kind of signal how many entities exist and how many are used.
+
+        Recognised only by Home Assistant standards (domain, device_class, source_type, unit) – never by vendor.
+        """
+        with self._lock:
+            ents = list(self.snap.entities.values())
+            stypes = dict(self.source_types)
+        counts = {k: {"kind": k, "found": 0, "used": 0, "valuable": 0} for k in CATALOG_KINDS}
+        vals = self.brain.value or {}
+        for e in ents:
+            if e.info.disabled:
+                continue
+            k = catalog_kind(e.info, e.category, stypes.get(e.info.entity_id))
+            if k:
+                counts[k]["found"] += 1
+                counts[k]["used"] += e.status == STATUS_INCLUDED
+                counts[k]["valuable"] += (vals.get(e.info.entity_id) or {}).get("verdict") == "valuable"
+        return {"kinds": list(counts.values())}
 
     def people_view(self) -> dict:
         led = (self.extra or {}).get("ledger") or {}
@@ -749,8 +699,10 @@ class BifrostService:
         stats = self.store.get_obj("stats", "access_users") or {}
         out = []
         for p in self.brain.people.all():
+            vis = self.brain.visibility(p)
             out.append({
-                **person_public(p), "now": rows.get(p.id),
+                **person_public(p), "now": rows.get(p.id), "visibility": vis["level"],
+                "source_kinds": [{**k, "name": names.get(k["entity_id"], k["entity_id"])} for k in vis["sources"]],
                 "tracker_names": [names.get(e, e) for e in p.trackers + p.tags],
                 "calendar_names": [names.get(e, e) for e in p.calendars],
                 "irks": [k["label"] for k in irks if k.get("owner") == p.id],
@@ -803,8 +755,8 @@ class BifrostService:
         now = datetime.now(UTC)
         names = self._names()
         house = self.brain.house_view(names)
-        trust = self.store.get_trust()
-        unreliable = {eid for eid, c in trust.items() if is_unreliable(c)}
+        house_mod = _house
+        unreliable = self.brain.unreliable()
         with self._lock:
             ents = {k: e for k, e in self.snap.entities.items() if e.status == STATUS_INCLUDED}
             floors_of = dict(self.floors)
@@ -835,6 +787,9 @@ class BifrostService:
                 "neighbours": sorted(neigh.get(eid, []), key=lambda n: -(n.get("count") or 0))[:3],
             }  # fmt: skip
             sig["active"] = bool(ts and (now - ts).total_seconds() < 60 and not noise and sig["origin"] not in (AUTOMATION, SCHEDULED))
+            vv = (self.brain.value or {}).get(eid) or {}
+            sig["value"] = vv.get("verdict")
+            sig["archived"] = vv.get("verdict") in ("nothing", "slow")
             areas.setdefault(e.info.area, []).append(sig)
         floors: dict[str | None, dict] = {}
         for area, sigs in areas.items():
@@ -860,10 +815,23 @@ class BifrostService:
         gaps += [{"kind": "area_without_signal", "area": a} for a in empty_areas]
         gaps += [{"kind": "signal_without_area", "entity_id": x["entity_id"]} for x in areas.get(None, [])]
         led = (self.extra or {}).get("ledger") or {}
+        layouts = {}
+        for f in floor_list:
+            key = house_mod.floor_key(f["name"])
+            names_f = [a["name"] for a in f["areas"]]
+            saved = (self.store.get_obj("layout", key) or {}).get("cells")
+            cells = {k: v for k, v in (saved or {}).items() if v in names_f} if saved else house_mod.auto_layout(names_f, self.brain.paths)
+            layouts[f["name"] or ""] = {"key": key, "cells": cells, "saved": bool(saved), "plan": bool(self.brain.floorplan_bytes(key))}
+        lane = self._lane(now, ents)
+        room_src = {p.id: [e for e in p.sources if is_room_source(e, self.brain.meta.get(e))] for p in self.brain.people.all()}
+        known_areas = {a["name"] for f in floor_list for a in f["areas"]}
         return {
             **house,
             "now": now.isoformat(),
             "floors": floor_list,
+            "layouts": layouts,
+            "lane": lane,
+            "avatars": house_mod.avatars(self.brain.people.all(), room_src, self._states, known_areas, now),
             "unassigned": areas.get(None, []),
             "gaps": gaps,
             "people": [{"name": r.get("name"), "state": r.get("state")} for r in led.get("people", [])],
@@ -881,11 +849,124 @@ class BifrostService:
             "people_inside_min": (self.extra or {}).get("people_inside_min", 0),
         }
 
-    def recognition_view(self) -> dict:
-        return {**self.brain.recognition_view(self._names()), "in_progress": (self.extra or {}).get("in_progress", []), "names": self._names()}
+    LANE_KINDS = ("on", "auto", "access", "home", "away", "block", "event")
 
-    def deviations_view(self) -> dict:
-        return {"items": self.brain.inbox.deviations(), "names": self._names()}
+    def _lane(self, now: datetime, ents: dict) -> dict:
+        """The last hour as an event lane: every edge with its area, plus detected entries/exits."""
+        since = now - timedelta(hours=1)
+        rows = []
+        stamp = now.isoformat()
+        for e in reversed(self.store.events_since(since, limit=3000)):
+            if e.get("kind") not in self.LANE_KINDS or e["ts"] > stamp:
+                continue
+            ent = ents.get(e["entity_id"])
+            if e.get("kind") == "block":
+                res, _, door = str(e.get("state", "")).partition(":")
+                rows.append({"ts": e["ts"], "kind": "block", "result": res, "entity_id": door})
+                continue
+            if ent is None:
+                continue
+            lane = "people" if e.get("kind") in ("home", "away") else (ent.info.area or "")
+            rows.append({"ts": e["ts"], "entity_id": e["entity_id"], "lane": lane, "kind": e["kind"], "category": ent.category, "state": str(e.get("state", ""))[:40]})
+        return {"from": since.isoformat(), "to": now.isoformat(), "events": rows[-400:]}
+
+    def _floor_areas(self) -> dict[str, list[str]]:
+        with self._lock:
+            floors_of = dict(self.floors)
+        out: dict[str, list[str]] = {}
+        for area, f in floors_of.items():
+            out.setdefault(f.get("floor") or "", []).append(area)
+        return out
+
+    def set_layout(self, body: object) -> dict:
+        floor, cells = _house.validate_layout(body, self._floor_areas())
+        key = _house.floor_key(floor)
+        self.store.put_obj("layout", key, {"floor": floor, "cells": cells})
+        return {"floor": floor, "cells": len(cells)}
+
+    def reset_layout(self, floor: object) -> dict:
+        if not isinstance(floor, str) or floor not in self._floor_areas():
+            raise ValueError("unknown floor")
+        return {"deleted": self.store.del_obj("layout", _house.floor_key(floor))}
+
+    def set_floorplan(self, body: object) -> dict:
+        if not isinstance(body, dict) or not isinstance(body.get("floor"), str) or body["floor"] not in self._floor_areas():
+            raise ValueError("unknown floor")
+        img = body.get("image")
+        if not isinstance(img, str) or not img:
+            raise ValueError("image missing")
+        self.brain.floorplan(img, _house.floor_key(body["floor"]))
+        return {"ok": True}
+
+    def delete_floorplan(self, floor: object) -> dict:
+        if not isinstance(floor, str) or floor not in self._floor_areas():
+            raise ValueError("unknown floor")
+        self.brain.delete_floorplan(_house.floor_key(floor))
+        return {"ok": True}
+
+    def incidents_view(self) -> dict:
+        return {"items": self.brain.incidents_view(datetime.now(UTC)), "names": self._names(), "questions": self.questions_view()}
+
+    def _pattern_items(self) -> dict[str, dict]:
+        return {x["id"]: x for x in self.brain.recognition_view(self._names())["items"]}
+
+    def pattern_entities(self) -> dict[str, str]:
+        """pattern id → slug of the patterns the owner publishes as entities."""
+        return {o["id"]: o["slug"] for o in self.store.list_objs("pattern_entity") if o.get("id") and o.get("slug")}
+
+    def set_pattern_entity(self, body: object) -> dict:
+        items = self._pattern_items()
+        cur = self.pattern_entities()
+        taken = {slug: pid for pid, slug in cur.items()}
+        pid, on, slug = _house.validate_pattern_entity(body, set(items), taken)
+        if not on:
+            self.store.del_obj("pattern_entity", pid)
+            return {"id": pid, "on": False}
+        slug = slug or cur.get(pid) or _house.default_slug(items[pid])
+        if taken.get(slug) not in (None, pid):
+            slug = (slug[:34] + "_" + pid[-5:]).strip("_")
+        self.store.put_obj("pattern_entity", pid, {"id": pid, "slug": slug})
+        return {"id": pid, "on": True, "slug": slug, "entity_id": f"binary_sensor.bifrost_{slug}"}
+
+    def publish_pattern_entities(self, now: datetime) -> None:
+        chosen = self.pattern_entities()
+        if not chosen:
+            return
+        items = self._pattern_items()
+        prog = self.brain.routine_progress(now)
+        led = {r["id"]: r for r in ((self.extra or {}).get("ledger") or {}).get("people", [])}
+        for pid, slug in chosen.items():
+            it = items.get(pid)
+            attrs = {"attribution": "Bifrost", "icon": "mdi:timeline-check", "pattern_id": pid, "friendly_name": f"Bifrost pattern {slug}"}
+            if it is None:
+                state, attrs = "unavailable", {**attrs, "reason": "pattern no longer recognised"}
+            elif it["type"] == "routine":
+                pr = prog.get(pid, 0.0)
+                state = "on" if pr >= 1 else "off"
+                attrs.update(progress=pr, goal=it.get("goal"), who=it.get("who"), precision=it.get("precision"), seen=it.get("seen"))
+            elif it["type"] == "person":
+                row = led.get(pid[2:]) or {}
+                state = "on" if row.get("state") == "home" else "off"
+                attrs.update(goal="arriving", who=it.get("who"))
+            else:
+                door = pid.split("_", 1)[1] if "_" in pid else ""
+                want = {"in": "entry", "out": "exit", "io": "inside_only"}.get(pid.split("_", 1)[0])
+                last = self.brain.last_openings.get(door) or {}
+                state = "on" if last.get("result") == want and now - last.get("at", now - _house.PULSE * 2) <= _house.PULSE else "off"
+                attrs.update(goal=it.get("goal"), door=door)
+            try:
+                self.client.set_state(f"binary_sensor.bifrost_{slug}", state, attrs)
+            except HAError as err:
+                LOG.warning("Publishing pattern entity failed: %s", err)
+
+    def recognition_view(self) -> dict:
+        return {
+            **self.brain.recognition_view(self._names()),
+            "in_progress": (self.extra or {}).get("in_progress", []),
+            "names": self._names(),
+            "entities": self.pattern_entities(),
+            "calendars": self.calendars_view(),
+        }
 
     def questions_view(self) -> dict:
         return {

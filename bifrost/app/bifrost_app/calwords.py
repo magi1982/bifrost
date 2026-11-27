@@ -20,7 +20,7 @@ MIN_WORD = 5
 SENSITIVE = {
     "arzt", "ärztin", "doctor", "doc", "physio", "therapie", "therapy", "therapeut", "spital", "hospital", "klinik", "clinic",
     "zahnarzt", "dentist", "spritze", "injection", "medikament", "medication", "krank", "sick", "psychologe", "psychiater",
-    "kur", "reha", "labor", "blut", "blood", "impfung", "vaccine", "pille", "pill", "frauenarzt", "gyn", "aimovig",
+    "kur", "reha", "labor", "blut", "blood", "impfung", "vaccine", "pille", "pill", "frauenarzt", "gyn",
 }  # fmt: skip
 STOP = {
     "und",
@@ -174,3 +174,21 @@ def active_words(entries_now: list[dict], learned: dict) -> list[str]:
             if w in known and w not in found:
                 found.append(w)
     return found
+
+
+def window(now: datetime, days: int = 56) -> tuple[datetime, datetime]:
+    return now - timedelta(days=days), now
+
+
+def hints(active_titles: list[str], learned: dict) -> list[str]:
+    """Reasons for current calendar entries with a word that usually means "nobody home". Titles are not echoed."""
+    out: list[str] = []
+    known = learned.get("words", {})
+    for title in active_titles:
+        for w in words(title):
+            eff = (known.get(w) or {}).get("effects", {})
+            share = eff.get("house_empty")
+            if share is not None and share >= 0.85:
+                out.append(f"Calendar entry with “{w}” – usually nobody home ({round(100 * share)} %)")
+                break
+    return out

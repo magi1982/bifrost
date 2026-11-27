@@ -98,6 +98,9 @@ def test_live_view_on_demo_household(tmp_path):
     sig = {x["entity_id"]: x for f in v["floors"] for a in f["areas"] for x in a["signals"]}
     assert sig["light.garden"]["origin"] == AUTOMATION and not sig["light.garden"]["active"]
     assert sig["light.kitchen"]["origin"] == PERSON and sig["light.kitchen"]["active"]
+    lane = v["lane"]["events"]
+    assert any(x.get("lane") == "Kitchen" and x["entity_id"] == "light.kitchen" for x in lane)
+    assert any(x["kind"] == "auto" and x["entity_id"] == "light.garden" for x in lane)
     assert sig["sensor.bath_humidity"]["event"] == "humidity_jump"
     assert sig["vacuum.robot"]["noise"]
     assert [p["entity_id"] for p in v["last_path"]][:2] == ["binary_sensor.motion_outside_garage", "binary_sensor.garage_door"]
@@ -160,11 +163,10 @@ def test_corrections_teach_something(tmp_path):
     # whole house: Bifrost said away, somebody was home → wrong "empty" in the balance
     r = b.correct("away", "home", now)
     assert "balance:wrong_empty" in r["learned"]
-    # culprit: the hallway motion was the cat while nobody was home → trust drops, disturbance question
-    before = svc.store.get_trust().get("binary_sensor.motion_hallway", (0, 0))
+    # culprit: the hallway motion was the cat while nobody was home → counts less on the scale, disturbance question
     r = b.correct("home", "away", now, culprit="binary_sensor.motion_hallway")
-    after = svc.store.get_trust()["binary_sensor.motion_hallway"]
-    assert "trust:binary_sensor.motion_hallway" in r["learned"] and after[1] >= before[1] + 3
+    assert "trust:binary_sensor.motion_hallway" in r["learned"]
+    assert svc.store.get_obj("stats", "culprits")["binary_sensor.motion_hallway"] == 1
     assert any(q["type"] == "disturbance" for q in b.inbox.all())
     # person: phone said home three times, person was away → that phone only counts as weak
     for _ in range(3):

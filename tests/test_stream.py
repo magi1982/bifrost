@@ -81,7 +81,7 @@ def test_without_stream_the_poll_loop_still_records_events(tmp_path):
     client.states[1] = {**client.states[1], "state": "on"}
     svc.evaluate()
     kinds = [e["kind"] for e in svc.store.events_since(datetime.now(UTC) - timedelta(minutes=1))]
-    assert kinds == [""]  # recorded by the poll loop (old style, no edge kind)
+    assert kinds == ["on"]  # recorded by the poll loop as an edge
 
 
 def _ws_pair():

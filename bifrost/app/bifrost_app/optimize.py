@@ -26,8 +26,11 @@ def _sug(e: dict, key: str, status: str | None = None, category: str | None = No
     }
 
 
-def suggestions(entities: list[dict], door_roles: dict[str, dict] | None = None, doctor: list[dict] | None = None, dismissed: set[str] | None = None) -> list[dict]:  # noqa: C901
+def suggestions(  # noqa: C901
+    entities: list[dict], door_roles: dict[str, dict] | None = None, doctor: list[dict] | None = None, dismissed: set[str] | None = None, values: dict[str, dict] | None = None
+) -> list[dict]:
     """All optimisations for the scanned entities (dicts as in the Setup view)."""
+    values = values or {}
     problems = {p["entity_id"]: p for p in doctor or []}
     dismissed = dismissed or set()
     out: list[dict] = []
@@ -71,6 +74,10 @@ def suggestions(entities: list[dict], door_roles: dict[str, dict] | None = None,
         p = problems.get(eid)
         if used and p and p.get("problem") in ("dead", "gaps") and not found:
             found.append(_sug(e, "doctor_" + p["problem"], status="ignored", detail=p.get("detail", "")))
+        v = values.get(eid) or {}
+        if used and not found and v.get("verdict") in ("nothing", "slow"):
+            # Bifrost learned that this signal brings nothing – it only suggests, the owner decides
+            found.append(_sug(e, "value_" + v["verdict"], status="ignored", detail=v.get("reason", "")))
 
         out += [f for f in found if f"{eid}|{f['key']}" not in dismissed and f["suggest"] != f["current"]]
     order = {"opening_off": 0, "motion_off": 1, "disabled_in_ha": 2, "identity": 3, "mode_home": 4}

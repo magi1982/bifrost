@@ -53,6 +53,9 @@ def test_unknown_people_reset_after_long_quiet_and_exit_lowers_them():
     gs = GuardState(unknown_min=2, last_indoor=T)
     on_opening(gs, {"door": "d", "ts": T.isoformat(), "result": "exit"}, {}, "home", T, 1)
     assert gs.unknown_min == 1
+    # a known person leaving (phone leaves the zone) does not take an unknown person with them
+    on_opening(gs, {"door": "d", "ts": T.isoformat(), "result": "exit"}, {"explained": True, "who": "Person A"}, "home", T, 1)
+    assert gs.unknown_min == 1
     tick(gs, T + guard.UNKNOWN_RESET + timedelta(minutes=1), None)
     assert gs.unknown_min == 0
 
@@ -61,3 +64,27 @@ def test_explained_entry_while_home_is_no_suspicion():
     gs = GuardState()
     assert on_opening(gs, {"door": "d", "ts": T.isoformat(), "result": "entry"}, {"explained": True}, "home", T, 2) is None
     assert gs.unknown_min == 0
+
+
+def test_exit_explained_by_a_phone_leaving():
+    ids = [{"ts": T + timedelta(minutes=6), "who": "Person A", "kind": "away", "strength": "medium"}]
+    assert guard.explain_exit(T, ids)["who"] == "Person A"
+    assert not guard.explain_exit(T, [{**ids[0], "ts": T + timedelta(minutes=30)}])["explained"]
+    assert not guard.explain_exit(T, [{**ids[0], "kind": "home"}])["explained"]
+
+
+def test_after_a_start_empty_is_blocked_and_state_round_trips():
+    d, checks = apply(away(), {"all_away": True}, GuardState(), T, can_see_direction=False, warming_up=True)
+    assert d.state == "unknown" and "just started" in d.reasons[0]
+    gs = GuardState(unknown_min=3, last_indoor=T, suspicion={"door": "d", "ts": T.isoformat(), "until": T.isoformat()})
+    back = GuardState.from_dict(gs.to_dict())
+    assert back.unknown_min == 3 and back.last_indoor == T and back.suspicion["door"] == "d"
+    assert GuardState.from_dict({"unknown_min": "x"}).unknown_min == 1  # unreadable: fail closed
+    assert GuardState.from_dict(None).unknown_min == 0
+
+
+def test_failed_guard_never_lets_empty_through():
+    d, checks = guard.failed(away())
+    assert d.state == "unknown" and not checks[0]["ok"]
+    home = Decision("home", 90, [], 100)
+    assert guard.failed(home)[0].state == "home"
