@@ -92,6 +92,7 @@ DE: dict[str, str] = {
     "Nothing learned yet. Bifrost needs a few confirmed Home and Away periods.": "Noch nichts gelernt. Bifrost braucht ein paar bestätigte Zeiten „Daheim“ und „Weg“.",
     "{} · {} right · {} wrong": "{} · {} richtig · {} falsch",
     "{} right · {} wrong": "{} richtig · {} falsch",
+    "{} · {} × home · {} × empty": "{} · {}× daheim · {}× leer",
     # --- timeline ---
     "Every change of a used signal and every new Bifrost decision": "Jede Änderung eines genutzten Signals und jede neue Entscheidung von Bifrost",
     "Nothing recorded yet – changes appear here as they happen.": "Noch nichts aufgezeichnet – Änderungen erscheinen hier, sobald sie passieren.",
@@ -110,7 +111,6 @@ DE: dict[str, str] = {
     "{} · {} % away": "{} · {} % weg",
     "No keyword with at least {} entries yet.": "Noch kein Wort mit mindestens {} Einträgen.",
     "Blue = means away (≥85 %, at least {} entries). When such an entry is active, Bifrost mentions it as a reason.": "Blau = bedeutet weg (≥ 85 %, mindestens {} Einträge). Ist so ein Eintrag aktiv, nennt Bifrost ihn als Grund.",
-    "Calendar entry with “{}” – usually away ({} % of {})": "Kalendereintrag mit „{}“ – meist weg ({} % von {})",
     # --- signals & setup ---
     "Use all {} suggestions": "Alle {} Vorschläge übernehmen",
     "{} signals now used": "{} Signale werden jetzt genutzt",
@@ -233,6 +233,11 @@ DE: dict[str, str] = {
     "No exit through an entrance was detected": "Kein Rausgehen durch einen Eingang erkannt",
     "Bifrost just started – collecting data before it may say empty": "Bifrost ist eben gestartet – sammelt erst, bevor es „leer“ sagen darf",
     "Safety check failed – Bifrost does not say empty": "Sicherheitsprüfung fehlgeschlagen – Bifrost sagt nicht „leer“",
+    "Evidence scale is not sure: {} % empty": "Die Evidenz-Waage ist nicht sicher: {} % leer",
+    "Calendar entry with “{}” – usually nobody home ({} %)": "Kalendereintrag mit „{}“ – meist niemand daheim ({} %)",
+    "Probability home (%)": "Wahrscheinlichkeit daheim (%)",
+    "Probability asleep (%)": "Wahrscheinlichkeit schläft (%)",
+    "Probability away (%)": "Wahrscheinlichkeit weg (%)",
     "Too much data is missing": "Zu viele Daten fehlen",
     # --- recognition titles & doctor ---
     "Entry via {}": "Eintritt über {}",

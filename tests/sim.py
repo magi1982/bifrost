@@ -3,6 +3,10 @@
 Doors: front door, garage door. Motion: outside front, hallway (inside front), outside garage,
 cloakroom (inside garage door), living room, upstairs. People: Person A (phone), Person B (phone),
 Kind A (no phone, never alone). Animals sometimes trigger the hallway sensor while nobody is home.
+
+Realistic trouble (0.8): ``kid_home`` – Kind B (no phone) stays upstairs in a room without a sensor while
+both adults leave; the rule engine says "away" (``decisions``) although somebody is inside. ``flap`` – Phone B
+drops out of Wi-Fi for two minutes at night. ``SIDES`` is what the house model learns about inside/outside.
 """
 
 from __future__ import annotations
@@ -23,6 +27,16 @@ META = {
     "binary_sensor.motion_dead": {"name": "Motion attic", "category": "motion", "device_class": "motion", "area": "Attic"},
     "device_tracker.phone_a": {"name": "Phone A", "category": "devices", "area": None},
     "device_tracker.phone_b": {"name": "Phone B", "category": "devices", "area": None},
+}
+
+
+SIDES = {
+    "binary_sensor.motion_outside_front": {"side": "outside"},
+    "binary_sensor.motion_outside_garage": {"side": "outside"},
+    "binary_sensor.motion_hallway": {"side": "inside"},
+    "binary_sensor.motion_cloakroom": {"side": "inside"},
+    "binary_sensor.motion_living": {"side": "inside"},
+    "binary_sensor.motion_upstairs": {"side": "inside"},
 }
 
 
@@ -68,7 +82,7 @@ class Sim:
         self.ev("binary_sensor.terrace_door", "off", self.rnd.uniform(60, 300))
         self.ev("binary_sensor.motion_living", "on", self.rnd.uniform(2, 10))
 
-    def day(self, animals: bool = False) -> None:
+    def day(self, animals: bool = False, kid_home: bool = False, flap: bool = False) -> None:  # noqa: C901
         base = self.t.replace(hour=6, minute=30, second=0, microsecond=0)
         self.t = base
         self.decide("home")
@@ -81,6 +95,11 @@ class Sim:
         self.decide("away")
         if animals:
             self.ev("binary_sensor.motion_hallway", "on", 3 * 3600)
+        if kid_home:
+            # Kind B was upstairs all along (no sensor there) and comes down – no door, nobody came in
+            self.ev("binary_sensor.motion_living", "on", 2 * 3600)
+            self.decide("home")
+            self.ev("binary_sensor.motion_living", "on", 300)
         self.t = self.t.replace(hour=12, minute=0) + timedelta(minutes=self.rnd.randint(0, 20))
         self.ev("device_tracker.phone_b", "home", 0)
         self.walk_in_front()
@@ -94,12 +113,16 @@ class Sim:
             self.ev("binary_sensor.motion_hallway", "on", self.rnd.uniform(3, 7))
         self.t = self.t.replace(hour=22, minute=30)
         self.decide("asleep")
-        self.t += timedelta(hours=8)
+        if flap:
+            self.t += timedelta(hours=3)
+            self.ev("device_tracker.phone_b", "away", 0)
+            self.ev("device_tracker.phone_b", "home", 120)
+        self.t = self.t.replace(hour=22, minute=30) + timedelta(hours=8)
 
 
-def household(days: int = 21, start: datetime | None = None) -> Sim:
+def household(days: int = 21, start: datetime | None = None, trouble: bool = False) -> Sim:
     s = Sim(start or datetime(2026, 1, 5, 6, 0, tzinfo=UTC))
     for i in range(days):
-        s.day(animals=(i % 4 == 0))
+        s.day(animals=(i % 4 == 0), kid_home=trouble and i % 7 == 3, flap=trouble and i % 3 == 1)
         s.t = (s.t + timedelta(days=1)).replace(hour=5)
     return s

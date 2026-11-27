@@ -147,9 +147,13 @@ def test_calendar_learning_without_titles(tmp_path):
     base = datetime.now(UTC).replace(hour=8, minute=0, second=0, microsecond=0) - timedelta(days=10)
     for i in range(6):
         st = base + timedelta(days=i)
-        svc.store.add_decision(st - timedelta(hours=1), "home", 90, [])
-        svc.store.add_decision(st, "away", 90, [])
-        svc.store.add_decision(st + timedelta(hours=8), "home", 90, [])
+        # what hindsight sees: activity, the phone leaves, quiet, the phone comes back, activity
+        for m in (-12, -11):
+            svc.store.add_event(st + timedelta(minutes=m), "binary_sensor.hall_motion", "Hall", "motion", "Evidence", "on", kind="on")
+        svc.store.add_event(st - timedelta(minutes=5), "person.example_a", "Person A", "devices", "Evidence", "not_home", kind="away")
+        svc.store.add_event(st + timedelta(hours=8), "person.example_a", "Person A", "devices", "Evidence", "home", kind="home")
+        for m in (481, 482):
+            svc.store.add_event(st + timedelta(minutes=m), "binary_sensor.hall_motion", "Hall", "motion", "Evidence", "on", kind="on")
         entries.append({"summary": "Office day Zurich", "start": {"dateTime": st.isoformat()}, "end": {"dateTime": (st + timedelta(hours=8)).isoformat()}})
     client.calendar_entries = entries
     svc.learn_job(datetime.now(UTC))
