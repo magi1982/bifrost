@@ -2,6 +2,80 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.10.0] – 2026-11-27
+
+### Added
+- **Signal value**: Bifrost judges every used signal by itself – *Valuable*, *Helps a little*, *Brings nothing*, *Slow* or *Still learning* – from what it learned: how well the signal tells home and empty apart (evidence scale), how often it changes, how long it stays on (summary zones from other systems stay on long and are *slow*), duplicates and dead sensors. The verdict and its reason are shown at every entity in Setup.
+- Setup filters **Brings nothing** and **Slow** with counts; “What Bifrost sees” also counts the valuable signals per kind.
+- Optimisation “Brings nothing – switch off?” / “Slow – switch off?”. Bifrost only suggests; you decide.
+- House tab: signals that bring nothing or are slow are archived – hidden from rooms, the lane and the area cards; **Show archived** brings them back.
+
+## [0.9.1] – 2026-11-27
+
+### Added
+- **What is happening right now** (House tab): the last hour as a lane per area – every event a dot, detected entries and exits as lines, events triggered by an automation or a schedule hollow.
+
+### Removed
+- The old 0.3 pattern view, the timeline and dashboard views with their APIs (`/api/timeline`, `/api/dashboard`, `/api/deviations`) and the old pattern-chain styles – about 30 KB less in the UI.
+
+## [0.9.0] – 2026-11-27
+
+### Added
+- **House: rooms on your floor plan.** Per Home Assistant floor every area is a room on a fine grid. Bifrost suggests a first layout (rooms people walk between sit next to each other); you pick a room and paint its cells – any shape, also L-shaped or slanted. Each room is coloured by what happens: grey quiet/no signal, green motion, orange window/door open, yellow light, magenta media. **One floor plan picture per floor** can lie underneath (PNG/JPEG, max. 2 MB, stored locally).
+- **People in their room** when a room source (e.g. Bermuda) is clear and steady for 2 minutes – otherwise shown as “in the house”.
+- **Incidents** (tab *Incidents*): deviations that belong together are bundled into one chain – approach → access → inside → identity – with a score, and can be answered right there.
+- **Two more detectors**: a **baseline** per signal and hour of the week (a firing at an hour where it never fires becomes the deviation *rare*) and a **path matrix** between areas; indoor motion while the house is empty without any door becomes a *contradiction*.
+- **Routines per habit**: departures, arrivals and bedtimes are grouped by time of day and working day/weekend first, so one goal can have several plans (e.g. work in the morning, shopping at noon); the same habit on other days is merged.
+- **Patterns as entities**: switch single patterns on as `binary_sensor.bifrost_<slug>` for your own automations (routines on when complete, entry/exit as a short pulse). The slug survives re-learning; a pattern that disappears becomes *unavailable*. Information only – never used for “house empty confirmed”.
+- **Learning progress** card on the patterns tab: what is learned, what is almost there, newly found patterns, “Learn now”.
+
+### Changed
+- **7 tabs instead of 11**: Status · People · House · Patterns (with calendar words and the detectors) · Incidents (deviations and questions) · Balance · Setup. Timeline and dashboard are gone; the last 24 hours stay on Status.
+
+## [0.8.0] – 2026-11-27
+
+### Changed
+- **Bifrost learns from hindsight, not from itself.** Every few hours it looks back and splits the history into *certainly empty* (confirmed exit → quiet → entry, alarm “armed away”), *certainly home* (activity inside; quiet after which activity resumes without anybody coming in – e.g. a child without a phone upstairs) and *unclear*. Routines, calendar words, inside/outside, disturbances and departures learn only from this and from your corrections – never from Bifrost's own live decision.
+- **Evidence scale instead of hand-made confidence.** Every signal gets a learned weight (how much more often it fires when somebody is home than when the house is empty). The live estimate is the sum of what is true right now – explainable on the Status tab. It may only make Bifrost more careful: below 70 % “empty” it says *Unknown*; it never turns a rule decision into “empty”.
+- Signals that fire as often when the house is empty (animals, robots, drafts) are no longer counted as activity – learned from hindsight instead of the old trust score. “That's wrong – this fooled Bifrost” makes a signal count less on the scale.
+- The release gate counts departures confirmed in hindsight, and **“empty” while somebody was certainly inside counts as a wrong “empty”** like an owner's correction.
+
+### Added
+- **Status shows a percentage for every state**: Home, Asleep and Away (together 100 %), the current decision above, “in progress” when a routine runs, and how Bifrost calculated it.
+- Entities `sensor.bifrost_p_home`, `sensor.bifrost_p_asleep`, `sensor.bifrost_p_away`.
+- **Balance**: hindsight summary (hours certainly home / empty / unclear, departures, wrong “empty” in hindsight) and a calibration chart – when Bifrost said “x % empty”, how often was it really empty.
+- **Backtesting on your own data**: `tools/backtest.py` runs the hindsight labeller over a copy of your database locally and compares it with Bifrost's past decisions.
+- Realistic simulator: a child without a phone who stays upstairs, a flapping Wi-Fi tracker, animals.
+
+### Removed
+- The trust learner that judged signals by Bifrost's own decisions.
+
+## [0.7.0] – 2026-11-27
+
+### Security
+- **Heimdall fails closed.** If the safety check itself fails, Bifrost never says “empty” and `binary_sensor.bifrost_empty_confirmed` stays off.
+- **The guard survives restarts.** Unknown people, the last entry and exit and an open suspicion are saved. For 10 minutes after a start Bifrost collects before it may say “empty”.
+- **An exit needs proof.** Quiet after a door is no longer an exit – every house has rooms without sensors. An exit needs an outside sensor right after the door or a phone leaving; otherwise it is “door used, direction open”.
+- Only an exit that no known person explains lowers the “unknown people” counter.
+- An access value nobody assigned counts as a medium explanation (enough by day, not at night) instead of a strong one.
+- “That's wrong” on a wrong “empty” marks somebody unknown inside until a confirmed exit.
+- The release gate for the alarm signal also needs at least one person in the household.
+
+### Added
+- **Visibility per person** (well / partly / invisible), worked out from the assigned sources with the Home Assistant standard `source_type` instead of a list of integration names.
+- **Setup card “What Bifrost sees in your home”**: per kind of signal how many entities exist and what they enable – recognised by Home Assistant standards, never by vendor. Alarm panels, Bluetooth trackers, Bermuda area sensors and camera person counts are recognised.
+- **Bluetooth help in Setup**: Shellys as Bluetooth proxies, iPhones via *Private BLE Device*, rooms via *Bermuda*. Bermuda area sensors can belong to a person.
+- **New pattern chain**: steps as tiles with real connecting lines – a fork for OR, a join for AND, dashed lines for companions; sub-patterns open inline with their own lines; Simple (plain sentences) and Technical (entity → state, time spans, shares). Neon accents in light and dark.
+- Pattern ids stay the same when a pattern is re-learned with the same goal and mostly the same steps.
+
+### Changed
+- **Bluetooth keys (IRK) are no longer stored in Bifrost.** They belong in Home Assistant (*Private BLE Device*). Keys stored by older versions are listed masked with a button to delete them.
+- The calendar tab shows the learned calendar words and what they mean.
+- Pattern titles and steps are translated (no more English in the German UI).
+
+### Removed
+- The 0.3 pattern miner (replaced by routines) with its `binary_sensor.bifrost_pattern_*` entities, the 0.3 calendar learner (replaced by calendar words) and unused Bluetooth-fingerprint / CO₂ code.
+
 ## [0.6.0] – 2026-11-27
 
 ### Changed

@@ -39,6 +39,8 @@ WINDOW_WORDS = ("fenster", "window")
 PASSAGE_WORDS = ("schiebe", "hebeschiebe", "hst", "bodentief", "terrass", "terrace", "garten", "garden", "sitzplatz", "balkon", "balcony", "patio", "sliding", "french")
 
 ENTRY, EXIT, INSIDE_ONLY, UNKNOWN = "entry", "exit", "inside_only", "unknown"
+DOOR_USED = "door_used"  # inside before, quiet after – but nothing confirms that somebody really went out
+EXIT_CONFIRM = 90  # s after the door: an outside sensor confirms an exit
 BUCKETS = (("night", 0, 6), ("morning", 6, 12), ("afternoon", 12, 18), ("evening", 18, 24))
 
 
@@ -202,7 +204,7 @@ def learn(events: list[dict], meta: dict[str, dict], decisions: list[dict] | Non
     profiles: dict[str, dict[str, dict[str, int]]] = {}
     for d in dopen:
         c = classify_opening(model, d["entity_id"], d["_t"], mon)
-        prof = profiles.setdefault(d["entity_id"], {b[0]: {ENTRY: 0, EXIT: 0, INSIDE_ONLY: 0, UNKNOWN: 0} for b in BUCKETS})
+        prof = profiles.setdefault(d["entity_id"], {b[0]: {ENTRY: 0, EXIT: 0, INSIDE_ONLY: 0, UNKNOWN: 0, DOOR_USED: 0} for b in BUCKETS})
         prof[bucket(d["_t"])][c] += 1
     model["profiles"] = profiles
     model["roles"] = {d: door_role(p) for d, p in profiles.items()}
@@ -231,6 +233,7 @@ def classify_opening(model: dict, door: str, t: datetime, motion_on: list[dict])
     def fired(sensors: set[str], a: float, b: float) -> bool:
         return any(m["entity_id"] in sensors and a <= (m["_t"] - t).total_seconds() <= b for m in motion_on)
 
+    outside_s = {s for s, v in sides.items() if v["side"] == "outside"}
     in_before = fired(inside_s, -INSIDE_QUIET, -0.001)
     in_after = fired(inside_s, 0, AFTER_WINDOW)
     in_later = fired(inside_s, AFTER_WINDOW, EXIT_SILENCE)
@@ -242,12 +245,15 @@ def classify_opening(model: dict, door: str, t: datetime, motion_on: list[dict])
     if in_before and (in_after or in_later):
         return INSIDE_ONLY
     if in_before and not in_after and not in_later:
-        return EXIT
+        # Silence alone is no proof: every house has rooms without sensors. An exit needs something
+        # from outside – an outside sensor right after the door (or, later in the brain, a phone leaving).
+        return EXIT if fired(outside_s, 0, EXIT_CONFIRM) else DOOR_USED
     return UNKNOWN
 
 
 def door_role(profile: dict[str, dict[str, int]]) -> dict:
-    tot = {k: sum(b[k] for b in profile.values()) for k in (ENTRY, EXIT, INSIDE_ONLY, UNKNOWN)}
+    tot = {k: sum(b.get(k, 0) for b in profile.values()) for k in (ENTRY, EXIT, INSIDE_ONLY, UNKNOWN, DOOR_USED)}
+    tot[EXIT] += tot.pop(DOOR_USED)  # for the role of a door an unconfirmed exit still counts as use
     n = sum(tot.values())
     if n < 5:
         return {"role": "unknown", "why": "not enough openings", **tot}
@@ -382,7 +388,7 @@ class Detector:
                 keep.append(p)
                 continue
             res = classify_opening(self.model, p["entity_id"], p["_t"], mon)
-            if res == EXIT and age < EXIT_SILENCE:
+            if res in (EXIT, DOOR_USED) and age < EXIT_SILENCE:
                 keep.append(p)  # an exit is only sure after the silence
                 continue
             out.append({"door": p["entity_id"], "ts": p["_t"].isoformat(), "result": res})

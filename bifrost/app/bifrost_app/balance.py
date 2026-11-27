@@ -41,12 +41,14 @@ def kpis(labels: list[dict], decisions: list[dict], suspicions: list[dict], now:
     }
 
 
-def gate(first_day: datetime | None, departures: int, k: dict, health: int, now: datetime) -> dict:
+def gate(first_day: datetime | None, departures: int, k: dict, health: int, now: datetime, household: int = 1) -> dict:
     checks = [
         {"id": "shadow_days", "ok": bool(first_day) and (now - first_day).days >= GATE_DAYS, "value": (now - first_day).days if first_day else 0, "need": GATE_DAYS},
         {"id": "departures", "ok": departures >= GATE_DEPARTURES, "value": departures, "need": GATE_DEPARTURES},
         {"id": "wrong_empty", "ok": k.get("wrong_empty", 1) == 0, "value": k.get("wrong_empty", 0), "need": 0},
         {"id": "health", "ok": health >= GATE_HEALTH, "value": health, "need": GATE_HEALTH},
+        # without the household Bifrost cannot know who might still be inside (children without phones)
+        {"id": "household", "ok": household >= 1, "value": household, "need": 1},
     ]
     return {"passed": all(c["ok"] for c in checks), "checks": checks}
 

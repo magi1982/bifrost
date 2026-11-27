@@ -71,6 +71,108 @@ In parallel the guard watches entries: an entry nothing explains becomes a hint 
 - Signal "house empty confirmed" and "suspicion" as entities ✅ (off by default); ⏳ wiring to the alarm system in Loxone. **Never disarm.**
 
 
+### Done in 0.10.0 · Signal value – which sensors help, which are useless (requested 27.11.)
+Decisions: only suggest switching off; useless/slow signals disappear from the House tab, a separate button shows the archived ones.
+Goal: Bifrost reads every entity and learns by itself which signals help to tell "home" from "empty" – and which bring nothing (e.g. aggregated presence zones from another system that stay "on" for a long time, sensors that hardly change). Filterable in Setup.
+
+**What Bifrost measures per signal (no setting needed)**
+- *Information*: the evidence weight learned from hindsight (how much more often it fires when somebody is home than when empty). Near 0 = says nothing.
+- *Activity*: state changes per day; *hold*: typical time it stays "on". A presence zone that stays on for an hour after the last person left is slow and says little about "right now".
+- *Timeliness*: does it fire early in a path (first after a door) or only long after other sensors – aggregated zones come late.
+- *Duplicate*: fires almost always together with another sensor (already detected) – one of the two is enough.
+- *Doctor*: dead, chatty, often unavailable (already detected).
+
+**Verdict per signal** (shown as a pill, with the reason): **Valuable** · **Helps a little** · **Brings nothing** · **Slow (zone)** · **Too few data**.
+
+**Setup**
+- New filter chips "Brings nothing" and "Slow / zone" next to the existing filters; the counts show at a glance how many signals are useless.
+- Optimisation suggestion "Switch off – brings nothing (reason)". Bifrost never switches off by itself – the owner decides (option: later automatically after 30 days?).
+- Card "What Bifrost sees" shows per kind how many are valuable.
+
+**Limits**
+- Needs hindsight labels: until the evidence scale is ready the verdict is "too few data" (except dead/chatty/duplicate, which work from day one).
+- A sensor that only matters for one rare situation (e.g. a garden door in summer) may look useless in winter – the verdict uses the last 8 weeks and says so.
+
+**Open questions**
+1. Only suggest switching off, or also switch off automatically after a while?
+2. Should signals that bring nothing still appear in the House tab (greyed out) or disappear there too?
+
+**Tests**: verdicts on the simulator (a slow zone sensor that stays on for an hour, a dead sensor, a duplicate, a valuable motion sensor), filter counts, optimisation text DE/EN, GUI check.
+
+### Done in 0.7.0 – 0.9.1 · Plan from the full review and proposal v2 (agreed 27.11., built 27.11.)
+Done in 0.9.1: event lane per area (House tab), old 0.3 views, timeline/dashboard and the old chain CSS removed. Still open: tuning of the hindsight thresholds on real data (Balance shows the result).
+
+Mockup: proposal page "Bifrost Vorschlag" (private artifact, example data). Decisions of the maintainer: avatars in rooms yes, one floor plan per floor, status shows Home / Asleep / Away + "in progress", Bifrost's own IRK store goes away (IRKs live in HA's Private BLE Device).
+
+**Core idea:** Bifrost must not learn from its own decisions. Truth comes from hindsight facts, "That's wrong" and answers. Several detectors (like a security operations centre) check each other; Heimdall keeps the last word for "empty".
+
+#### 0.7 · Safe foundation, HA standards, chain design
+- Safety fixes (see "Safety fixes from the review" below): guard failure ⇒ Unknown + guard not ok; persist guard state + "Unknown – collecting" after restart; only an unexplained exit lowers unknowns; unmapped access value = medium, not strong; "That's wrong" on a wrong "empty" sets unknowns ≥ 1; exit only with confirmation (outside motion, phone leaves, lock from outside, car leaves) – otherwise "door used, direction open".
+- **Visibility per person, derived automatically** from the assigned sources: good (GPS phone `source_type: gps`, BLE with room, code/NFC), medium (`source_type: router`, BLE without room), invisible (no source). Strength from the HA standard `source_type`, no longer from a list of integration names. Invisible persons count as home until facts say otherwise (learned companionship "leaves with person B", calendar words with the name, confirmed exit). People tab shows a visibility bar and the sources.
+- **Setup card "What Bifrost sees in your home"**: per kind (motion, doors, locks/access, phones, Bluetooth, light/buttons, media, air/water, power, calendars, modes, alarm panel, cameras, robots/cars) the number found and what it enables. Recognition by domain, `device_class`, `source_type`, unit, area, floor – never by vendor. New standard sources: `alarm_control_panel` (armed away = strong "empty" label), camera person counts (count > 0 = motion), Bermuda area sensors (room per person), `event.*` button presses.
+- **Remove Bifrost's own IRK store** (`/api/irk`, Bluetooth key card): iPhones via HA "Private BLE Device" (key stays in HA) → `device_tracker` with `source_type: bluetooth_le`; rooms via Bermuda (HACS); tags via iBeacon Tracker. Shellys are only Bluetooth proxies. Migration: if keys are stored, show a banner with the steps and a "Delete keys" button; never export keys. Docs (EN/DE) get a "Bluetooth with Shelly" how-to.
+- **Pattern chain design (new)**: header card with KPIs, step tiles with icon and share, real connecting lines (fork for OR, join for AND, dashed for companions), groups "OR · one of them", "AND · all, any order", "COMPANION", optional dashed, NOT red, ✓ on done steps of a running routine, sub-patterns expand inline with their own lines. Simple (plain sentences) / Technical (entity → state, spans, shares). Neon accents, light and dark, HA look. The word "level" stays out of the UI.
+- Clean-up: remove `patterns.py` (0.3 miner) – its `binary_sensor.bifrost_pattern_*` move to "patterns as entities"; remove `calendars.py` (calendar tab uses calwords); move unused `location.py` parts back to NEXT; remove `s1–s3.png`; structured reasons instead of regex translation for new texts; fix English leftovers in the German UI.
+- Stable pattern ids (kept on re-learning with same goal and ≥ 80 % token overlap).
+
+#### 0.8 · Truth instead of self-confirmation
+- **Hindsight labeller**: every night the past day is split into certainly empty (confirmed exit → no indoor activity at all → entry), certainly home (indoor activity, modes), unclear. All learning (routines, calendar words, inside/outside, disturbances, durations, signal weights) uses only these labels plus owner labels and answers. `learning.py` trust-from-decisions is removed.
+- **Evidence scale**: per signal a learned weight (log-odds), summed and explainable; calibration chart in Balance. The rule engine stays as fallback.
+- **Status shows a probability per state**: Home / Asleep / Away with % (sum 100 %), the top state above; "in progress: leaving 60 %" when a chain runs; "Unclear" when no state reaches 70 % or Heimdall blocks, always with the reason. Entities `sensor.bifrost_p_home`, `sensor.bifrost_p_asleep`, `sensor.bifrost_p_away`.
+- Realistic simulator (persons without phone, flapping trackers, rooms without sensors, animals) and local backtesting against the stored event history.
+
+#### 0.9 · Control room and house
+- **House tab**: per HA floor the HA areas become rooms on a fine grid (36 × 24), first arranged from learned neighbours. The owner picks a room and paints its cells (any shape, e.g. L-shaped hallway), eraser. Neon outline and fill by state: grey quiet / no signal, green motion, orange window/door open, yellow light, magenta media, red unexplained. Label with name, sensor counts, last activity. **One floor plan image per floor** as background (stored locally, max 2 MB, validated). **Person avatars** in the room when a room source (Bermuda) exists. Tap → details: signals with origin, learned paths to neighbours.
+- Detectors: baseline per signal × hour of week (rarity in bits → deviation "rare"), path matrix (Markov transitions; impossible jumps and new paths → "contradiction"), routines clustered first (several plans per goal, per person), drift.
+- **Incidents** bundle detector hits into one chain: approach → access → inside → identity, score, answers "That was us / Don't know / Unknown".
+- Patterns as HA entities (section below), learning-progress card, tabs 11 → 7 (Status · People · House · Patterns · Incidents · Balance · Setup).
+
+#### Tests (all versions)
+Guard failure fails closed; guard state survives restart; exit/unknown counting; visibility from `source_type`; IRK migration banner and delete; source catalogue counts; chain rendering (OR/AND/companion lines, expand, simple/technical); hindsight labels on synthetic days; evidence weights and calibration; probabilities sum to 100; cell painting, floor plan validation (type, size); avatars only with a room source; GUI check light/dark/390 px, DE/EN.
+
+### Done in 0.9.0 · Recognised patterns as HA entities (requested 27.11.) – REST entities, MQTT later
+Goal: every pattern Bifrost recognises (blocks, people, routines) can be published as its own Home Assistant entity, so owners can use it in their own automations (e.g. "departure in progress" → turn off the heating early, "entry via garage" → light in the hallway).
+
+**Setup**
+- New section "Patterns as entities" in Setup: one row per recognised pattern with a switch "Create entity" (default **off**), the entity id that will be used, and the current state.
+- Same switch on each pattern card in Pattern recognition (shortcut, same setting).
+- Global option `pattern_entities` (on/off) in the app config; off removes all pattern entities.
+- Only confirmed patterns can be published (not "suggested" / "not voting yet").
+
+**Entities per pattern type**
+- 🔁 Routine → `binary_sensor.bifrost_<slug>`: `on` while the chain is complete (within its window), attributes `progress` (e.g. 3/5), `goal`, `who`, `precision`, `last_seen`, `expected_next` (from timing).
+- 🔁 Routine, optional second entity → `sensor.bifrost_<slug>_progress` in % for "arriving soon / leaving soon" automations.
+- 🧱 Block entry/exit per door → `binary_sensor.bifrost_<slug>` pulses `on` for a short hold (e.g. 60 s) after a detected entry/exit, attributes `door`, `direction`, `explained`, `who` (person id only if person entities are on).
+- 👤 Person → already exists as `sensor.bifrost_person_<slug>`; the switch is shown here too, so all is in one place.
+- The existing 0.3 patterns (`binary_sensor.bifrost_pattern_<id>`) move into the same mechanism (migration: enabled → entity on).
+
+**Stable entity ids (important)**
+- Today a routine id is a hash of its tokens: a new or replaced sensor changes the id and would break the owner's automations.
+- Proposal: when the owner switches the entity on, Bifrost stores a **slug** (default from goal + door/person, editable, `[a-z0-9_]`, unique). When a pattern is re-learned, the new version keeps the slug if it is the same pattern (same goal, ≥ 80 % token overlap – the hygiene rule we already use). If the pattern disappears, the entity becomes `unavailable` with attribute `reason: pattern no longer recognised` and a hint appears in Questions; it is never silently reassigned.
+
+**Limits / decisions needed**
+- Entities created via the HA REST API (`set_state`) have no unique_id: not editable in the HA UI and gone after an HA restart until Bifrost publishes again (same as today's entities). Alternative MQTT discovery would give real entities but needs a broker and a client (not stdlib). Proposal: keep REST, document it; MQTT later as an option.
+- Safety: pattern entities are information only. They never feed `empty_confirmed` and the docs say clearly: do not use them to disarm.
+- Privacy: friendly names may contain person/door names – stay local in HA, never in logs; example data only in docs/tests.
+- Budget: max e.g. 30 pattern entities, update only on change (plus every 15 min).
+
+**Open questions for the maintainer**
+1. Do blocks (entry/exit per door) get an entity too, or only routines?
+2. Pulse (short `on`) or `event` entity style for entries/exits?
+3. Progress sensor in % – wanted, or is the attribute enough?
+
+**Tests:** slug stability on re-learning, unavailable when pattern disappears, switch off removes entity, migration of 0.3 patterns, validation of the slug input, UI check (light/dark, 390 px, DE/EN).
+
+### Done in 0.7.0 · Safety fixes from the review (27.11.)
+Found in a code review; recommended **before** new features:
+1. Guard fail-open: if `brain.tick()` raises, the plain rule decision is used and `guard_ok = all([])` is True → must be Unknown + guard not ok.
+2. Guard state (`unknown_min`, last entry/exit, suspicion) is in memory only → persist it; after a restart Unknown – collecting for N minutes (promised in §6.3, not built).
+3. Every exit lowers `unknown_min`, also when a known person leaves → only an unexplained exit lowers it.
+4. An unmapped access value (`unknown`) counts as a **strong** explanation → weak until the owner maps it; "denied" detection by keywords is fragile.
+5. Learned "unreliable" confirms itself (ignored → Away stays stable → fires again → less trust) → labels from independent facts, and a way back.
+6. No household defined → people check passes → block `empty_confirmed` in the gate until the household is defined.
+7. Smaller: reasons translated by regex on English text (structured reasons would be safer), `service.py` god class, night = hour < 6 fixed, stale engine docstring, old screenshots `s1–s3.png` in the repo root.
+
 ### Idea · Learning progress (requested 27.11.)
 - Card "Learning progress" at the top of Pattern recognition: learning since, events collected (today/total), last and next learning run, button "Learn now".
 - "Almost there": candidates below the thresholds with progress bars – routines (seen x of 5, precision), entrances (openings with direction x of 5), neighbours (count, walking time), people timing (weekdays learned), calendar words (x of 5).

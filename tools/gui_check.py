@@ -4,6 +4,7 @@ python tools/gui_check.py [base_url] [out_dir]
 """
 
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -13,19 +14,7 @@ from playwright.sync_api import sync_playwright
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8765/"
 OUT = Path(sys.argv[2] if len(sys.argv) > 2 else tempfile.mkdtemp(prefix="bifrost-gui-"))
 OUT.mkdir(parents=True, exist_ok=True)
-TABS = [
-    "status",
-    "people",
-    "house",
-    "recog",
-    "dev",
-    "questions",
-    "calendars",
-    "timeline",
-    "dashboard",
-    "balance",
-    "setup",
-]
+TABS = ["status", "people", "house", "recog", "dev", "balance", "setup"]
 
 OVERFLOW_JS = """() => {
   const bad = [];
@@ -67,7 +56,8 @@ ENGLISH_JS = r"""() => {
 def run() -> int:
     problems = []
     with sync_playwright() as p:
-        b = p.chromium.launch(executable_path="/usr/bin/google-chrome")
+        chrome = os.environ.get("BIFROST_CHROME") or ("/usr/bin/google-chrome" if Path("/usr/bin/google-chrome").exists() else None)
+        b = p.chromium.launch(executable_path=chrome) if chrome else p.chromium.launch()
         for scheme, w, h in (("light", 1200, 900), ("dark", 1200, 900), ("light", 390, 844), ("dark", 390, 844)):
             ctx = b.new_context(viewport={"width": w, "height": h}, color_scheme=scheme, locale="de-CH")
             pg = ctx.new_page()
@@ -85,7 +75,7 @@ def run() -> int:
                     problems.append({"where": tag, **res})
                 pg.screenshot(path=str(OUT / f"{tag}.png"), full_page=True)
             # buttons: click every visible, non-destructive button on the interactive tabs
-            for tab in ("recog", "people", "questions", "status", "house"):
+            for tab in ("recog", "people", "dev", "status", "house"):
                 pg.click(f'#tabs button[data-v="{tab}"]')
                 pg.wait_for_timeout(400)
                 n = pg.evaluate("() => document.querySelectorAll('main button:not([data-pdel]):not([data-exdel]):not([data-ans]):not([data-wrong])').length")
@@ -97,7 +87,17 @@ def run() -> int:
                         btns[i].click(timeout=1500)
                         pg.wait_for_timeout(150)
                     except Exception as e:  # noqa: BLE001
-                        problems.append({"where": f"click {tab}#{i}-{scheme}-{w}", "error": str(e)[:120]})
+                        if "not attached" not in str(e):
+                            problems.append({"where": f"click {tab}#{i}-{scheme}-{w}", "error": str(e)[:120]})
+                            continue
+                        # the page re-rendered after an async action (e.g. "Learn now") – try the fresh button once
+                        pg.wait_for_timeout(1200)
+                        fresh = pg.query_selector_all("main button:not([data-pdel]):not([data-exdel]):not([data-ans]):not([data-wrong])")
+                        try:
+                            if i < len(fresh) and fresh[i].is_visible():
+                                fresh[i].click(timeout=1500)
+                        except Exception as e2:  # noqa: BLE001
+                            problems.append({"where": f"click {tab}#{i}-{scheme}-{w}", "error": str(e2)[:120]})
                     if pg.evaluate("() => document.querySelector('#tabs button.active')?.dataset.v") != tab:
                         pg.click(f'#tabs button[data-v="{tab}"]')
                         pg.wait_for_timeout(300)

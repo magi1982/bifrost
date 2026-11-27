@@ -7,7 +7,11 @@ The **ledger** answers, every minute, for each person: home / away / unclear –
 "unknown people: at least N" for entries nothing explains. "Empty" is only allowed when
 everybody is away and the unknown counter is 0.
 
-Secrets: an IRK is stored locally only and never returned by the API (only a masked hint).
+Since 0.7 Bluetooth keys (iPhone IRK) live in Home Assistant ("Private BLE Device"), not in Bifrost.
+Older installs may still hold keys: they are only listed masked and can be deleted, never read back.
+
+**Visibility** – how well Bifrost can see a person – follows from the assigned sources alone, using
+the Home Assistant standard ``source_type`` of a tracker instead of a list of integration names.
 """
 
 from __future__ import annotations
@@ -21,15 +25,69 @@ KIND = "person"
 KINDS = ("household", "visitor")
 ENTITY_RE = re.compile(r"^[a-z_]+\.[a-z0-9_]+$")
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9_]{0,39}$")
-IRK_RE = re.compile(r"^[0-9a-f]{32}$")
 NFC_RE = re.compile(r"^[\w .\-]{1,40}$", re.UNICODE)
 MAX_LINKS = 10
 
 HOME, AWAY, UNCLEAR = "home", "away", "unclear"
 STRONG, MEDIUM, WEAK = "strong", "medium", "weak"
 
-# Strength of an identity signal, by integration of the tracker entity.
-STRENGTH_BY_INTEGRATION = {"mobile_app": MEDIUM, "private_ble_device": WEAK, "unifi": WEAK, "bluetooth_le_tracker": WEAK, "ping": WEAK}
+# Strength of an identity signal. The HA standard attribute ``source_type`` decides; the integration is only a fallback.
+STRENGTH_BY_SOURCE_TYPE = {"gps": MEDIUM, "router": WEAK, "bluetooth_le": WEAK, "bluetooth": WEAK}
+STRENGTH_BY_INTEGRATION = {"mobile_app": MEDIUM, "private_ble_device": WEAK, "unifi": WEAK, "bluetooth_le_tracker": WEAK, "ping": WEAK, "bermuda": MEDIUM}
+GOOD, MEDIUM_VIS, INVISIBLE = "good", "medium", "invisible"
+ROOM_WORDS = ("area", "bereich", "room", "raum")
+
+
+def is_room_source(entity_id: str, meta: dict | None) -> bool:
+    """A sensor that reports the room of a device (e.g. Bermuda's "Area" sensor)."""
+    m = meta or {}
+    if (m.get("integration") or "").lower() == "bermuda" and entity_id.startswith("sensor."):
+        return True
+    text = (entity_id + " " + (m.get("name") or "")).lower()
+    return entity_id.startswith("sensor.") and any(w in text for w in ROOM_WORDS) and not m.get("unit")
+
+
+def source_kind(entity_id: str, meta: dict | None) -> str:
+    """gps / router / bluetooth / room / tag / other – what kind of source this is, for the UI and visibility."""
+    m = meta or {}
+    st = (m.get("source_type") or "").lower()
+    if is_room_source(entity_id, m):
+        return "room"
+    if st == "gps" or (not st and (m.get("integration") or "") == "mobile_app"):
+        return "gps"
+    if st == "router":
+        return "router"
+    if st.startswith("bluetooth") or (m.get("integration") or "") in ("private_ble_device", "bluetooth_le_tracker", "ibeacon"):
+        return "bluetooth"
+    if entity_id.startswith("person."):
+        return "person"
+    return "other"
+
+
+def source_strength(entity_id: str, meta: dict | None) -> str:
+    m = meta or {}
+    if is_room_source(entity_id, m):
+        return MEDIUM  # a room is seen close by – better than "somewhere in Wi-Fi"
+    st = (m.get("source_type") or "").lower()
+    if st in STRENGTH_BY_SOURCE_TYPE:
+        return STRENGTH_BY_SOURCE_TYPE[st]
+    if entity_id.startswith("person."):
+        return MEDIUM
+    return STRENGTH_BY_INTEGRATION.get((m.get("integration") or "").lower(), WEAK)
+
+
+def visibility(p: Person, meta: dict[str, dict] | None = None, wrong: dict[str, int] | None = None) -> dict:
+    """good / medium / invisible – derived from the assigned sources, no setting needed."""
+    meta, wrong = meta or {}, wrong or {}
+    kinds = [{"entity_id": e, "kind": source_kind(e, meta.get(e)), "strength": WEAK if wrong.get(e, 0) >= 3 else source_strength(e, meta.get(e))} for e in p.sources]
+    strong_access = bool(p.access_users)
+    if any(k["strength"] in (MEDIUM, STRONG) for k in kinds) or (kinds and strong_access):
+        level = GOOD
+    elif kinds or strong_access:
+        level = MEDIUM_VIS
+    else:
+        level = INVISIBLE
+    return {"level": level, "sources": kinds, "access": list(p.access_users), "calendars": list(p.calendars)}
 
 
 @dataclass
@@ -87,14 +145,6 @@ def validate(body: dict, existing: Person | None = None) -> Person:
     nfc = body.get("nfc_user") or ""
     if nfc and (not isinstance(nfc, str) or not NFC_RE.match(nfc)):
         raise ValueError("nfc_user: letters, digits, space, . _ - (max 40)")
-    irk = body.get("irk")
-    if irk is None or irk == "" and existing is not None and body.get("irk_keep", True):
-        irk = existing.irk if existing else ""  # empty field in the form = keep the stored key
-    if irk == "-":
-        irk = ""  # explicit delete
-    irk = (irk or "").strip().lower().replace(":", "").replace(" ", "")
-    if irk and not IRK_RE.match(irk):
-        raise ValueError("irk: 32 hex characters")
     return Person(
         id=pid,
         name=name,
@@ -104,7 +154,7 @@ def validate(body: dict, existing: Person | None = None) -> Person:
         calendars=_entities(body.get("calendars"), ("calendar.",), "calendars"),
         tags=_entities(body.get("tags"), ("device_tracker.", "binary_sensor.", "sensor."), "tags"),
         nfc_user=nfc.strip(),
-        irk=irk,
+        irk="",  # 0.7: keys live in Home Assistant (Private BLE Device), never in Bifrost
     )
 
 
@@ -128,7 +178,6 @@ def mask(key: str) -> str:
 
 
 DENIED_RE = re.compile(r"denied|verweigert|abgelehnt|invalid|ungültig|falsch|wrong|unknown.?(code|tag|user)|unbekannt|rejected|failed|fehlgeschlagen", re.I)
-LABEL_RE = re.compile(r"^[\w .\-()]{1,40}$", re.UNICODE)
 
 
 class PeopleStore:
@@ -158,11 +207,9 @@ class PeopleStore:
             p.access_users = self._check_access_users(body.get("access_users"), p.id)
         elif p.nfc_user:
             p.access_users = self._check_access_users([*p.access_users, p.nfc_user], p.id)
-        legacy_irk = p.irk
-        p.nfc_user, p.irk = "", ""
+        p.nfc_user = ""
+        p.irk = existing.irk if existing else ""  # a legacy key stays until the owner deletes it – never a new one
         self.store.put_obj(KIND, p.id, asdict(p))
-        if legacy_irk and not any(d.get("key") == legacy_irk for d in self.irk_keys()):
-            self.save_irk({"label": p.name, "key": legacy_irk, "owner": p.id})
         return p
 
     def _check_access_users(self, values: object, pid: str) -> list[str]:
@@ -182,13 +229,11 @@ class PeopleStore:
         return out
 
     def migrate(self) -> None:
-        """≤ 0.4.2 → 0.5: single NFC user → list, IRK on the person → IRK objects in Setup."""
+        """≤ 0.4.2 → 0.5: single NFC user → list. (Legacy IRKs stay until the owner deletes them, see irks().)"""
         for p in self.all():
             raw = self.store.get_obj(KIND, p.id) or {}
-            if raw.get("nfc_user") or raw.get("irk"):
-                if raw.get("irk") and not any(d.get("key") == raw["irk"] for d in self.irk_keys()):
-                    self.save_irk({"label": p.name, "key": raw["irk"], "owner": p.id})
-                p.nfc_user, p.irk = "", ""
+            if raw.get("nfc_user"):
+                p.nfc_user = ""
                 self.store.put_obj(KIND, p.id, asdict(p))
 
     # --- owners: Setup decides who a source belongs to ---
@@ -304,39 +349,21 @@ class PeopleStore:
                 self.store.put_obj(KIND, p.id, asdict(p))
         return {"value": v, "target": target}
 
-    # --- Bluetooth keys (iPhone IRK): no HA entity, kept in Setup, never returned in clear ---
+    # --- legacy Bluetooth keys (≤ 0.6): only listed masked and deleted – since 0.7 they live in HA ---
     def irks(self) -> list[dict]:
-        return [{**d, "key": mask(d.get("key", "")), "has_key": bool(d.get("key"))} for d in self.store.list_objs("irk")]
+        """Legacy keys still stored in Bifrost – masked. Since 0.7 they belong into HA (Private BLE Device)."""
+        out = [{"id": d.get("id"), "label": d.get("label", ""), "owner": d.get("owner", ""), "key": mask(d.get("key", "")), "has_key": bool(d.get("key"))} for d in self.store.list_objs("irk")]
+        out += [{"id": "person_" + p.id, "label": p.name, "owner": p.id, "key": mask(p.irk), "has_key": True} for p in self.all() if p.irk]
+        return out
 
-    def irk_keys(self) -> list[dict]:
-        """With the real keys – for internal matching only, never for the API."""
-        return self.store.list_objs("irk")
-
-    def save_irk(self, body: object) -> dict:
-        if not isinstance(body, dict):
-            raise ValueError("invalid body")
-        label = body.get("label")
-        if not isinstance(label, str) or not LABEL_RE.match(label.strip()):
-            raise ValueError("label: 1–40 characters")
-        owner = body.get("owner") or ""
-        if not isinstance(owner, str) or (owner and self.get(owner) is None):
-            raise ValueError("unknown person")
-        existing = self.store.get_obj("irk", body["id"]) if isinstance(body.get("id"), str) and ID_RE.match(body["id"]) else None
-        key = body.get("key")
-        key = (key or "").strip().lower().replace(":", "").replace(" ", "") if isinstance(key, str) else ""
-        if not key and existing:
-            key = existing.get("key", "")
-        if not IRK_RE.match(key):
-            raise ValueError("key: 32 hex characters")
-        if existing is None:
-            if len(self.store.list_objs("irk")) >= 30:
-                raise ValueError("at most 30 keys")
-            if any(d.get("key") == key for d in self.store.list_objs("irk")):
-                raise ValueError("this key exists already")
-        iid = existing["id"] if existing else slugify(label)[:30] + "_" + key[-4:]
-        d = {"id": iid, "label": label.strip(), "key": key, "owner": owner}
-        self.store.put_obj("irk", iid, d)
-        return {**d, "key": mask(key), "has_key": True}
+    def delete_all_irks(self) -> dict:
+        n = self.store.del_kind("irk")
+        for p in self.all():
+            if p.irk:
+                p.irk = ""
+                self.store.put_obj(KIND, p.id, asdict(p))
+                n += 1
+        return {"deleted": n}
 
     def delete_irk(self, iid: object) -> dict:
         if not isinstance(iid, str) or not ID_RE.match(iid):

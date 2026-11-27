@@ -18,6 +18,7 @@ from datetime import UTC, datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs
 
 from .categories import STATUSES, is_valid_category, is_valid_role
 
@@ -26,6 +27,8 @@ INGRESS_IP = "172.30.32.2"
 STATIC = Path(__file__).parent / "static"
 MAX_BODY = 4096
 FLOORPLAN_BODY = 3_000_000  # base64 of a 2 MB picture
+LAYOUT_BODY = 32_768  # up to 864 painted cells
+FLOOR_KEY_RE = re.compile(r"^[a-z0-9_]{1,40}$")
 MAX_THREADS = 16
 REQUEST_TIMEOUT = 10  # seconds per connection
 CSRF_HEADER = "X-Bifrost-Request"
@@ -60,17 +63,6 @@ def validate_guest(body: object) -> bool:
     return body["on"]
 
 
-PATTERN_ID_RE = re.compile(r"^[0-9a-f]{10}$")
-
-
-def validate_pattern(body: object) -> tuple[str, str]:
-    if not isinstance(body, dict) or not isinstance(body.get("id"), str) or not PATTERN_ID_RE.match(body["id"]):
-        raise ValueError("invalid pattern id")
-    if body.get("status") not in ("enabled", "disabled"):
-        raise ValueError("status must be enabled or disabled")
-    return body["id"], body["status"]
-
-
 def _entity(body: dict, key: str = "entity_id") -> str:
     v = body.get(key)
     if not isinstance(v, str) or not ENTITY_RE.match(v):
@@ -94,9 +86,10 @@ VIEWS = {
     "/api/people": "people_view",
     "/api/house": "house_view",
     "/api/recognition": "recognition_view",
-    "/api/deviations": "deviations_view",
     "/api/questions": "questions_view",
     "/api/balance": "balance_view",
+    "/api/catalog": "catalog_view",
+    "/api/incidents": "incidents_view",
 }
 
 ACTIONS = {
@@ -106,8 +99,7 @@ ACTIONS = {
     "/api/optimization/reset": lambda svc, b: svc.reset_optimizations(),
     "/api/owner": lambda svc, b: svc.set_owner(b.get("entity_id"), b.get("owner")),
     "/api/access_map": lambda svc, b: svc.brain.people.map_access(b.get("value"), b.get("target")),
-    "/api/irk": lambda svc, b: svc.brain.people.save_irk(b),
-    "/api/irk/delete": lambda svc, b: svc.brain.people.delete_irk(b.get("id")),
+    "/api/irk/delete_all": lambda svc, b: svc.brain.people.delete_all_irks(),
     "/api/answer": lambda svc, b: svc.answer(_str(b, "id", 40), _str(b, "answer", 10), b.get("label") if isinstance(b.get("label"), str) else None),
     "/api/correct": lambda svc, b: svc.correct(
         _str(b, "actual", 10),
@@ -115,7 +107,11 @@ ACTIONS = {
         _str(b, "person", 40) if b.get("person") else None,
     ),
     "/api/exception/delete": lambda svc, b: {"deleted": svc.brain.inbox.remove_exception(_str(b, "sensor", 255))},
-    "/api/floorplan": lambda svc, b: (svc.brain.floorplan(_str(b, "image", FLOORPLAN_BODY)), {"ok": True})[1],
+    "/api/floorplan": lambda svc, b: svc.set_floorplan(b),
+    "/api/floorplan/delete": lambda svc, b: svc.delete_floorplan(b.get("floor")),
+    "/api/layout": lambda svc, b: svc.set_layout(b),
+    "/api/layout/reset": lambda svc, b: svc.reset_layout(b.get("floor")),
+    "/api/pattern_entity": lambda svc, b: svc.set_pattern_entity(b),
 }
 
 
@@ -192,20 +188,17 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
                 return self._send(HTTPStatus.OK, service.status_view())
             if route == "/api/entities":
                 return self._send(HTTPStatus.OK, service.entities_view())
-            if route == "/api/dashboard":
-                return self._send(HTTPStatus.OK, service.dashboard_view())
-            if route == "/api/timeline":
-                return self._send(HTTPStatus.OK, service.timeline_view())
-            if route == "/api/patterns":
-                return self._send(HTTPStatus.OK, service.patterns_view())
             if route == "/api/calendars":
-                words = service.brain.words.get("words", {}) if hasattr(service, "brain") else {}
-                return self._send(HTTPStatus.OK, {**service.calendars_view(), "words": words})
+                return self._send(HTTPStatus.OK, service.calendars_view())
             view = VIEWS.get(route)
             if view and hasattr(service, view):
                 return self._send(HTTPStatus.OK, getattr(service, view)())
             if route == "/api/floorplan":
-                fp = service.brain.floorplan_bytes()
+                query = parse_qs(self.path.split("?", 1)[1]) if "?" in self.path else {}
+                key = (query.get("floor") or [""])[0]
+                if key and not FLOOR_KEY_RE.match(key):
+                    return self._send(HTTPStatus.BAD_REQUEST, {"error": "invalid floor"})
+                fp = service.brain.floorplan_bytes(key)
                 if not fp:
                     return self._send(HTTPStatus.NOT_FOUND, {"error": "no floor plan"})
                 return self._send(HTTPStatus.OK, fp[0], fp[1])
@@ -219,7 +212,7 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
                 return self._send(HTTPStatus.FORBIDDEN, {"error": "missing request header"})
             route = self._route()
             try:
-                raw = self._read_body(FLOORPLAN_BODY if route == "/api/floorplan" else MAX_BODY)
+                raw = self._read_body(FLOORPLAN_BODY if route == "/api/floorplan" else LAYOUT_BODY if route == "/api/layout" else MAX_BODY)
             except ValueError:
                 return self._send(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "body too large"})
             try:
@@ -229,14 +222,6 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
             if route == "/api/scan":
                 service.request_scan()
                 return self._send(HTTPStatus.ACCEPTED, {"ok": True})
-            if route == "/api/pattern":
-                try:
-                    pid, status = validate_pattern(body)
-                    return self._send(HTTPStatus.OK, service.set_pattern(pid, status))
-                except ValueError as err:
-                    return self._send(HTTPStatus.BAD_REQUEST, {"error": str(err)})
-                except KeyError:
-                    return self._send(HTTPStatus.NOT_FOUND, {"error": "unknown pattern"})
             if route == "/api/learn":
                 service.learn_job(datetime.now(UTC))
                 return self._send(HTTPStatus.OK, {"ok": True})
