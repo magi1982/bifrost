@@ -10,6 +10,7 @@ os.environ["BIFROST_DEV"] = "1"
 
 import threading  # noqa: E402
 import time  # noqa: E402
+from datetime import UTC, datetime  # noqa: E402
 
 from demo import build, demo_adverts, demo_bluetooth  # noqa: E402
 
@@ -20,6 +21,7 @@ if __name__ == "__main__":
     svc = build(os.path.join(tempfile.mkdtemp(), "demo.db"))
     demo_bluetooth(svc)
     svc.evaluate()
+    svc.learn_job(datetime.now(UTC))
 
     def feed():
         n = 0

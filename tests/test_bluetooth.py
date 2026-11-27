@@ -143,3 +143,17 @@ def test_service_bluetooth_zones_and_person_location(tmp_path):
     svc.set_bluetooth({"on": False})
     svc.evaluate()
     assert svc.bluetooth_view()["devices"] == []
+
+
+def test_missing_gateways_with_reason():
+    hub = BleHub(Store())
+    hub.tracker.sources["AA:BB:CC:00:00:03"] = {"name": "x", "last": 0, "count": 1}
+    rows = hub.missing(
+        [
+            {"name": "Hall", "model": "Shelly Plus 1", "macs": ["aa:bb:cc:00:00:01"]},  # is a gateway (mac + 2)
+            {"name": "Bath light", "model": "SHSW-1", "macs": ["11:22:33:44:55:66"]},
+            {"name": "Socket", "model": "Shelly Plus Plug S", "macs": ["11:22:33:44:55:77"]},
+            {"name": "Proxy", "manufacturer": "Espressif", "model": "esp32", "macs": ["22:22:33:44:55:66"]},
+        ]
+    )
+    assert {r["name"]: r["reason"] for r in rows} == {"Bath light": "no_ble", "Socket": "enable", "Proxy": "esphome"}

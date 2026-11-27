@@ -92,6 +92,9 @@ With the **Mosquitto broker** installed, Bifrost publishes its entities via MQTT
 - **House → Signal → Start calibration**: choose your phone, walk to each numbered point, tap *Measure*. Afterwards positions use these fingerprints; the floor buttons show the expected accuracy.
 - Entities: `binary_sensor.bifrost_zone_<name>` (occupancy) and `sensor.bifrost_<person>_location`.
 
+### Everyday life (0.14)
+**Patterns → Everyday life** shows what repeats in your home: sequences, phases, weekly rhythm, couplings and timers – named from the facts, renamable and hideable. It needs about two weeks of data. *Different from usual today* points out a missing phase or a device that has been on far longer than usual.
+
 ## Deutsch
 
 ### Erste Schritte
@@ -161,4 +164,7 @@ Mit dem **Mosquitto broker** veröffentlicht Bifrost seine Entitäten über MQTT
 - **Haus → Konfiguration → Karte bearbeiten**: jeden Gateway genau setzen (*Gerät setzen*), **Bereiche** zeichnen (Sofa, Schreibtisch …).
 - **Haus → Signal → Einmessen starten**: Handy wählen, zu jedem nummerierten Punkt gehen, *Messen* tippen. Danach nutzen die Positionen diese Fingerabdrücke; die Stockwerk-Knöpfe zeigen die erwartete Genauigkeit.
 - Entitäten: `binary_sensor.bifrost_zone_<name>` (Präsenz) und `sensor.bifrost_<person>_location`.
+
+### Alltagserkennung (0.14)
+**Mustererkennung → Alltagserkennung** zeigt, was sich bei euch wiederholt: Abläufe, Phasen, Wochenrhythmus, Kopplungen und Zeitschaltuhren – aus den Fakten benannt, umbenennbar und ausblendbar. Braucht etwa zwei Wochen Daten. *Heute anders als sonst* zeigt eine ausgefallene Phase oder ein Gerät, das viel länger an ist als sonst.
 

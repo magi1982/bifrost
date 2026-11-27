@@ -2,6 +2,13 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.14.0] – 2026-11-28
+
+### Added
+- **Everyday life** (Patterns tab): patterns beyond arriving, leaving and sleeping, found in the last 28 days on three time scales – **sequences** (steps in the same order within minutes; automatic follow-ups like motion → light are merged; only the longest chains are kept), **phases** (a room active for hours on weekdays or weekends), **weekly rhythm** (only on one weekday, e.g. cleaning on Tuesday), **couplings** (B follows A by a fixed delay, e.g. dishwasher after cooking) and **timers** (switch on to the minute – never counted as activity). Names are built from the facts (time, rooms, devices); rename or hide each one. **Different from usual today** shows a phase that did not happen or a device on far longer than usual. Random activity produces no patterns (tested); 110,000 events take about a second in the learning run.
+- **Bluetooth gateways that send nothing**: Setup → Bluetooth nearby lists the Shellys and ESPHome devices that are not a gateway, with the reason – Bluetooth scanning switched off in HA (with the path), a model without Bluetooth (Gen1, battery devices) or ESPHome without `bluetooth_proxy`.
+- API: `/api/everyday` (rename/hide validated: pattern id, name ≤ 60 characters).
+
 ## [0.13.0] – 2026-11-28
 
 ### Added

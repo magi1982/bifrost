@@ -12,6 +12,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from . import __version__, calwords, guard, i18n
+from . import everyday as _everyday
 from . import house as _house
 from . import housemap as _housemap
 from .balance import signal as _signal
@@ -647,6 +648,13 @@ class BifrostService:
             LOG.info("Recognition learned: %s", res)
         except Exception:  # noqa: BLE001
             LOG.exception("Recognition learning failed")
+        try:
+            evs = self.store.events_since(now - timedelta(days=_everyday.DAYS), limit=120000)
+            model = _everyday.mine(evs, self._area_of(), now)
+            self.store.put_obj("model", "everyday", model)
+            LOG.info("Everyday life: %d patterns from %d days", len(model["patterns"]), model["days"])
+        except Exception:  # noqa: BLE001
+            LOG.exception("Everyday life learning failed")
 
     def _add_context(self, d: Decision, states: dict, now: datetime) -> None:
         """Add calendar hints to the reasons (context only – never changes the state)."""
@@ -1413,10 +1421,45 @@ class BifrostService:
         if self.options.get("bluetooth", True) and hasattr(self.client, "stream_bluetooth"):
             threading.Thread(target=self._ble_loop, name="bifrost-ble", daemon=True).start()
 
+    # --- everyday life (0.14) ---------------------------------------------------------------
+    def _area_of(self) -> dict[str, str | None]:
+        with self._lock:
+            return {eid: e.info.area for eid, e in self.snap.entities.items()}
+
+    def everyday_view(self) -> dict:
+        model = self.store.get_obj("model", "everyday") or {"patterns": [], "durations": {}, "days": 0, "updated": None}
+        user = self.store.get_obj("model", "everyday_user") or {}
+        now = datetime.now(UTC)
+        midnight = now.astimezone().replace(hour=0, minute=0, second=0, microsecond=0)
+        today = self.store.events_since(midnight, limit=20000)
+        brk = _everyday.breaks(model, today, getattr(self, "_states", {}), self._area_of(), now)
+        pats = [{**p, "name": (user.get(p["id"]) or {}).get("name"), "hidden": bool((user.get(p["id"]) or {}).get("hidden"))} for p in model.get("patterns", [])]
+        return {"updated": model.get("updated"), "days": model.get("days", 0), "min_days": 14, "patterns": pats, "breaks": brk, "names": self._names()}
+
+    def set_everyday(self, body: object) -> dict:
+        if not isinstance(body, dict) or not isinstance(body.get("id"), str) or not re.fullmatch(r"ed_[0-9a-f]{10}", body["id"]):
+            raise ValueError("invalid pattern id")
+        user = self.store.get_obj("model", "everyday_user") or {}
+        cur = dict(user.get(body["id"]) or {})
+        if "name" in body:
+            name = body["name"]
+            if name is not None and (not isinstance(name, str) or len(name.strip()) > 60):
+                raise ValueError("name: at most 60 characters")
+            cur["name"] = (name or "").strip() or None
+        if "hidden" in body:
+            if not isinstance(body["hidden"], bool):
+                raise ValueError("hidden: true/false")
+            cur["hidden"] = body["hidden"]
+        user[body["id"]] = cur
+        if len(user) > 500:
+            raise ValueError("too many entries")
+        self.store.put_obj("model", "everyday_user", user)
+        return {"id": body["id"], **cur}
+
     def bluetooth_view(self) -> dict:
         with self._lock:
             cands = list(self.scanners)
-        return self.ble.view(self._ble_rows, self.ble.scanner_positions(self._maps(), cands))
+        return self.ble.view(self._ble_rows, self.ble.scanner_positions(self._maps(), cands), candidates=cands)
 
     def set_bluetooth(self, body: object) -> dict:
         if not isinstance(body, dict):

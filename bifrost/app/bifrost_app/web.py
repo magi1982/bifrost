@@ -93,6 +93,7 @@ VIEWS = {
     "/api/notify": "notify_view",
     "/api/own_entities": "own_entities_view",
     "/api/bluetooth": "bluetooth_view",
+    "/api/everyday": "everyday_view",
     "/api/calib": "calib_view",
     "/api/incidents": "incidents_view",
 }
@@ -119,6 +120,7 @@ ACTIONS = {
     "/api/map": lambda svc, b: svc.set_map(b),
     "/api/own_entities": lambda svc, b: svc.set_own_entity(b),
     "/api/bluetooth": lambda svc, b: svc.set_bluetooth(b),
+    "/api/everyday": lambda svc, b: svc.set_everyday(b),
     "/api/calib/start": lambda svc, b: svc.calib_start(b),
     "/api/calib/delete": lambda svc, b: svc.calib_delete(b),
     "/api/own_entities/remove": lambda svc, b: svc.remove_leftover(b),

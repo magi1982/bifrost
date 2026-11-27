@@ -80,6 +80,8 @@ class DemoClient:
                 {"id": "shellyliving02", "name": "Shelly Plus 2PM Living", "manufacturer": "Shelly", "model": "Shelly Plus 2PM", "area_id": "living", "connections": [["mac", "aa:bb:cc:00:00:02"]]},
                 {"id": "espproxy03", "name": "BT proxy office", "manufacturer": "Espressif", "model": "ESP32", "area_id": None, "connections": [["mac", "aa:bb:cc:00:00:10"]]},
                 {"id": "hueBridge", "name": "Hue Bridge", "manufacturer": "Signify", "model": "BSB002", "area_id": None},
+                {"id": "shelly1bath", "name": "Shelly 1 Bath", "manufacturer": "Shelly", "model": "SHSW-1", "area_id": "bathroom", "connections": [["mac", "aa:bb:cc:00:00:30"]]},
+                {"id": "plugs01", "name": "Plug S Kitchen", "manufacturer": "Shelly", "model": "Shelly Plus Plug S", "area_id": "kitchen", "connections": [["mac", "aa:bb:cc:00:00:40"]]},
             ],
             "areas": [{"area_id": a.lower(), "name": a, "floor_id": FLOOR_OF.get(a)} for a in areas],
             "floors": [{"floor_id": "outside", "name": "Outside", "level": -1}, {"floor_id": "ground", "name": "Ground floor", "level": 0}, {"floor_id": "upper", "name": "Upper floor", "level": 1}],
