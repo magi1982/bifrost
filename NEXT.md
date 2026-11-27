@@ -36,6 +36,15 @@ Nothing house-specific is hard-coded (rooms, doors, names). Bifrost observes, di
 - 0.6 Learn: calendar learning 2.0, missing patterns, day type, Huginn/Verdandi/Skuld.
 - 0.7 → 1.0: room map + BLE location, Forseti fusion, Loki, CO₂, Gjallarhorn.
 
+### Layered events (clarified architecture)
+One pattern engine, used on several levels – higher levels use the events of lower levels as steps:
+1. **Raw signals** (Ratatoskr).
+2. **House building blocks** (Yggdrasil): small, stable patterns that are true for the house regardless of person or time, e.g. "entry via garage" (outside motion → door → indoor motion), "exit via front door", "in the garden". Confirmed once.
+3. **Person events** (Frigg, bookkeeping – not a voting expert): house building block + a phone/BLE companion in the time window = "person A came home". Without a phone or tag the event stays "someone came home".
+4. **Everyday patterns** (Muninn): habits built from levels 2–3, therefore shorter and more robust ("entry via garage" is one step instead of four raw ones).
+- **What is "normal":** every level keeps its own statistics from history (counts, time spans). Skuld and Verdandi read the same events and keep their own statistics (arrival times, durations); no expert needs another expert's opinion as input.
+- Safety rules (last out, family balance) use only levels 2–3, never habits.
+
 ### Must-have: calendar learning 2.0 (Mímir · calendar)
 - Learn **every frequently used word** (≥5 occurrences) in all chosen calendars – not only "word → house empty".
 - **Five effects per word:** person away · person home · house empty · a known pattern does not happen · day type (school day, holidays, weekend, home office).
