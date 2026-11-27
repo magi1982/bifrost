@@ -2,6 +2,14 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.9.1] – 2026-11-27
+
+### Added
+- **What is happening right now** (House tab): the last hour as a lane per area – every event a dot, detected entries and exits as lines, events triggered by an automation or a schedule hollow.
+
+### Removed
+- The old 0.3 pattern view, the timeline and dashboard views with their APIs (`/api/timeline`, `/api/dashboard`, `/api/deviations`) and the old pattern-chain styles – about 30 KB less in the UI.
+
 ## [0.9.0] – 2026-11-27
 
 ### Added

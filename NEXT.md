@@ -71,8 +71,35 @@ In parallel the guard watches entries: an entry nothing explains becomes a hint 
 - Signal "house empty confirmed" and "suspicion" as entities ✅ (off by default); ⏳ wiring to the alarm system in Loxone. **Never disarm.**
 
 
-### Done in 0.7.0 – 0.9.0 · Plan from the full review and proposal v2 (agreed 27.11., built 27.11.)
-Open from this plan: an event lane per area (replaces timeline/dashboard – the views are gone, the lane is not built yet); real-data backtest and tuning of the hindsight thresholds; old pattern-chain CSS (`.cy`) and the unused 0.3 views in index.html can be deleted.
+### Next version · Signal value – which sensors help, which are useless (requested 27.11.)
+Goal: Bifrost reads every entity and learns by itself which signals help to tell "home" from "empty" – and which bring nothing (e.g. aggregated presence zones from another system that stay "on" for a long time, sensors that hardly change). Filterable in Setup.
+
+**What Bifrost measures per signal (no setting needed)**
+- *Information*: the evidence weight learned from hindsight (how much more often it fires when somebody is home than when empty). Near 0 = says nothing.
+- *Activity*: state changes per day; *hold*: typical time it stays "on". A presence zone that stays on for an hour after the last person left is slow and says little about "right now".
+- *Timeliness*: does it fire early in a path (first after a door) or only long after other sensors – aggregated zones come late.
+- *Duplicate*: fires almost always together with another sensor (already detected) – one of the two is enough.
+- *Doctor*: dead, chatty, often unavailable (already detected).
+
+**Verdict per signal** (shown as a pill, with the reason): **Valuable** · **Helps a little** · **Brings nothing** · **Slow (zone)** · **Too few data**.
+
+**Setup**
+- New filter chips "Brings nothing" and "Slow / zone" next to the existing filters; the counts show at a glance how many signals are useless.
+- Optimisation suggestion "Switch off – brings nothing (reason)". Bifrost never switches off by itself – the owner decides (option: later automatically after 30 days?).
+- Card "What Bifrost sees" shows per kind how many are valuable.
+
+**Limits**
+- Needs hindsight labels: until the evidence scale is ready the verdict is "too few data" (except dead/chatty/duplicate, which work from day one).
+- A sensor that only matters for one rare situation (e.g. a garden door in summer) may look useless in winter – the verdict uses the last 8 weeks and says so.
+
+**Open questions**
+1. Only suggest switching off, or also switch off automatically after a while?
+2. Should signals that bring nothing still appear in the House tab (greyed out) or disappear there too?
+
+**Tests**: verdicts on the simulator (a slow zone sensor that stays on for an hour, a dead sensor, a duplicate, a valuable motion sensor), filter counts, optimisation text DE/EN, GUI check.
+
+### Done in 0.7.0 – 0.9.1 · Plan from the full review and proposal v2 (agreed 27.11., built 27.11.)
+Done in 0.9.1: event lane per area (House tab), old 0.3 views, timeline/dashboard and the old chain CSS removed. Still open: tuning of the hindsight thresholds on real data (Balance shows the result).
 
 Mockup: proposal page "Bifrost Vorschlag" (private artifact, example data). Decisions of the maintainer: avatars in rooms yes, one floor plan per floor, status shows Home / Asleep / Away + "in progress", Bifrost's own IRK store goes away (IRKs live in HA's Private BLE Device).
 

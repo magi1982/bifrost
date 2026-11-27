@@ -86,7 +86,6 @@ VIEWS = {
     "/api/people": "people_view",
     "/api/house": "house_view",
     "/api/recognition": "recognition_view",
-    "/api/deviations": "deviations_view",
     "/api/questions": "questions_view",
     "/api/balance": "balance_view",
     "/api/catalog": "catalog_view",
@@ -189,10 +188,6 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
                 return self._send(HTTPStatus.OK, service.status_view())
             if route == "/api/entities":
                 return self._send(HTTPStatus.OK, service.entities_view())
-            if route == "/api/dashboard":
-                return self._send(HTTPStatus.OK, service.dashboard_view())
-            if route == "/api/timeline":
-                return self._send(HTTPStatus.OK, service.timeline_view())
             if route == "/api/calendars":
                 return self._send(HTTPStatus.OK, service.calendars_view())
             view = VIEWS.get(route)
