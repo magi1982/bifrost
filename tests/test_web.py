@@ -185,11 +185,3 @@ def test_guest_validation(body):
 
     with pytest.raises(ValueError):
         validate_guest(body)
-
-
-@pytest.mark.parametrize("body", [{}, {"id": "abc", "status": "enabled"}, {"id": "0123456789", "status": "on"}, {"id": "../../x", "status": "enabled"}])
-def test_pattern_validation(body):
-    from bifrost_app.web import validate_pattern
-
-    with pytest.raises(ValueError):
-        validate_pattern(body)

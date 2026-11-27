@@ -35,6 +35,22 @@ MAX_PER_GOAL = 8
 WEEKDAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 
 
+def outcomes_from_decisions(decisions: list[dict], parse) -> list[tuple[str, datetime]]:  # noqa: ANN001
+    """departure / arrival / bedtime moments from a decision history (oldest first)."""
+    out: list[tuple[str, datetime]] = []
+    prev = None
+    for d in decisions:
+        s, t = d["state"], parse(d["ts"])
+        if prev in ("home", "asleep") and s in ("leaving", "away"):
+            out.append(("departure", t))
+        elif prev == "away" and s in ("arriving", "home"):
+            out.append(("arrival", t))
+        elif prev in ("home", "arriving") and s == "asleep":
+            out.append(("bedtime", t))
+        prev = s
+    return out
+
+
 def token_of(e: dict) -> str | None:
     """Facts → tokens. Edges 'on' of sensors, home/away of identities, block/person events."""
     k = e.get("kind")
@@ -248,6 +264,30 @@ def hygiene(plans: list[dict]) -> list[dict]:
             continue
         kept.append(p)
     return kept
+
+
+def _overlap(a: list[str], b: list[str]) -> float:
+    sa, sb = set(a), set(b)
+    return len(sa & sb) / max(1, len(sa | sb))
+
+
+def stabilise(new: list[dict], old: list[dict], now: datetime | None = None) -> list[dict]:
+    """Keep the id of a re-learned plan when it is still the same pattern (same goal, ≥ 80 % same steps).
+
+    Ids are what owners' automations and pattern entities hang on – a new sensor must not make a new pattern.
+    """
+    used: set[str] = set()
+    stamp = (now or datetime.now().astimezone()).isoformat()
+    for p in new:
+        cands = [(_overlap(p["tokens"], o.get("tokens", [])), o) for o in old if o.get("goal") == p["goal"] and o.get("id") not in used]
+        best = max(cands, key=lambda x: x[0], default=(0.0, None))
+        if best[1] is not None and best[0] >= 0.8:
+            p["id"] = best[1]["id"]
+            p["first_seen"] = best[1].get("first_seen") or stamp
+        else:
+            p["first_seen"] = stamp
+        used.add(p["id"])
+    return new
 
 
 def progress(plan: dict, recent: list[tuple[datetime, str]], now: datetime) -> float:
