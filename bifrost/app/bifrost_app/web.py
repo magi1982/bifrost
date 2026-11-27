@@ -110,7 +110,7 @@ ACTIONS = {
     ),
     "/api/exception/delete": lambda svc, b: {"deleted": svc.brain.inbox.remove_exception(_str(b, "sensor", 255))},
     "/api/floorplan": lambda svc, b: svc.set_floorplan(b),
-    "/api/floorplan/delete": lambda svc, b: svc.delete_floorplan(b.get("floor")),
+    "/api/floorplan/delete": lambda svc, b: svc.delete_floorplan(b.get("floor"), b.get("layer", 0)),
     "/api/layout": lambda svc, b: svc.set_layout(b),
     "/api/layout/reset": lambda svc, b: svc.reset_layout(b.get("floor")),
     "/api/map": lambda svc, b: svc.set_map(b),

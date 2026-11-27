@@ -100,3 +100,63 @@ def test_service_map_round_trip(tmp_path):
     assert not svc.live_view()["layouts"][floor["name"]]["map_saved"]
     with pytest.raises(ValueError):
         svc.reset_map("nope")
+
+
+def test_outside_areas_hull_and_layers():
+    fa = {"Ground floor": ["Hall"], "Outside": ["Garden"]}
+    body = {
+        "floor": "Ground floor",
+        "w": 24,
+        "h": 17,
+        "rooms": [
+            {"area": "Hall", "rects": [[5, 3, 4, 4]]},
+            {"area": "Garden", "outside": True, "rects": [[0, 0, 3, 3]]},
+            {"area": "Pool-Bereich (Süd)", "outside": True, "rects": [[0, 10, 4, 6]]},
+        ],
+        "hull": [[5, 3, 14, 9], [19, 6, 4, 6]],
+        "layers": [{"n": 0, "x": -1.5, "y": 0, "w": 26, "rot": 12.5, "op": 0.4}, {"n": 2}],
+    }
+    floor, m = hm.validate_map(body, fa)
+    assert [r.get("outside", False) for r in m["rooms"]] == [False, True, True]
+    assert m["hull"][1] == [19, 6, 4, 6] and m["layers"][0]["rot"] == 12.5 and m["layers"][1]["w"] == 24
+    assert hm.room_at(m, 1, 1) is None and hm.room_at(m, 6, 4) == "Hall"  # outside areas never count as a room
+    assert hm.layer_key("ground_floor", 0) == "ground_floor" and hm.layer_key("ground_floor", 2) == "ground_floor_l2"
+
+
+@pytest.mark.parametrize(
+    "patch",
+    [
+        {"rooms": [{"area": "<b>x</b>", "outside": True, "rects": [[0, 0, 1, 1]]}]},
+        {"rooms": [{"area": "Garden", "rects": [[0, 0, 1, 1]]}]},  # another floor's area only as outside area
+        {"hull": [[0, 0, 1, 1]] * 41},
+        {"layers": [{"n": 4}]},
+        {"layers": [{"n": 0}, {"n": 0}]},
+        {"layers": [{"n": 0, "rot": 400}]},
+        {"layers": [{"n": 0, "op": 2}]},
+        {"layers": [{"n": True}]},
+    ],
+)
+def test_invalid_outside_hull_layers(patch):
+    fa = {"Ground floor": ["Hall"], "Outside": ["Garden"]}
+    with pytest.raises(ValueError):
+        hm.validate_map({"floor": "Ground floor", "w": 12, "h": 10, "rooms": [], **patch}, fa)
+
+
+def test_service_floorplan_layers(tmp_path):
+    import base64
+
+    from demo import build
+
+    from bifrost_app.floorplan import PNG_MAGIC
+
+    svc = build(str(tmp_path / "h.db"))
+    floor = next(f for f in svc.live_view()["floors"] if f["areas"])["name"]
+    img = base64.b64encode(PNG_MAGIC + b"0" * 20).decode()
+    svc.set_floorplan({"floor": floor, "image": img})
+    svc.set_floorplan({"floor": floor, "image": img, "layer": 2})
+    plans = svc.live_view()["layouts"][floor]["plans"]
+    assert [p["n"] for p in plans] == [0, 2]
+    with pytest.raises(ValueError):
+        svc.set_floorplan({"floor": floor, "image": img, "layer": 9})
+    svc.delete_floorplan(floor, 2)
+    assert [p["n"] for p in svc.live_view()["layouts"][floor]["plans"]] == [0]

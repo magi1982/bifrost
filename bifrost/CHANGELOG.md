@@ -5,11 +5,15 @@ All notable changes to Bifrost are documented here. The format follows [Keep a C
 ## [0.11.0] – 2026-11-27
 
 ### Added
-- **House map 2.0.** Rooms are drawn as rectangles in metres instead of painted cells; several rectangles of the same room join into one shape (L- or T-shaped hallways). Tools: draw room, select (move, resize with a handle), stairs, door, window (snap to the nearest wall), place device, delete, undo/redo, 0.5 m grid, floor width and depth.
-- **Place devices exactly:** Bluetooth scanners (Shelly Gen2+, ESPHome proxies – found in the HA device registry) and the motion/door sensors Bifrost uses can be put on the map; unplaced scanners are pointed out. This prepares Bluetooth positions (next stage).
-- The live map shows rooms by what happens, people in their room, stairs, doors, windows and placed scanners. Your 0.9 room layout is taken over automatically.
-- Map look: every room in its own neon colour, activity fills and glows; family members as a phone icon with their name, Bluetooth gateways as a blue Bluetooth logo, Bluetooth devices as white circles.
-- API: `/api/map`, `/api/map/reset` (validated: known floor and areas, sizes 2–80 m, at most 240 rectangles and 240 devices, ids checked).
+- **House map with three tabs**, all floors shown at once (one below the other, side by side on large screens):
+  - **Live** (default) – only people: family members as a phone icon with their name in their room, rooms light up by what happens.
+  - **Configuration** – only technology: Bluetooth gateways (blue Bluetooth logo), motion sensors, contacts, Bluetooth devices (white circles), doors and windows; **Edit map** per floor.
+  - **Signal** – the map in grey, only the coverage in colour (accurate / room level / rough / weak), estimated from the gateway positions; calibration comes next.
+- **Drawing**: rooms as rectangles in metres – several rectangles of one room join into one shape (L- or T-shaped hallways); **outside areas** (path to the entrance, terrace, pool, pergola … – an HA area or a free name) that never count as "in the house"; the **hull** – the outline of the house, drawable too (e.g. an attached garage), by default taken from the rooms; stairs, doors, windows (snap to the nearest wall); select, move, resize, delete, undo/redo, 0.5 m grid, floor size.
+- **Place devices exactly**: gateways (Shelly Gen2+, ESPHome proxies from the HA device registry), motion sensors and contacts; unplaced gateways are pointed out.
+- **Floor plan pictures**: up to four per floor, each moved, scaled, rotated and made transparent so ground floor with garden, upper floor and basement line up.
+- New look "Aurora" in light and dark mode with round icons of the same size. Your 0.9 room layout is taken over automatically.
+- API: `/api/map`, `/api/map/reset`, `/api/floorplan` with `layer` (validated: known floor and areas, outside names checked, sizes, at most 240 rectangles, 40 hull rectangles, 240 devices, 4 pictures).
 
 ## [0.10.3] – 2026-11-27
 
