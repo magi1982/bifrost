@@ -203,10 +203,10 @@ def test_mqtt_outlet_safety_order_discovery_switching_and_cleanup():
         out.set_enabled("binary_sensor.bifrost_empty_confirmed", False)
     with pytest.raises(ValueError):
         out.set_enabled("light.kitchen", False)
-    n = len(b.pubs)
+    assert wait(lambda: ("bifrost/sensor/bifrost_home_status/state", "", True) in b.pubs)  # retained value cleared
     out.set_state("sensor.bifrost_home_status", "away", {})
-    time.sleep(0.1)
-    assert all(p[0] != "bifrost/sensor/bifrost_home_status/state" for p in b.pubs[n:])  # off = not published
+    time.sleep(0.2)
+    assert ("bifrost/sensor/bifrost_home_status/state", "away", True) not in b.pubs  # off = not published
     assert json.loads(store.get_value("entities_off")) == ["sensor.bifrost_home_status"]
     v = out.view()
     assert v["mode"] == "mqtt" and any(r["entity_id"] == "sensor.bifrost_home_status" and not r["on"] for r in v["entities"])
