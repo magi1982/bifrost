@@ -86,6 +86,17 @@ One pattern engine, used on several levels – higher levels use the events of l
 - **Auto-accept (setting, off by default):** very strong, long-stable suggestions may be accepted automatically and listed as "accepted automatically – undo?".
 - Expected volume: a handful per day in the first two weeks (setup, house blocks, people), then a few per week.
 
+### Concept gaps found in review (to be solved)
+Before building 0.4:
+1. **Event pre-processing:** rising edges only (ignore hold times), learned latency and time blur per sensor, detect and merge duplicate sensors (e.g. same detector via Loxone and HA), debounce. Two triggers closer than the blur count as simultaneous (AND); neighbours on the room map with a fitting walking time = one person moving; non-neighbours faster than any walk = **at least two people** (lower bound for the person ledger).
+2. **Person ledger with unknowns:** "unknown people: at least N" – an unexplained entry raises it, an exit with silence lowers it; "empty" requires 0.
+3. **Learning phase and restart:** visible learning phase with progress; only guard rules and quiet hints until enough is known. After a restart "Unknown – collecting" until the ledger is reliable again; internal times in UTC, windows learned in local time (DST-safe).
+4. **Correction button** "That's wrong" on the status (and as an HA action) – strongest label, used in backtesting.
+5. **Question routing:** per question type who receives it (admin, parents, the person concerned); children get no questions; answered once = closed for everyone.
+6. **Explanation strength (anti-spoofing):** NFC strong · companion app with GPS medium · BLE/Wi-Fi weak; at night or at rare doors a weak explanation is not enough.
+During 0.4–0.6: sensor replaced/renamed (suggest re-mapping), resource limits (raw data ~90 days then counters, nightly incremental mining, usage shown in setup), forget/reset per pattern/person/sensor, privacy (admin-only tab, per-person entities optional, retention, export/delete), false-suspicion rate as second KPI with automatic quieter guard, capability check per house ("direction ✓, people 1/5, guard limited" + missing hardware), simulator with synthetic households as release tests.
+Later: life-change detection when many patterns break at once, "phone forgotten at home?" hint, profiles cautious/normal/bold, HA blueprints for reactions.
+
 ### Entry guard (suspicious entries) – idea
 - **Every entry must be explained:** known phone/BLE arriving, NFC disarm at the keypad, somebody was already inside (inside motion before), a learned pattern (e.g. regular visitor), or guest mode. Otherwise: unexplained entry.
 - **Door profiles learned by Yggdrasil (no names needed):** per door/window how often it is used as entry from outside, as exit, or only opened from inside (ventilation, garden), by time of day. The entity name and HA device class are only a first hint; the role comes from behaviour and is shown as a suggestion ("door X is almost only opened from inside – garden door?").
