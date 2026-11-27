@@ -22,6 +22,9 @@ MAX_RECTS = 240
 MAX_MARKS = 120
 MAX_DEVICES = 240
 MARK_KINDS = ("door", "window")
+MAX_HULL = 40
+MAX_LAYERS = 4  # floor plan pictures per floor
+OUTSIDE_NAME = re.compile(r"^[\w äöüÄÖÜéèàçÉÈÀß.,'()&/+-]{1,40}$")
 DEVICE_KINDS = ("scanner", "sensor", "ble")
 _ID = re.compile(r"^(?:[a-z_]+\.[a-z0-9_]+|dev:[A-Za-z0-9_-]{1,64}|ble:[0-9A-F:]{2,40})$")
 
@@ -44,8 +47,11 @@ def _rect(r: object, w: float, h: float) -> list[float]:
     return [x, y, rw, rh]
 
 
-def validate_map(body: object, floor_areas: dict[str, list[str]]) -> tuple[str, dict]:
-    """Check a map sent by the UI. Raises ValueError with a short reason."""
+def validate_map(body: object, floor_areas: dict[str, list[str]]) -> tuple[str, dict]:  # noqa: C901
+    """Check a map sent by the UI. Raises ValueError with a short reason.
+
+    Inside rooms must be HA areas of this floor. Outside areas (terrace, pool …) may be any HA area or a free name.
+    """
     if not isinstance(body, dict):
         raise ValueError("invalid body")
     floor = body.get("floor")
@@ -54,13 +60,18 @@ def validate_map(body: object, floor_areas: dict[str, list[str]]) -> tuple[str, 
     w, h = _num(body.get("w", DEFAULT_W), MIN_SIZE, MAX_SIZE, "floor width"), _num(body.get("h", DEFAULT_H), MIN_SIZE, MAX_SIZE, "floor height")
     rooms_in, stairs_in = body.get("rooms") or [], body.get("stairs") or []
     marks_in, devs_in = body.get("marks") or [], body.get("devices") or []
-    if not all(isinstance(x, list) for x in (rooms_in, stairs_in, marks_in, devs_in)):
-        raise ValueError("rooms, stairs, marks and devices must be lists")
+    hull_in, layers_in = body.get("hull") or [], body.get("layers") or []
+    if not all(isinstance(x, list) for x in (rooms_in, stairs_in, marks_in, devs_in, hull_in, layers_in)):
+        raise ValueError("rooms, stairs, marks, devices, hull and layers must be lists")
+    all_areas = {a for v in floor_areas.values() for a in v}
     rooms: list[dict] = []
     seen: set[str] = set()
     n = 0
     for r in rooms_in:
-        if not isinstance(r, dict) or r.get("area") not in floor_areas[floor] or r["area"] in seen:
+        outside = isinstance(r, dict) and r.get("outside") is True
+        name = r.get("area") if isinstance(r, dict) else None
+        ok = isinstance(name, str) and (name in floor_areas[floor] or (outside and (name in all_areas or OUTSIDE_NAME.match(name))))
+        if not ok or name in seen:
             raise ValueError("unknown or duplicate area")
         rects = r.get("rects")
         if not isinstance(rects, list) or not rects:
@@ -69,10 +80,33 @@ def validate_map(body: object, floor_areas: dict[str, list[str]]) -> tuple[str, 
         if n > MAX_RECTS:
             raise ValueError(f"at most {MAX_RECTS} rectangles")
         seen.add(r["area"])
-        rooms.append({"area": r["area"], "rects": [_rect(x, w, h) for x in rects]})
+        room = {"area": r["area"], "rects": [_rect(x, w, h) for x in rects]}
+        if outside:
+            room["outside"] = True
+        rooms.append(room)
     if n + len(stairs_in) > MAX_RECTS:
         raise ValueError(f"at most {MAX_RECTS} rectangles")
     stairs = [_rect(x, w, h) for x in stairs_in]
+    if len(hull_in) > MAX_HULL:
+        raise ValueError(f"at most {MAX_HULL} hull rectangles")
+    hull = [_rect(x, w, h) for x in hull_in]
+    if len(layers_in) > MAX_LAYERS:
+        raise ValueError(f"at most {MAX_LAYERS} floor plan pictures")
+    layers, nums = [], set()
+    for lay in layers_in:
+        if not isinstance(lay, dict) or not isinstance(lay.get("n"), int) or isinstance(lay.get("n"), bool) or not 0 <= lay["n"] < MAX_LAYERS or lay["n"] in nums:
+            raise ValueError("layer: n 0..3, once")
+        nums.add(lay["n"])
+        layers.append(
+            {
+                "n": lay["n"],
+                "x": _num(lay.get("x", 0), -MAX_SIZE, MAX_SIZE, "x"),
+                "y": _num(lay.get("y", 0), -MAX_SIZE, MAX_SIZE, "y"),
+                "w": _num(lay.get("w", w), 0.5, 4 * MAX_SIZE, "width"),
+                "rot": _num(lay.get("rot", 0), -180, 180, "rotation"),
+                "op": _num(lay.get("op", 0.5), 0, 1, "opacity"),
+            }
+        )
     if len(marks_in) > MAX_MARKS:
         raise ValueError(f"at most {MAX_MARKS} doors and windows")
     marks = []
@@ -97,7 +131,7 @@ def validate_map(body: object, floor_areas: dict[str, list[str]]) -> tuple[str, 
             raise ValueError("invalid or duplicate device id")
         ids.add(did)
         devices.append({"id": did, "kind": d["kind"], "x": _num(d.get("x"), 0, w, "x"), "y": _num(d.get("y"), 0, h, "y")})
-    return floor, {"w": w, "h": h, "rooms": rooms, "stairs": stairs, "marks": marks, "devices": devices}
+    return floor, {"w": w, "h": h, "rooms": rooms, "stairs": stairs, "marks": marks, "devices": devices, "hull": hull, "layers": layers}
 
 
 def from_cells(cells: dict[str, str], cols: int = 36, rows: int = 24) -> dict:
@@ -119,12 +153,14 @@ def from_cells(cells: dict[str, str], cols: int = 36, rows: int = 24) -> dict:
                 for i in range(x, x2 + 1):
                     left.pop(f"{i},{j}", None)
             by_area.setdefault(a, []).append([x * CELL_M, y * CELL_M, (x2 - x + 1) * CELL_M, (y2 - y + 1) * CELL_M])
-    return {"w": cols * CELL_M, "h": rows * CELL_M, "rooms": [{"area": a, "rects": r} for a, r in by_area.items()], "stairs": [], "marks": [], "devices": []}
+    return {"w": cols * CELL_M, "h": rows * CELL_M, "rooms": [{"area": a, "rects": r} for a, r in by_area.items()], "stairs": [], "marks": [], "devices": [], "hull": [], "layers": []}
 
 
 def room_at(m: dict, x: float, y: float) -> str | None:
     """The area a point lies in (stairs and outside → None)."""
     for r in m.get("rooms", []):
+        if r.get("outside"):
+            continue
         for rx, ry, rw, rh in r["rects"]:
             if rx <= x <= rx + rw and ry <= y <= ry + rh:
                 return r["area"]
@@ -162,8 +198,15 @@ def clean(m: dict, areas: list[str]) -> dict:
     return {
         "w": m.get("w", DEFAULT_W),
         "h": m.get("h", DEFAULT_H),
-        "rooms": [r for r in m.get("rooms", []) if r.get("area") in areas],
+        "rooms": [r for r in m.get("rooms", []) if r.get("outside") or r.get("area") in areas],
         "stairs": m.get("stairs", []),
         "marks": m.get("marks", []),
         "devices": m.get("devices", []),
+        "hull": m.get("hull", []),
+        "layers": m.get("layers", []),
     }
+
+
+def layer_key(floor_key: str, n: int) -> str:
+    """Store key of a floor plan picture: layer 0 keeps the 0.9 key, more layers get a suffix."""
+    return floor_key if n == 0 else f"{floor_key[:37]}_l{n}"

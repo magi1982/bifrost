@@ -999,7 +999,15 @@ class BifrostService:
             cells = {k: v for k, v in (saved or {}).items() if v in names_f} if saved else house_mod.auto_layout(names_f, self.brain.paths)
             stored = self.store.get_obj("map", key)
             hmap = _clean_map(stored, names_f) if stored else _housemap.from_cells(cells)
-            layouts[f["name"] or ""] = {"key": key, "cells": cells, "saved": bool(saved), "plan": bool(self.brain.floorplan_bytes(key)), "map": hmap, "map_saved": bool(stored)}
+            layouts[f["name"] or ""] = {
+                "key": key,
+                "cells": cells,
+                "saved": bool(saved),
+                "plan": bool(self.brain.floorplan_bytes(key)),
+                "map": hmap,
+                "map_saved": bool(stored),
+                "plans": [{"n": n, "key": _housemap.layer_key(key, n)} for n in range(_housemap.MAX_LAYERS) if self.brain.floorplan_bytes(_housemap.layer_key(key, n))],
+            }
         lane = self._lane(now, ents)
         room_src = {p.id: [e for e in p.sources if is_room_source(e, self.brain.meta.get(e))] for p in self.brain.people.all()}
         known_areas = {a["name"] for f in floor_list for a in f["areas"]}
@@ -1095,13 +1103,18 @@ class BifrostService:
         img = body.get("image")
         if not isinstance(img, str) or not img:
             raise ValueError("image missing")
-        self.brain.floorplan(img, _house.floor_key(body["floor"]))
-        return {"ok": True}
+        n = body.get("layer", 0)
+        if not isinstance(n, int) or isinstance(n, bool) or not 0 <= n < _housemap.MAX_LAYERS:
+            raise ValueError("layer: 0..3")
+        self.brain.floorplan(img, _housemap.layer_key(_house.floor_key(body["floor"]), n))
+        return {"ok": True, "layer": n, "key": _housemap.layer_key(_house.floor_key(body["floor"]), n)}
 
-    def delete_floorplan(self, floor: object) -> dict:
+    def delete_floorplan(self, floor: object, layer: object = 0) -> dict:
         if not isinstance(floor, str) or floor not in self._floor_areas():
             raise ValueError("unknown floor")
-        self.brain.delete_floorplan(_house.floor_key(floor))
+        if not isinstance(layer, int) or isinstance(layer, bool) or not 0 <= layer < _housemap.MAX_LAYERS:
+            raise ValueError("layer: 0..3")
+        self.brain.delete_floorplan(_housemap.layer_key(_house.floor_key(floor), layer))
         return {"ok": True}
 
     def incidents_view(self) -> dict:
