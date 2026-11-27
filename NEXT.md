@@ -536,7 +536,7 @@ Problem (from the issue): Bifrost writes its entities with `POST /api/states`. I
 Three safeguards that also stay as the fallback without MQTT (proposal – the list was missing in the request):
 1. *Fail closed on stop*: SIGTERM/SIGINT → write `empty_confirmed = off` and `house_empty = off` (short timeout) before the process ends.
 2. *Fail closed on error and on start*: the first write after start is `off`; any exception in `evaluate()`/`publish()` or an unreachable HA → `off` at the next possible write. A watchdog thread writes `off` if no evaluation succeeded for 3 × the evaluate interval (hung loop).
-3. *Freshness for the consumer*: every Bifrost entity carries `updated_at` and `valid_until` (now + 3 × interval); `empty_confirmed` only counts as on while `valid_until` is in the future. DOCS get a ready template / Loxone hint ("arm only if on **and** not older than 3 min"). This is the only guard that also covers a hard kill (`kill -9`, power loss) without MQTT.
+3. *Freshness for the consumer*: every Bifrost entity carries `updated_at` and `valid_until` (now + 3 × interval); `empty_confirmed` only counts as on while `valid_until` is in the future. DOCS get a ready template / Loxone hint ("arm only if on **and** `valid_until` not passed"). This is the only guard that also covers a hard kill (`kill -9`, power loss) without MQTT.
 Tests: stop → off; exception in evaluate → off; start → off first; watchdog → off; attributes present.
 
 **2 · MQTT Discovery (decided: we do it)**
@@ -561,4 +561,4 @@ Tests: stop → off; exception in evaluate → off; start → off first; watchdo
 - *Internal path*: zones and person locations flow into pattern recognition directly inside Bifrost, not via HA.
 
 **Priority**: point 1 before any release (proposal: 0.11.1 right away). Points 2 and 3 as the next version – proposal **0.12 before 0.11c**, because 0.11c adds many new entities (zones, person locations, visitors) that should be born as MQTT entities right away.
-**Open questions**: the three safeguards as proposed? Freshness window 3 × interval (≈ 3 min) ok? Keep the existing entity ids under MQTT? 0.12 before 0.11c?
+**Open questions**: the three safeguards as proposed? Freshness window 3 × interval (default interval 30 s → 90 s) ok? Keep the existing entity ids under MQTT? 0.12 before 0.11c?
