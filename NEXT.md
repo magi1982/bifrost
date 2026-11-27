@@ -109,6 +109,13 @@ Later: life-change detection when many patterns break at once, "phone forgotten 
 - **The user names it:** answers can carry a label ("phone forgotten", "animal", "cleaner"); the next deviation with the same structure (same sources, same kind) is shown with that label and handled as learned. Labels are local and editable.
 - So houses get their own vocabulary without code changes; only the generic kinds and the safety rules are built in.
 
+### Persons live in Bifrost, not in HA
+- The Family tab is the single source of truth; no HA persons or users are required. Per person the owner links whatever exists: phone tracker(s), BLE identity (iPhone IRK), calendar entities, NFC user, tag – or nothing.
+- IRKs and similar keys are stored only in Bifrost's local data, never in logs, exports, diagnostics or the repo; masked in the UI.
+- BLE resolution options: HA "Private BLE Device" integration (an integration entry, not a user) or Bifrost reading BLE advertisements via HA (to be checked).
+- Bifrost publishes its own per-person entities (optional), e.g. `sensor.bifrost_person_<slug>`.
+- **Signal fingerprints** (inside / garden / which room) need BLE data first: Shelly scanners in passive mode, ESP32 indoors, IRK per phone; Bifrost then records RSSI per scanner and learns fingerprints from moments where the place is known (entry blocks, motion in one room) – a few weeks of data.
+
 ### Entry guard (suspicious entries) – idea
 - **Every entry must be explained:** known phone/BLE arriving, NFC disarm at the keypad, somebody was already inside (inside motion before), a learned pattern (e.g. regular visitor), or guest mode. Otherwise: unexplained entry.
 - **Door profiles learned by Yggdrasil (no names needed):** per door/window how often it is used as entry from outside, as exit, or only opened from inside (ventilation, garden), by time of day. The entity name and HA device class are only a first hint; the role comes from behaviour and is shown as a suggestion ("door X is almost only opened from inside – garden door?").
