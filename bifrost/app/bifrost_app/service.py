@@ -12,6 +12,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from . import __version__, calwords, guard, i18n
+from . import house as _house
 from .balance import signal as _signal
 from .brain import Brain
 from .categories import CATEGORIES, STATUS_IGNORED, STATUS_INCLUDED, derive_role
@@ -20,6 +21,7 @@ from .engine import ARRIVING, AWAY, HOME, Decision, Settings, Signal, decide, pa
 from .ha_client import HAClient, HAError
 from .live import AUTOMATION, SCHEDULED, LiveBoard, NumericEvents, OriginLearner, classify_origin
 from .optimize import suggestions as opt_suggestions
+from .people import is_room_source
 from .people import public as person_public
 from .preprocess import DuplicateDetector, Edge, EdgeFilter
 from .routines import outcomes_from_decisions
@@ -311,6 +313,7 @@ class BifrostService:
         if self.options.get("publish_entities", True):
             self.publish(d)
             self.publish_extra(d, signals, now)
+            self.publish_pattern_entities(now)
         return d
 
     def _record_polled(self, signals: list[Signal], now: datetime) -> None:
@@ -824,6 +827,7 @@ class BifrostService:
         now = datetime.now(UTC)
         names = self._names()
         house = self.brain.house_view(names)
+        house_mod = _house
         unreliable = self.brain.unreliable()
         with self._lock:
             ents = {k: e for k, e in self.snap.entities.items() if e.status == STATUS_INCLUDED}
@@ -880,10 +884,21 @@ class BifrostService:
         gaps += [{"kind": "area_without_signal", "area": a} for a in empty_areas]
         gaps += [{"kind": "signal_without_area", "entity_id": x["entity_id"]} for x in areas.get(None, [])]
         led = (self.extra or {}).get("ledger") or {}
+        layouts = {}
+        for f in floor_list:
+            key = house_mod.floor_key(f["name"])
+            names_f = [a["name"] for a in f["areas"]]
+            saved = (self.store.get_obj("layout", key) or {}).get("cells")
+            cells = {k: v for k, v in (saved or {}).items() if v in names_f} if saved else house_mod.auto_layout(names_f, self.brain.paths)
+            layouts[f["name"] or ""] = {"key": key, "cells": cells, "saved": bool(saved), "plan": bool(self.brain.floorplan_bytes(key))}
+        room_src = {p.id: [e for e in p.sources if is_room_source(e, self.brain.meta.get(e))] for p in self.brain.people.all()}
+        known_areas = {a["name"] for f in floor_list for a in f["areas"]}
         return {
             **house,
             "now": now.isoformat(),
             "floors": floor_list,
+            "layouts": layouts,
+            "avatars": house_mod.avatars(self.brain.people.all(), room_src, self._states, known_areas, now),
             "unassigned": areas.get(None, []),
             "gaps": gaps,
             "people": [{"name": r.get("name"), "state": r.get("state")} for r in led.get("people", [])],
@@ -901,8 +916,103 @@ class BifrostService:
             "people_inside_min": (self.extra or {}).get("people_inside_min", 0),
         }
 
+    def _floor_areas(self) -> dict[str, list[str]]:
+        with self._lock:
+            floors_of = dict(self.floors)
+        out: dict[str, list[str]] = {}
+        for area, f in floors_of.items():
+            out.setdefault(f.get("floor") or "", []).append(area)
+        return out
+
+    def set_layout(self, body: object) -> dict:
+        floor, cells = _house.validate_layout(body, self._floor_areas())
+        key = _house.floor_key(floor)
+        self.store.put_obj("layout", key, {"floor": floor, "cells": cells})
+        return {"floor": floor, "cells": len(cells)}
+
+    def reset_layout(self, floor: object) -> dict:
+        if not isinstance(floor, str) or floor not in self._floor_areas():
+            raise ValueError("unknown floor")
+        return {"deleted": self.store.del_obj("layout", _house.floor_key(floor))}
+
+    def set_floorplan(self, body: object) -> dict:
+        if not isinstance(body, dict) or not isinstance(body.get("floor"), str) or body["floor"] not in self._floor_areas():
+            raise ValueError("unknown floor")
+        img = body.get("image")
+        if not isinstance(img, str) or not img:
+            raise ValueError("image missing")
+        self.brain.floorplan(img, _house.floor_key(body["floor"]))
+        return {"ok": True}
+
+    def delete_floorplan(self, floor: object) -> dict:
+        if not isinstance(floor, str) or floor not in self._floor_areas():
+            raise ValueError("unknown floor")
+        self.brain.delete_floorplan(_house.floor_key(floor))
+        return {"ok": True}
+
+    def incidents_view(self) -> dict:
+        return {"items": self.brain.incidents_view(datetime.now(UTC)), "names": self._names(), "questions": self.questions_view()}
+
+    def _pattern_items(self) -> dict[str, dict]:
+        return {x["id"]: x for x in self.brain.recognition_view(self._names())["items"]}
+
+    def pattern_entities(self) -> dict[str, str]:
+        """pattern id → slug of the patterns the owner publishes as entities."""
+        return {o["id"]: o["slug"] for o in self.store.list_objs("pattern_entity") if o.get("id") and o.get("slug")}
+
+    def set_pattern_entity(self, body: object) -> dict:
+        items = self._pattern_items()
+        cur = self.pattern_entities()
+        taken = {slug: pid for pid, slug in cur.items()}
+        pid, on, slug = _house.validate_pattern_entity(body, set(items), taken)
+        if not on:
+            self.store.del_obj("pattern_entity", pid)
+            return {"id": pid, "on": False}
+        slug = slug or cur.get(pid) or _house.default_slug(items[pid])
+        if taken.get(slug) not in (None, pid):
+            slug = (slug[:34] + "_" + pid[-5:]).strip("_")
+        self.store.put_obj("pattern_entity", pid, {"id": pid, "slug": slug})
+        return {"id": pid, "on": True, "slug": slug, "entity_id": f"binary_sensor.bifrost_{slug}"}
+
+    def publish_pattern_entities(self, now: datetime) -> None:
+        chosen = self.pattern_entities()
+        if not chosen:
+            return
+        items = self._pattern_items()
+        prog = self.brain.routine_progress(now)
+        led = {r["id"]: r for r in ((self.extra or {}).get("ledger") or {}).get("people", [])}
+        for pid, slug in chosen.items():
+            it = items.get(pid)
+            attrs = {"attribution": "Bifrost", "icon": "mdi:timeline-check", "pattern_id": pid, "friendly_name": f"Bifrost pattern {slug}"}
+            if it is None:
+                state, attrs = "unavailable", {**attrs, "reason": "pattern no longer recognised"}
+            elif it["type"] == "routine":
+                pr = prog.get(pid, 0.0)
+                state = "on" if pr >= 1 else "off"
+                attrs.update(progress=pr, goal=it.get("goal"), who=it.get("who"), precision=it.get("precision"), seen=it.get("seen"))
+            elif it["type"] == "person":
+                row = led.get(pid[2:]) or {}
+                state = "on" if row.get("state") == "home" else "off"
+                attrs.update(goal="arriving", who=it.get("who"))
+            else:
+                door = pid.split("_", 1)[1] if "_" in pid else ""
+                want = {"in": "entry", "out": "exit", "io": "inside_only"}.get(pid.split("_", 1)[0])
+                last = self.brain.last_openings.get(door) or {}
+                state = "on" if last.get("result") == want and now - last.get("at", now - _house.PULSE * 2) <= _house.PULSE else "off"
+                attrs.update(goal=it.get("goal"), door=door)
+            try:
+                self.client.set_state(f"binary_sensor.bifrost_{slug}", state, attrs)
+            except HAError as err:
+                LOG.warning("Publishing pattern entity failed: %s", err)
+
     def recognition_view(self) -> dict:
-        return {**self.brain.recognition_view(self._names()), "in_progress": (self.extra or {}).get("in_progress", []), "names": self._names()}
+        return {
+            **self.brain.recognition_view(self._names()),
+            "in_progress": (self.extra or {}).get("in_progress", []),
+            "names": self._names(),
+            "entities": self.pattern_entities(),
+            "calendars": self.calendars_view(),
+        }
 
     def deviations_view(self) -> dict:
         return {"items": self.brain.inbox.deviations(), "names": self._names()}

@@ -18,6 +18,7 @@ from datetime import UTC, datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs
 
 from .categories import STATUSES, is_valid_category, is_valid_role
 
@@ -26,6 +27,8 @@ INGRESS_IP = "172.30.32.2"
 STATIC = Path(__file__).parent / "static"
 MAX_BODY = 4096
 FLOORPLAN_BODY = 3_000_000  # base64 of a 2 MB picture
+LAYOUT_BODY = 32_768  # up to 864 painted cells
+FLOOR_KEY_RE = re.compile(r"^[a-z0-9_]{1,40}$")
 MAX_THREADS = 16
 REQUEST_TIMEOUT = 10  # seconds per connection
 CSRF_HEADER = "X-Bifrost-Request"
@@ -87,6 +90,7 @@ VIEWS = {
     "/api/questions": "questions_view",
     "/api/balance": "balance_view",
     "/api/catalog": "catalog_view",
+    "/api/incidents": "incidents_view",
 }
 
 ACTIONS = {
@@ -104,7 +108,11 @@ ACTIONS = {
         _str(b, "person", 40) if b.get("person") else None,
     ),
     "/api/exception/delete": lambda svc, b: {"deleted": svc.brain.inbox.remove_exception(_str(b, "sensor", 255))},
-    "/api/floorplan": lambda svc, b: (svc.brain.floorplan(_str(b, "image", FLOORPLAN_BODY)), {"ok": True})[1],
+    "/api/floorplan": lambda svc, b: svc.set_floorplan(b),
+    "/api/floorplan/delete": lambda svc, b: svc.delete_floorplan(b.get("floor")),
+    "/api/layout": lambda svc, b: svc.set_layout(b),
+    "/api/layout/reset": lambda svc, b: svc.reset_layout(b.get("floor")),
+    "/api/pattern_entity": lambda svc, b: svc.set_pattern_entity(b),
 }
 
 
@@ -191,7 +199,11 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
             if view and hasattr(service, view):
                 return self._send(HTTPStatus.OK, getattr(service, view)())
             if route == "/api/floorplan":
-                fp = service.brain.floorplan_bytes()
+                query = parse_qs(self.path.split("?", 1)[1]) if "?" in self.path else {}
+                key = (query.get("floor") or [""])[0]
+                if key and not FLOOR_KEY_RE.match(key):
+                    return self._send(HTTPStatus.BAD_REQUEST, {"error": "invalid floor"})
+                fp = service.brain.floorplan_bytes(key)
                 if not fp:
                     return self._send(HTTPStatus.NOT_FOUND, {"error": "no floor plan"})
                 return self._send(HTTPStatus.OK, fp[0], fp[1])
@@ -205,7 +217,7 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
                 return self._send(HTTPStatus.FORBIDDEN, {"error": "missing request header"})
             route = self._route()
             try:
-                raw = self._read_body(FLOORPLAN_BODY if route == "/api/floorplan" else MAX_BODY)
+                raw = self._read_body(FLOORPLAN_BODY if route == "/api/floorplan" else LAYOUT_BODY if route == "/api/layout" else MAX_BODY)
             except ValueError:
                 return self._send(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "body too large"})
             try:
