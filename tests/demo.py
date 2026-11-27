@@ -12,9 +12,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parents[1] / "bifrost" / "app"))
 
+from sim import META, household  # noqa: E402
+
 from bifrost_app.service import BifrostService  # noqa: E402
 from bifrost_app.store import Store  # noqa: E402
-from sim import META, household  # noqa: E402
 
 PLATFORM = {"device_tracker.phone_a": "mobile_app", "device_tracker.phone_b": "unifi"}
 FLOOR_OF = {

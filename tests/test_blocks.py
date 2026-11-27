@@ -1,8 +1,9 @@
 from datetime import timedelta
 
+from sim import META, household
+
 from bifrost_app import blocks
 from bifrost_app.blocks import Detector, capability, learn, sensor_doctor
-from sim import META, household
 
 
 def model():

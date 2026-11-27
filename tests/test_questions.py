@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
+
 from bifrost_app.questions import Inbox
 from bifrost_app.store import Store
 

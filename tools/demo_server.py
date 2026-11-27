@@ -8,8 +8,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parents[1] / "tests"))
 os.environ["BIFROST_DEV"] = "1"
 
-from bifrost_app.web import serve  # noqa: E402
 from demo import build  # noqa: E402
+
+from bifrost_app.web import serve  # noqa: E402
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8765

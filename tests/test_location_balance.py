@@ -2,6 +2,7 @@ import base64
 from datetime import UTC, datetime, timedelta
 
 import pytest
+
 from bifrost_app import balance, location
 
 T = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
