@@ -12,9 +12,11 @@ CATEGORIES: dict[str, dict[str, str]] = {
     "climate": {"name": "Air & climate", "icon": "🌡️", "desc": "CO₂, humidity, temperature"},
     "energy": {"name": "Energy", "icon": "⚡", "desc": "Base load, appliances, water"},
     "vehicles": {"name": "Vehicles & tags", "icon": "🚗", "desc": "Car beacon, tags, robots, pets"},
-    "modes": {"name": "Modes", "icon": "🌙", "desc": "Sleep, night, away, guest modes"},
+    "mode_home": {"name": "Mode: someone home", "icon": "🛋️", "desc": "Guest, sleep or night mode – “empty” is impossible while it is on"},
+    "mode_away": {"name": "Mode: away", "icon": "🧳", "desc": "Holiday or away mode – a clue that nobody is home"},
     "calendar": {"name": "Time & calendar", "icon": "📅", "desc": "Calendars, alarm clocks, weather, zones"},
-    "security": {"name": "Security", "icon": "🔒", "desc": "Alarm state, locks, keypads"},
+    "security": {"name": "Security", "icon": "🔒", "desc": "Alarm state, locks – confirms afterwards whether the house was empty"},
+    "access": {"name": "Access", "icon": "🔑", "desc": "Keypads, NFC, fingerprint, “last user” – who unlocked"},
 }
 
 ROLES: dict[str, str] = {
@@ -47,3 +49,28 @@ def is_valid_category(value: str | None) -> bool:
 def is_valid_role(value: str | None) -> bool:
     """Return True if value is a known role (or None)."""
     return value is None or value in ROLES
+
+
+# --- roles are no longer set by the user (0.6): they follow from the category, the name and what Bifrost learned ---
+ROLE_BY_CATEGORY = {
+    "access": "Identity",
+    "mode_home": "Blocker",
+    "mode_away": "Context",
+    "calendar": "Context",
+}
+
+
+def derive_role(category: str | None, guess_category: str | None, guess_role: str | None, learned_door: str | None = None) -> str | None:
+    """Internal role for the engine. The classifier's role is kept when the category is its own guess
+    (it knows details like doorbells or outdoor motion); a learned entrance always triggers."""
+    if not category:
+        return None
+    if category in ROLE_BY_CATEGORY:
+        return ROLE_BY_CATEGORY[category]
+    if category == "openings" and learned_door == "entrance":
+        return "Trigger"
+    if category == "openings" and learned_door == "inside_only":
+        return "Evidence"
+    if category == guess_category and guess_role:
+        return guess_role
+    return "Truth" if category == "security" else "Evidence"

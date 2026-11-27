@@ -11,45 +11,67 @@ def keys(items):
     return {(i["entity_id"], i["key"]) for i in items}
 
 
-def test_doors_to_outside_become_triggers_even_with_window_class():
+def test_openings_and_motion_categories_and_switched_off():
     items = suggestions(
         [
-            ent("binary_sensor.front", "Haustüre", "window"),
-            ent("binary_sensor.garage_gate", "Garagentor geschlossen", "window"),
-            ent("binary_sensor.bedroom", "Eltern Tür- und Fensterkontakt", "window"),
-            ent("binary_sensor.kitchen_window", "Fenster Küche", "window", role="Trigger"),
-            ent("binary_sensor.terrace", "Terrace door", "door", role="Trigger"),
-        ]
-    )
-    k = keys(items)
-    assert ("binary_sensor.front", "entry_door") in k
-    assert ("binary_sensor.garage_gate", "entry_door") in k
-    assert ("binary_sensor.kitchen_window", "window") in k
-    assert not any(e == "binary_sensor.bedroom" for e, _ in k)  # inner door: unknown until learned
-    assert not any(e == "binary_sensor.terrace" for e, _ in k)  # already right
-    front = next(i for i in items if i["entity_id"] == "binary_sensor.front")
-    assert front["suggest"] == {"status": "included", "category": "openings", "role": "Trigger"}
-
-
-def test_learned_door_roles_win_over_names():
-    items = suggestions(
-        [ent("binary_sensor.side", "Side contact", "door"), ent("binary_sensor.front", "Front door", "door", role="Trigger")],
-        door_roles={"binary_sensor.side": {"role": "entrance"}, "binary_sensor.front": {"role": "inside_only"}},
-    )
-    assert keys(items) == {("binary_sensor.side", "entry_door"), ("binary_sensor.front", "inner_door")}
-
-
-def test_motion_modes_robots_and_switched_off_motion():
-    items = suggestions(
-        [
+            ent("binary_sensor.front", "Haustüre", "window", status="suggested", category="openings"),
+            ent("binary_sensor.k", "Fenster Küche", "window", category="manual"),
+            ent("binary_sensor.terrace", "Terrace door", "door"),
             ent("binary_sensor.hall", "Hall motion", "motion", status="suggested", category="motion"),
             ent("binary_sensor.office", "Office presence", "presence", category="manual"),
-            ent("input_boolean.guest", "Gästemodus", category="modes", role="Context"),
-            ent("vacuum.robot", "Robot", category="vehicles", role="Evidence"),
-            ent("binary_sensor.ignored_motion", "Old motion", "motion", status="ignored", category="motion"),
+            ent("binary_sensor.old", "Old motion", "motion", status="ignored", category="motion"),
         ]
     )
-    assert keys(items) == {("binary_sensor.hall", "motion_off"), ("binary_sensor.office", "motion"), ("input_boolean.guest", "mode"), ("vacuum.robot", "robot")}
+    assert keys(items) == {
+        ("binary_sensor.front", "opening_off"),
+        ("binary_sensor.k", "opening"),
+        ("binary_sensor.hall", "motion_off"),
+        ("binary_sensor.office", "motion"),
+    }
+    assert all("role" not in i["suggest"] for i in items)
+
+
+def test_modes_robots_alarm_identity():
+    items = suggestions(
+        [
+            ent("input_boolean.guest", "Gästemodus", category="manual"),
+            ent("input_boolean.holiday", "Ferienmodus", category="mode_home"),
+            ent("vacuum.robot", "Robot", category="vehicles"),
+            ent("alarm_control_panel.a", "Alarm", category="manual"),
+            ent("sensor.door_last_user", "Haustür letzter Benutzer", category=None, status="suggested", guess_category="access"),
+        ]
+    )
+    assert keys(items) == {
+        ("input_boolean.guest", "mode_home"),
+        ("input_boolean.holiday", "mode_away"),
+        ("vacuum.robot", "robot"),
+        ("alarm_control_panel.a", "alarm"),
+        ("sensor.door_last_user", "identity"),
+    }
+
+
+def test_applying_a_suggestion_does_not_create_the_opposite_one():
+    for e in (
+        ent("binary_sensor.front", "Haustüre", "window", status="suggested", category="openings"),
+        ent("input_boolean.guest", "Gästemodus", category="manual"),
+        ent("binary_sensor.office", "Office presence", "presence", category="manual"),
+    ):
+        s = suggestions([e])[0]
+        e.update(s["suggest"])
+        assert suggestions([e]) == []
+
+
+def test_roles_are_derived_not_set():
+    from bifrost_app.categories import derive_role
+
+    assert derive_role("access", None, None) == "Identity"
+    assert derive_role("mode_home", "manual", "Evidence") == "Blocker"
+    assert derive_role("mode_away", None, None) == "Context"
+    assert derive_role("openings", "openings", "Evidence", "entrance") == "Trigger"  # learned entrance wins
+    assert derive_role("openings", "openings", "Trigger", "inside_only") == "Evidence"
+    assert derive_role("openings", "openings", "Noise") == "Noise"  # doorbell: classifier knows best
+    assert derive_role("motion", "openings", "Trigger") == "Evidence"  # user changed the category → default
+    assert derive_role(None, "motion", "Evidence") is None
 
 
 def test_disabled_dead_and_dismissed():
@@ -73,23 +95,6 @@ def test_api_flow_on_demo(tmp_path):
     assert svc.reset_optimizations() == {"dismissed": 0}
 
 
-def test_floor_length_windows_to_garden_or_terrace():
-    items = suggestions(
-        [
-            ent("binary_sensor.hst", "Fenster Wohnen Hebeschiebetür Terrasse", "window"),
-            ent("binary_sensor.garden_window", "Wohnzimmer Fenster Garten", "window"),
-            ent("binary_sensor.bath_window", "Fenster Bad", "window"),
-        ]
-    )
-    k = keys(items)
-    assert ("binary_sensor.hst", "entry_door") in k  # "tür" in the name → door
-    assert ("binary_sensor.garden_window", "passage_window") in k
-    assert not any(e == "binary_sensor.bath_window" for e, _ in k)
-    # once learning saw that nobody walks through it, the suggestion disappears
-    learned = suggestions([ent("binary_sensor.garden_window", "Wohnzimmer Fenster Garten", "window")], door_roles={"binary_sensor.garden_window": {"role": "inside_only"}})
-    assert learned == []
-
-
 def test_learning_treats_door_named_window_contacts_as_doors():
     from bifrost_app.blocks import is_door
 
@@ -97,23 +102,6 @@ def test_learning_treats_door_named_window_contacts_as_doors():
     assert is_door({"entity_id": "binary_sensor.wohnen_fenster_garten", "name": "Fenster Garten", "device_class": "window"})
     assert not is_door({"entity_id": "binary_sensor.bad_fenster", "name": "Fenster Bad", "device_class": "window"})
     assert not is_door({"entity_id": "binary_sensor.hall_motion", "name": "Motion", "device_class": "motion", "category": "motion"})
-
-
-def test_applying_a_suggestion_does_not_create_the_opposite_one():
-    w = ent("binary_sensor.garden_window", "Wohnzimmer Fenster Garten", "window")
-    first = suggestions([w])[0]
-    w.update(first["suggest"])
-    assert suggestions([w]) == []
-    for e in (ent("binary_sensor.front", "Haustüre", "window"), ent("binary_sensor.k", "Fenster Küche", "window", role="Trigger")):
-        s = suggestions([e])[0]
-        e.update(s["suggest"])
-        assert suggestions([e]) == []
-
-
-def test_identity_entities_are_suggested():
-    items = suggestions([ent("sensor.door_last_user", "Haustür letzter Benutzer", category=None, role=None, status="suggested", guess_role="Identity")])
-    assert keys(items) == {("sensor.door_last_user", "identity")}
-    assert items[0]["suggest"] == {"status": "included", "category": "security", "role": "Identity"}
 
 
 def test_tesla_bluetooth_and_disabled_reason():
@@ -125,3 +113,22 @@ def test_tesla_bluetooth_and_disabled_reason():
     assert any("Disabled by its integration" in r for r in off.reasons)
     phone = classify(EntityInfo("device_tracker.s_phone", "Sam phone"))
     assert phone.category == "devices"
+
+
+def test_old_roles_are_migrated_on_scan(tmp_path):
+    from demo import build
+
+    svc = build(str(tmp_path / "m.db"))
+    st = svc.store
+    with st._db:  # rows as written by ≤ 0.5 (the category "modes" no longer exists)
+        for eid, cat, role in (("binary_sensor.motion_dead", "motion", "Noise"), ("input_boolean.night_mode", "modes", "Blocker"), ("calendar.family", "modes", "Context")):
+            st._db.execute(
+                "INSERT OR REPLACE INTO entity_settings(entity_id, status, category, role, updated) VALUES (?,?,?,?,?)",
+                (eid, "included", cat, role, "2026-01-01T00:00:00+00:00"),
+            )
+    svc.scan()
+    ents = svc.snap.entities
+    assert ents["binary_sensor.motion_dead"].status == "ignored"
+    assert ents["input_boolean.night_mode"].category == "mode_home" and ents["input_boolean.night_mode"].role == "Blocker"
+    assert ents["calendar.family"].category == "mode_away"
+    assert all(v["role"] is None for v in st.get_overrides().values())

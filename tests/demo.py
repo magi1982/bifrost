@@ -146,7 +146,7 @@ def build(path: str) -> BifrostService:
         ("light.kitchen", "on", 14, "device"),
         ("binary_sensor.motion_hallway", "on", 9, "device"),
     ]
-    svc.update_entity("sensor.front_door_last_user", "included", "security", "Identity")
+    svc.update_entity("sensor.front_door_last_user", "included", "access", None)
     live += [
         ("sensor.front_door_last_user", "Person B", 3000, "device"),
         ("sensor.front_door_last_user", "", 2990, "device"),

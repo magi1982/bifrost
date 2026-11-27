@@ -23,7 +23,7 @@ SCHEDULED = "scheduled"  # learned: same time every day without context
 SENSOR = "sensor"  # sensors report, nobody "switched" them
 
 # categories in which a change is an action (somebody or something switched it)
-ACTION_CATEGORIES = {"manual", "media", "energy", "modes"}
+ACTION_CATEGORIES = {"manual", "media", "energy", "mode_home", "mode_away"}
 
 SCHEDULE_WINDOW_MIN = 5
 SCHEDULE_MIN_DAYS = 5

@@ -16,7 +16,7 @@ from . import calendars as cal
 from . import patterns as pat
 from .balance import signal as _signal
 from .brain import Brain
-from .categories import CATEGORIES, STATUS_IGNORED, STATUS_INCLUDED
+from .categories import CATEGORIES, STATUS_IGNORED, STATUS_INCLUDED, derive_role
 from .classifier import Classification, EntityInfo, classify
 from .engine import ARRIVING, AWAY, HOME, Decision, Settings, Signal, decide, parse_time
 from .ha_client import HAClient, HAError
@@ -156,9 +156,10 @@ class BifrostService:
             guess = classify(info)
             ov = overrides.get(eid)
             if ov:
-                ent = ScannedEntity(info, guess, ov["status"], ov["category"] or guess.category, ov["role"] or guess.role, True)
+                status, cat = self._migrate_override(eid, ov, guess)
+                ent = ScannedEntity(info, guess, status, cat, None, True)
             else:
-                ent = ScannedEntity(info, guess, guess.status, guess.category, guess.role)
+                ent = ScannedEntity(info, guess, guess.status, guess.category, None)
             ent.state = st.get("state")
             result[eid] = ent
         # ≤ 0.4.2: access entities were chosen in the People tab → now role Identity in Setup
@@ -166,10 +167,11 @@ class BifrostService:
         for eid in legacy:
             e = result.get(eid)
             if e is not None and not e.user_set:
-                self.store.set_override(eid, STATUS_INCLUDED, "security", "Identity")
-                e.status, e.category, e.role, e.user_set = STATUS_INCLUDED, "security", "Identity", True
+                self.store.set_override(eid, STATUS_INCLUDED, "access", None)
+                e.status, e.category, e.user_set = STATUS_INCLUDED, "access", True
         if legacy:
             self.store.set_value("access_entities", "[]")
+        self._apply_roles(result)
         with self._lock:
             self.snap.entities = result
             self.snap.scanned_at = datetime.now(UTC)
@@ -182,6 +184,29 @@ class BifrostService:
             }
         )
         LOG.info("Scan finished: %d entities, %d used", len(result), sum(1 for e in result.values() if e.status == STATUS_INCLUDED))
+
+    def _migrate_override(self, eid: str, ov: dict, guess: Classification) -> tuple[str, str | None]:
+        """≤ 0.5: users set roles. 0.6 has no roles – they become categories or "off"."""
+        status, cat, role = ov["status"], ov["category"] or guess.category, ov.get("role")
+        new_status, new_cat = status, cat
+        if role == "Noise" and status == STATUS_INCLUDED:
+            new_status = STATUS_IGNORED
+        if role == "Identity":
+            new_cat = "access"
+        elif role == "Blocker" or (cat == "modes" and role != "Context"):
+            new_cat = "mode_home"
+        elif cat == "modes":
+            new_cat = "mode_away"
+        if role is not None or (new_status, new_cat) != (status, cat):
+            self.store.set_override(eid, new_status, new_cat, None)
+        return new_status, new_cat
+
+    def _apply_roles(self, entities: dict | None = None) -> None:
+        """The engine still thinks in roles – they are derived, never set by the user."""
+        learned = ((self.brain.detector.model or {}).get("roles") or {}) if hasattr(self, "brain") else {}
+        ents = entities if entities is not None else self.snap.entities
+        for eid, e in ents.items():
+            e.role = derive_role(e.category, e.guess.category, e.guess.role, (learned.get(eid) or {}).get("role"))
 
     def request_scan(self) -> None:
         self._scan_requested.set()
@@ -438,6 +463,8 @@ class BifrostService:
             with self._lock:
                 current = {k: e.state for k, e in self.snap.entities.items()}
             res = self.brain.learn(now, cal_entries, self.duplicates.candidates(), current)
+            with self._lock:
+                self._apply_roles()  # learned entrances change which doors trigger a check
             LOG.info("Recognition learned: %s", res)
         except Exception:  # noqa: BLE001
             LOG.exception("Recognition learning failed")
@@ -631,10 +658,11 @@ class BifrostService:
             e = self.snap.entities.get(entity_id)
             if not e:
                 raise KeyError(entity_id)
-        self.store.set_override(entity_id, status, category, role)
+        self.store.set_override(entity_id, status, category, None)  # roles are derived since 0.6 – a sent role is ignored
         with self._lock:
             e.status, e.user_set = status, True
-            e.category, e.role = category or e.guess.category, role or e.guess.role
+            e.category = category or e.guess.category
+            self._apply_roles({entity_id: e})
             return e.to_dict()
 
     # --- views for the web UI ------------------------------------------------------
@@ -683,7 +711,8 @@ class BifrostService:
 
     def entities_view(self) -> dict:
         with self._lock:
-            ents = [e.to_dict() for e in self.snap.entities.values()]
+            floors = dict(self.floors)
+            ents = [{**e.to_dict(), "floor": (floors.get(e.info.area) or {}).get("floor") if e.info.area else None} for e in self.snap.entities.values()]
             at = self.snap.scanned_at
         status = Counter(e["status"] for e in ents)
         by_domain: dict[str, list[int]] = {}
@@ -886,7 +915,7 @@ class BifrostService:
         for e in self.store.events_since(now - timedelta(minutes=30), limit=500):
             eid = e["entity_id"]
             ent = inc.get(eid)
-            if ent is None or eid in seen or ent.category not in ("motion", "openings", "manual", "media", "devices", "energy", "climate", "modes"):
+            if ent is None or eid in seen or ent.category not in ("motion", "openings", "manual", "media", "devices", "energy", "climate", "mode_home", "mode_away", "access"):
                 continue
             seen[eid] = {"entity_id": eid, "name": names.get(eid, eid), "category": ent.category, "ts": e["ts"], "state": e["state"]}
         return {"items": list(seen.values())[:12], "said": self.snap.decision.state if self.snap.decision else None}
@@ -966,7 +995,7 @@ class BifrostService:
                 self.duplicates.feed(e)
                 self.stream["events"] += 1
             scheduled = False
-            if origin == "device" and any(e.kind == "on" for e in edges) and cat in ("manual", "media", "energy", "modes"):
+            if origin == "device" and any(e.kind == "on" for e in edges) and cat in ("manual", "media", "energy", "mode_home", "mode_away"):
                 scheduled = self.origins.scheduled(entity_id, ts)
                 self.origins.record(entity_id, ts)
                 self.store.set_value("origins", json.dumps(self.origins.dump()))

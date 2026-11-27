@@ -269,7 +269,7 @@ def classify(e: EntityInfo) -> Classification:  # noqa: C901 – a flat rule lis
 
     # --- clearly irrelevant ---------------------------------------------------
     if d in {"sensor", "input_text", "text", "event"} and KW_IDENTITY.search(t) and dc not in {"timestamp", "battery", "signal_strength"}:
-        return c("security", "Identity", 0.75, "Name says it reports who unlocked (keypad, NFC, fingerprint)", "Assign the reported users to people in Setup")
+        return c("access", "Identity", 0.75, "Name says it reports who unlocked (keypad, NFC, fingerprint)", "Assign the reported users to people in Setup")
     if d in IRRELEVANT_DOMAINS:
         return c(None, None, 0.0, f"Domain “{d}” says nothing about presence", relevant=False)
     if d == "sensor" and KW_SYSTEM.search(t) and dc not in {"carbon_dioxide", "humidity"}:
@@ -328,11 +328,11 @@ def classify(e: EntityInfo) -> Classification:  # noqa: C901 – a flat rule lis
         return c(None, None, 0.0, "Network switch (Wi-Fi, port, firewall rule) – says nothing about presence", relevant=False)
     if d in {"switch", "input_boolean"}:
         if KW_GUEST.search(t) and (KW_MODE.search(t) or not KW_ROOM_NOT_MODE.search(t)):
-            return c("modes", "Blocker", 0.85, "Guest mode – house must not be “empty”")
+            return c("mode_home", "Blocker", 0.85, "Guest mode – house must not be “empty”")
         if KW_SLEEP.search(t) and not re.search(r"light|licht", t):
-            return c("modes", "Blocker", 0.9, "Sleep or night mode – people are home")
+            return c("mode_home", "Blocker", 0.9, "Sleep or night mode – people are home")
         if KW_AWAY.search(t):
-            return c("modes", "Context", 0.85, "Away / holiday mode – long absence expected")
+            return c("mode_away", "Context", 0.85, "Away / holiday mode – long absence expected")
         if KW_BIGLOAD.search(t) or KW_ROBOT.search(t):
             return c("energy", "Noise", 0.6, "Large automatic load – runs without people")
         if KW_APPLIANCE.search(t):
@@ -382,7 +382,7 @@ def classify(e: EntityInfo) -> Classification:  # noqa: C901 – a flat rule lis
         if dc == "vibration":
             return c(None, None, 0.5, "Vibration – a person or a machine?")
         if KW_SLEEP.search(t):
-            return c("modes", "Blocker", 0.85, "Bed or sleep sensor – people are home")
+            return c("mode_home", "Blocker", 0.85, "Bed or sleep sensor – people are home")
         return c(None, None, 0.3, "Binary sensor without a known meaning")
 
     # --- sensors ---------------------------------------------------------------
