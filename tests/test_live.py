@@ -98,6 +98,9 @@ def test_live_view_on_demo_household(tmp_path):
     sig = {x["entity_id"]: x for f in v["floors"] for a in f["areas"] for x in a["signals"]}
     assert sig["light.garden"]["origin"] == AUTOMATION and not sig["light.garden"]["active"]
     assert sig["light.kitchen"]["origin"] == PERSON and sig["light.kitchen"]["active"]
+    svc.on_state_changed("sensor.bath_humidity", "71", datetime.now(UTC))
+    hum = {x["entity_id"]: x for f in svc.live_view()["floors"] for a in f["areas"] for x in a["signals"]}["sensor.bath_humidity"]
+    assert not hum["active"]  # air and energy values add context, they never light up a room
     lane = v["lane"]["events"]
     assert any(x.get("lane") == "Kitchen" and x["entity_id"] == "light.kitchen" for x in lane)
     assert any(x["kind"] == "auto" and x["entity_id"] == "light.garden" for x in lane)

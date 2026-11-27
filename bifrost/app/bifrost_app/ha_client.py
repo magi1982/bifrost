@@ -83,6 +83,20 @@ class HAClient:
         res = self._request("GET", f"calendars/{urllib.parse.quote(entity_id)}?{q}")
         return res if isinstance(res, list) else []
 
+    def notify_services(self) -> list[str]:
+        """Names of the notify services Home Assistant offers (e.g. mobile_app_<phone>)."""
+        res = self._request("GET", "services")
+        for d in res if isinstance(res, list) else []:
+            if d.get("domain") == "notify":
+                return sorted(str(k) for k in (d.get("services") or {}))
+        return []
+
+    def notify(self, service: str, title: str, message: str) -> None:
+        """Send a notification through notify.<service>. The service name is checked by the caller."""
+        if not service.replace("_", "a").isalnum():
+            raise HAError("invalid notify service")
+        self._request("POST", f"services/notify/{urllib.parse.quote(service)}", {"title": title[:100], "message": message[:500]})
+
     def get_history(self, entity_id: str, start: str, end: str) -> list[dict]:
         """State history of one entity between start and end (ISO), minimal – for the entity detail in Setup."""
         q = urllib.parse.urlencode({"filter_entity_id": entity_id, "end_time": end, "minimal_response": "", "no_attributes": ""})

@@ -102,3 +102,21 @@ def test_parse_time():
     assert parse_time("2026-01-01T10:00:00Z", NOW).hour == 10
     assert parse_time("garbage", NOW) == NOW
     assert parse_time(None, NOW) == NOW
+
+
+def test_energy_and_air_values_are_never_activity():
+    from datetime import UTC, datetime, timedelta
+
+    from bifrost_app.engine import Settings, Signal, decide
+
+    now = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
+    old = now - timedelta(hours=2)
+    sigs = [
+        Signal("device_tracker.a", "Phone", "devices", "Evidence", "not_home", old),
+        Signal("binary_sensor.m1", "Motion 1", "motion", "Evidence", "off", old),
+        Signal("binary_sensor.m2", "Motion 2", "motion", "Evidence", "off", old),
+        Signal("sensor.server_power", "Server power", "energy", "Evidence", "23.4", now - timedelta(seconds=20)),
+        Signal("sensor.co2", "CO2", "climate", "Evidence", "612", now - timedelta(seconds=30)),
+    ]
+    d = decide(sigs, Settings(10, 15), now)
+    assert d.state == "away" and not any("Server power" in r for r in d.reasons)

@@ -16,6 +16,7 @@ MIN_HEALTH_FOR_AWAY = 60  # below this share of available signals Bifrost refuse
 ON_STATES = {"on", "home", "playing", "open", "unlocked", "detected", "occupied"}
 OFF_STATES = {"off", "not_home", "away", "idle", "paused", "standby", "closed", "locked", "clear", "unoccupied"}
 UNAVAILABLE = {"unavailable", "unknown", "none", ""}
+ACTIVITY_CATEGORIES = ("motion", "openings", "manual", "media")
 
 
 @dataclass
@@ -117,7 +118,9 @@ def decide(signals: list[Signal], settings: Settings, now: datetime, unreliable:
         return Decision(HOME, round(92 * cap), [f"{s.name} is home" for s in home[:3]], health, [s.name for s in home], now)
 
     # 3. Recent activity of any kind (motion, manual use, doors)
-    activity = [s for s in available if s.role in ("Evidence", "Trigger") and s.category not in ("devices", "calendar")]
+    # Only what a person does counts as activity. Power, water, CO₂ or humidity values change all the time by
+    # themselves – they support patterns (as jumps, see live.NumericEvents), they are never "somebody is here".
+    activity = [s for s in available if s.role in ("Evidence", "Trigger") and s.category in ACTIVITY_CATEGORIES]
     skipped: list[str] = []
     if settings.use_learning and unreliable:
         # learned: these sensors fire while nobody is home (pets, robots, drafts) – they are not activity

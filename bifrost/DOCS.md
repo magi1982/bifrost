@@ -41,6 +41,11 @@ Bifrost works out by itself how well it can see each person, from the sources as
 - **Partly visible** – only Wi-Fi (`router`) or Bluetooth without a room: “away” counts only after a longer time.
 - **Invisible** – no own source (e.g. a child without a phone): counts as home until facts say otherwise. Without people in the household the alarm signal stays blocked.
 
+### New sensors and notifications
+New entities are highlighted as **New** in Setup and announced on Status, so none is overlooked. In the Setup card **Notifications** pick your phone (a notify service of the Home Assistant app) – Bifrost then sends a message once for every batch of new sensors. Entities disabled in Home Assistant are hidden; the filter *Disabled in HA* shows them.
+
+Energy, water and air values (power, CO₂, humidity) never count as somebody being there – only their jumps (shower, cooking) help patterns.
+
 ### Signal value
 Bifrost judges every used signal by itself: **Valuable**, **Helps a little**, **Brings nothing**, **Slow** (stays on for long – typically a summary zone from another system) or **Still learning**. The verdict and its reason stand at the entity in Setup; the filters *Brings nothing* and *Slow* show them all. Bifrost only suggests switching such a signal off – you decide. In the House tab they are archived; **Show archived** brings them back.
 
@@ -112,6 +117,11 @@ Bifrost leitet selbst ab, wie gut es eine Person sieht – aus den im Setup zuge
 - **Gut sichtbar** – Handy mit GPS, Bluetooth mit Raum oder ein Code-/NFC-Benutzer.
 - **Mittel sichtbar** – nur WLAN (`router`) oder Bluetooth ohne Raum: „weg“ gilt erst nach längerer Zeit.
 - **Unsichtbar** – keine eigene Quelle (z. B. ein Kind ohne Handy): gilt als daheim, bis Fakten dagegen sprechen. Ohne Personen im Haushalt bleibt das Alarm-Signal gesperrt.
+
+### Neue Sensoren und Benachrichtigungen
+Neue Entitäten sind im Setup als **Neu** markiert und werden im Status angezeigt – so übersiehst du keine. In der Setup-Karte **Benachrichtigungen** wählst du dein Handy (Benachrichtigungsdienst der Home-Assistant-App) – Bifrost schickt dann für neue Sensoren einmal eine Nachricht. In Home Assistant deaktivierte Entitäten sind ausgeblendet; der Filter *In HA deaktiviert* zeigt sie.
+
+Energie-, Wasser- und Luftwerte (Strom, CO₂, Feuchte) zählen nie als „jemand ist da“ – nur ihre Sprünge (Dusche, Kochen) helfen den Mustern.
 
 ### Wert pro Signal
 Bifrost bewertet jedes genutzte Signal selbst: **Wertvoll**, **Hilft wenig**, **Bringt nichts**, **Träge** (bleibt lange an – meist eine zusammengefasste Zone aus einem anderen System) oder **Lernt noch**. Urteil und Grund stehen im Setup bei der Entität; die Filter *Bringt nichts* und *Träge* zeigen alle. Bifrost schlägt das Ausschalten nur vor – du entscheidest. Im Haus-Tab sind sie archiviert; **Archivierte anzeigen** holt sie zurück.
