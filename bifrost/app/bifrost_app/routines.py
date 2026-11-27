@@ -194,7 +194,22 @@ def mine(events: list[dict], outcomes: list[tuple[str, datetime]], calendar_word
         tokens = sorted({x for s in steps for x in s["tokens"]} | {c["token"] for c in comp})
         pid = "r" + hashlib.sha1((goal + "|" + "|".join(tokens)).encode()).hexdigest()[:8]  # noqa: S324
         who = sorted({owners[t] for t in tokens if t in owners})
-        plans.append({"id": pid, "type": "routine", "goal": goal, "seen": seen, "occurrences": n, "precision": round(prec, 3), "steps": steps, "companions": comp, "not": not_step, "conditions": conds, "who": who or ["family"], "tokens": tokens})
+        plans.append(
+            {
+                "id": pid,
+                "type": "routine",
+                "goal": goal,
+                "seen": seen,
+                "occurrences": n,
+                "precision": round(prec, 3),
+                "steps": steps,
+                "companions": comp,
+                "not": not_step,
+                "conditions": conds,
+                "who": who or ["family"],
+                "tokens": tokens,
+            }
+        )
     return hygiene(plans)
 
 

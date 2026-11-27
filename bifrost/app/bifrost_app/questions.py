@@ -69,7 +69,19 @@ class Inbox:
         cat = category(qtype)
         if not safety and self._created_today(cat, now) >= DAILY_BUDGET[cat]:
             return None
-        q = {"id": oid, "type": qtype, "category": cat, "key": key, "facts": facts, "ts": now.isoformat(), "last": now.isoformat(), "status": "open", "priority": priority + (10 if safety else 0), "count": 1, "safety": safety}
+        q = {
+            "id": oid,
+            "type": qtype,
+            "category": cat,
+            "key": key,
+            "facts": facts,
+            "ts": now.isoformat(),
+            "last": now.isoformat(),
+            "status": "open",
+            "priority": priority + (10 if safety else 0),
+            "count": 1,
+            "safety": safety,
+        }
         self.store.put_obj(KIND_Q, oid, q)
         return q
 

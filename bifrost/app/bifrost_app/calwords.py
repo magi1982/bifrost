@@ -22,7 +22,35 @@ SENSITIVE = {
     "zahnarzt", "dentist", "spritze", "injection", "medikament", "medication", "krank", "sick", "psychologe", "psychiater",
     "kur", "reha", "labor", "blut", "blood", "impfung", "vaccine", "pille", "pill", "frauenarzt", "gyn", "aimovig",
 }  # fmt: skip
-STOP = {"und", "mit", "der", "die", "das", "den", "dem", "des", "ein", "eine", "für", "fuer", "von", "bei", "beim", "zum", "zur", "uhr", "the", "and", "with", "for", "from", "evt", "was", "wegen", "neu"}
+STOP = {
+    "und",
+    "mit",
+    "der",
+    "die",
+    "das",
+    "den",
+    "dem",
+    "des",
+    "ein",
+    "eine",
+    "für",
+    "fuer",
+    "von",
+    "bei",
+    "beim",
+    "zum",
+    "zur",
+    "uhr",
+    "the",
+    "and",
+    "with",
+    "for",
+    "from",
+    "evt",
+    "was",
+    "wegen",
+    "neu",
+}
 WORD_RE = re.compile(r"[a-zäöüß]{3,}", re.IGNORECASE)
 
 
@@ -71,7 +99,15 @@ def _state_share(spans: list[tuple[datetime, str]], a: datetime, b: datetime, wa
     return acc / total
 
 
-def learn(entries: dict[str, list[dict]], decisions: list[dict], person_timelines: dict[str, list[tuple[datetime, str]]], names: dict[str, str], parse, routine_days: dict[str, set] | None = None, blocked: set[str] | None = None) -> dict:  # noqa: ANN001
+def learn(
+    entries: dict[str, list[dict]],
+    decisions: list[dict],
+    person_timelines: dict[str, list[tuple[datetime, str]]],
+    names: dict[str, str],
+    parse,
+    routine_days: dict[str, set] | None = None,
+    blocked: set[str] | None = None,
+) -> dict:  # noqa: ANN001
     """entries: calendar id → HA entries; names: lower-case name → person name; routine_days: goal → set of dates it happened."""
     house = sorted((parse(d["ts"]), d["state"]) for d in decisions)
     stats: dict[str, dict] = defaultdict(lambda: {"count": 0, "calendars": set(), "away": [], "allday": 0, "person": defaultdict(list), "days": set()})
