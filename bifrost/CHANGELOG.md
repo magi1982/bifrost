@@ -2,6 +2,16 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.13.0] – 2026-11-28
+
+### Added
+- **Bluetooth nearby** (Setup): everything your Shellys and Bluetooth proxies hear, read from Home Assistant's advertisement stream. Phones with an IRK (HA *Private BLE Device*) show their name, all others a short type (iPhone, AirPods, Android, Samsung TV, BTHome sensor …) – "≈" marks an estimate. Shows present devices only, fixed or changing address, best gateway and signal; hide single devices or all house devices; recording can be switched off. Changing addresses are never stored, fixed ones are forgotten after 3 months without a signal.
+- **Positions on the map**: every present device is placed – with calibration by fingerprints over all gateways of the house (works with wooden ceilings), otherwise at the weighted centre of the strongest gateways. Family phones appear with their name where they are.
+- **Calibration** (House → Signal → *Start calibration*): pick the IRK phone (or a tag with a fixed address), Bifrost proposes numbered points per room and outside area; stand on the pulsing point, tap *Measure* – 20 s, live signal per gateway, quality, next point. Accuracy per floor (±m) from leave-one-out.
+- **Zones** (map tool *Zone*: sofa, desk, bed …): each becomes `binary_sensor.bifrost_zone_<name>` (occupancy) – on while a family phone is inside (20 s in, 60 s out), attribute `people`.
+- **Where is everybody**: `sensor.bifrost_<person>_location` (room, outside area or floor) for every person with an IRK phone; the People tab shows the last 10 movements.
+- API: `/api/bluetooth`, `/api/calib`, `/api/calib/start`, `/api/calib/delete` (validated: addresses, floors, points inside the floor, sizes).
+
 ## [0.12.0] – 2026-11-27
 
 ### Added

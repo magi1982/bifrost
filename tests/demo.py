@@ -78,7 +78,7 @@ class DemoClient:
             "devices": [
                 {"id": "shellyhall01", "name": "Shelly Plus 1 Hall", "manufacturer": "Shelly", "model": "Shelly Plus 1", "area_id": "hall", "connections": [["mac", "aa:bb:cc:00:00:01"]]},
                 {"id": "shellyliving02", "name": "Shelly Plus 2PM Living", "manufacturer": "Shelly", "model": "Shelly Plus 2PM", "area_id": "living", "connections": [["mac", "aa:bb:cc:00:00:02"]]},
-                {"id": "espproxy03", "name": "BT proxy office", "manufacturer": "Espressif", "model": "ESP32", "area_id": None, "connections": [["mac", "aa:bb:cc:00:00:03"]]},
+                {"id": "espproxy03", "name": "BT proxy office", "manufacturer": "Espressif", "model": "ESP32", "area_id": None, "connections": [["mac", "aa:bb:cc:00:00:10"]]},
                 {"id": "hueBridge", "name": "Hue Bridge", "manufacturer": "Signify", "model": "BSB002", "area_id": None},
             ],
             "areas": [{"area_id": a.lower(), "name": a, "floor_id": FLOOR_OF.get(a)} for a in areas],
@@ -192,3 +192,46 @@ def build(path: str) -> BifrostService:
     for eid, st, ago, origin in live:
         svc.on_state_changed(eid, st, now - timedelta(seconds=ago), origin=origin)
     return svc
+
+
+# --- Bluetooth demo (0.11c): gateways, a family phone with IRK, house devices and a passer-by ---------------
+BLE_SOURCES = {"hall": "AA:BB:CC:00:00:03", "living": "AA:BB:CC:00:00:04", "office": "AA:BB:CC:00:00:10"}
+IRK_ADDR = "5A:11:22:33:44:55"
+
+
+def demo_adverts():
+    s = BLE_SOURCES
+    rows = [
+        (IRK_ADDR, "", {"76": "1005031c"}, [], {"hall": -58, "living": -74, "office": -81}),
+        ("C4:7D:CC:10:20:30", "[TV] Samsung 7 Series", {"117": "4204"}, [], {"living": -55, "hall": -80, "office": -86}),
+        ("E2:5C:00:11:22:33", "ATC_Keller", {}, ["0000fcd2-0000-1000-8000-00805f9b34fb"], {"office": -66, "hall": -84}),
+        ("6B:01:02:03:04:05", "", {"76": "07190220"}, [], {"hall": -70, "living": -72}),
+        ("71:9E:00:00:00:01", "", {"76": "1006"}, [], {"hall": -90}),
+    ]
+    out = []
+    for addr, name, md, su, rssi in rows:
+        for src, r in rssi.items():
+            out.append({"address": addr, "name": name, "manufacturer_data": md, "service_uuids": su, "source": s[src], "rssi": r})
+    return out
+
+
+def demo_bluetooth(svc):
+    """Place three gateways and a zone on the ground floor, give phone A an IRK address, feed adverts."""
+    for st in svc.client.states:
+        if st["entity_id"] == "device_tracker.phone_a":
+            st.setdefault("attributes", {})["current_address"] = IRK_ADDR
+    v = svc.live_view()
+    floor = next(f for f in v["floors"] if f["name"] == "Ground floor")
+    m = v["layouts"]["Ground floor"]["map"]
+    scs = {c["name"]: c["id"] for c in v["placeable"]["scanners"]}
+    m["devices"] = [
+        {"id": scs["Shelly Plus 1 Hall"], "kind": "scanner", "x": 2.0, "y": 2.0},
+        {"id": scs["Shelly Plus 2PM Living"], "kind": "scanner", "x": 10.0, "y": 2.5},
+        {"id": scs["BT proxy office"], "kind": "scanner", "x": 15.0, "y": 9.0},
+    ]
+    m["zones"] = [{"name": "Sofa", "rects": [[1.0, 1.0, 4.0, 3.0]]}]
+    svc.set_map({"floor": floor["name"], **m})
+    svc.client.mqtt_service = lambda: None
+    svc.ble.tracker.ingest(demo_adverts())
+    svc.ble.tracker.set_source_names({BLE_SOURCES["hall"]: "Shelly Plus 1 Hall", BLE_SOURCES["living"]: "Shelly Plus 2PM Living", BLE_SOURCES["office"]: "BT proxy office"})
+    svc.ble.status.update(connected=True, supported=True)
