@@ -50,6 +50,13 @@ One pattern engine, used on several levels – higher levels use the events of l
 - **Collapsible sub-patterns:** inside a pattern every sub-pattern can be expanded/collapsed inline (nested), "expand all / collapse all", and "Open ↗" jumps into the sub-pattern's own page with breadcrumb.
 - **Asymmetry:** a recognised entry (level 2) sets "not empty" immediately via the gate – no vote needed. A 99 % departure pattern is only a loud Muninn vote inside the capped habit group; "empty" still needs the family balance and the last-out rule.
 
+### Entry guard (suspicious entries) – idea
+- **Every entry must be explained:** known phone/BLE arriving, NFC disarm at the keypad, somebody was already inside (inside motion before), a learned pattern (e.g. regular visitor), or guest mode. Otherwise: unexplained entry.
+- **Door profiles learned by Yggdrasil (no names needed):** per door/window how often it is used as entry from outside, as exit, or only opened from inside (ventilation, garden), by time of day. The entity name and HA device class are only a first hint; the role comes from behaviour and is shown as a suggestion ("door X is almost only opened from inside – garden door?").
+- **Rarity:** Loki compares an entry with the door profile ("0 of 400 entries through this door at night") → raises the suspicion level. Heimdall reports the event, Loki judges how unusual it is.
+- **Works from day one:** "entry from outside while asleep/empty and nothing explains it" needs no history; door profiles only sharpen it. Without an inside sensor near a door the direction is "unknown" and handled conservatively.
+- **Levels (configurable):** hint (push "was that you?"), warning (`binary_sensor.bifrost_suspicious_entry` for own automations), later a "suspicion" signal to the alarm system via Gjallarhorn. Never disarms, never controls the alarm; complements the alarm system when it is not armed.
+
 ### Must-have: calendar learning 2.0 (Mímir · calendar)
 - Learn **every frequently used word** (≥5 occurrences) in all chosen calendars – not only "word → house empty".
 - **Five effects per word:** person away · person home · house empty · a known pattern does not happen · day type (school day, holidays, weekend, home office).
