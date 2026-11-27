@@ -4,7 +4,7 @@ Bifrost is a local Home Assistant app (stdlib-only Python, served via Ingress) t
 
 ## Working rules (from the maintainer)
 - Answer in **German**. Changelog and release notes in English; README and app docs (bifrost/DOCS.md) in English **and** German.
-- Ideas go to `NEXT.md` first; write code only after the maintainer says "mach es".
+- Ideas go to `NEXT.md` first; write code only after the maintainer says "mach es". Every new version is first written up in `NEXT.md` as its own section (scope, entities/UI, limits, open questions, tests) and discussed before any programming.
 - Every update: security check (input validation, permissions, no secrets, bandit), tests for new logic, all tests green, then show a checklist (Security, Tests, Privacy, Best practices, Docs).
 - **Privacy:** this repo is public. Never put real names, family data, addresses, area names of the maintainer's house or screenshots of real data into code, tests, docs or commits – use example data. Private context belongs in `CLAUDE.local.md` (git-ignored).
 - Ask before every push or release. Bump `bifrost/config.yaml` and `bifrost_app/__init__.py`, add a `CHANGELOG.md` entry and copy it to `bifrost/CHANGELOG.md` (a test checks this).
