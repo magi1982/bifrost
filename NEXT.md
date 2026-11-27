@@ -435,6 +435,13 @@ Tests: simulator with a weekly cleaner visit, a morning chain and a pool timer �
 Decisions of the maintainer (27.11.): free patterns get their own section **"Alltagserkennung" (everyday life)** in the Patterns tab; the HA advertisement monitor is available; Bluetooth positions use the **house map**; the map editor gets better and lets the owner **place Shellys and advertising devices** on it.
 
 **1 · Everyday life – finding patterns cleverly (not "everything")**
+Patterns on **three time scales** – long ones (hours) are not too much, they are often the most telling:
+- *Sequences* (minutes): chains inside an episode – morning routine, cooking, going to bed (method below).
+- *Phases* (hours): every hour is described by a small profile (which rooms are active, which devices used, energy/water jumps, number of phones nearby). Hours that look alike are grouped (clustering); blocks of similar hours that come back are a phase: *home-office 08–17 (office motion, PC power, a coffee every ~2 h)*, *washing day Saturday 09–15 (washer, dryer, basement back and forth)*, *guests' evening 19–23 (dining room, music, more phones than usual)*.
+- *Day types* (whole days): days are grouped by their phase sequence – *school day, home-office day, weekend at home, day away, holiday* – and linked with calendar words ("Ferien" → holiday type). Tomorrow's type can be predicted from the calendar.
+- *Couplings* (across hours): B regularly follows A with a delay – *dishwasher ~40 min after cooking*, *bathroom 10 min after the alarm clock*, *lights off ~25 min after the TV*.
+- *Breaks*: a phase or coupling that should happen today but does not (*no morning routine although it is a school day*), or a device on far longer than in its phase.
+Ranking for all scales: how often × how regular × how surprising (lift vs. chance) × size (steps or hours); top 20, grouped by scale.
 A fixed "at least 4 steps" would drop good short patterns and still keep noise. Instead Bifrost mines and then *filters by interest*:
 - *Episodes*: the event stream is cut into episodes at quiet gaps (≥ 10 min without activity). Patterns are searched inside episodes only.
 - *Facts that count as a step*: only person-made changes (origin person/app), block events, person events, energy/water jumps. Not counted: automation/timer changes, the off-edge of the same device, steps that always follow each other by physics or automation (hall motion → hall light within 2 s ≥ 95 %) – they are merged into one step.
@@ -447,9 +454,11 @@ A fixed "at least 4 steps" would drop good short patterns and still keep noise. 
 **2 · Bluetooth nearby** – as in the Bluetooth concept v2 above (groups, visitors, privacy, fingerprints).
 
 **3 · House map 2.0**
-- *Drawing*: rooms as rectangles by dragging (no painting cell by cell), resize/move by handles, rename and colour; doors and windows as markers on walls; *stairs* as a special room that connects two floors; an *outside* zone (garden, street, drive) around the house; copy a floor as a start for the next one; zoom/pan on the phone; undo/redo.
+- *Drawing*: rooms as rectangles by dragging (no painting cell by cell); **a room can be several joined rectangles** (L- or T-shaped hallways: select the room, draw another rectangle touching it → it becomes part of the same room, outline drawn as one shape); resize/move by handles, rename and colour; doors and windows as markers on walls; *stairs* as a special room that connects two floors; an *outside* zone (garden, street, drive) around the house; copy a floor as a start for the next one; zoom/pan on the phone; undo/redo.
+- *Exact positions*: devices are placed freely (not on grid cells), stored as metres from the floor's corner, with the floor; the grid is only a snap help that can be switched off.
 - *Placing devices*: a side list (bottom sheet on the phone) with tabs **Scanners** (Shellys and other Bluetooth proxies from HA), **Bluetooth devices** (from the advertisement monitor, stationary ones first), **Sensors** (motion, doors, windows). Drag onto the map or tap device → tap position. Placed devices show an icon; unplaced ones a hint "3 Shellys not placed yet".
 - *Live layer*: Bluetooth positions as soft dots/areas, motion as glowing rooms (as today).
+- *Visitors on the map*: an entry through an entrance (door block "entry" without a known phone or code) creates a **visitor token** at that door. It moves along with the next motion events on the learned path matrix (hall → kitchen …) and merges with a Bluetooth device that appeared at the outside scanner just before and now is heard inside ("visitor with a watch"). A named visitor (Post, Cleaner) shows its name. Limits: motion cannot tell two people apart – with several people in the house the token becomes an area ("visitor somewhere on the ground floor"); it disappears with an exit through an entrance or after the guard's unknown-person rules.
 
 **4 · Triangulation across floors**
 Floors damp Bluetooth strongly (a concrete slab ~10–20 dB), which helps:
