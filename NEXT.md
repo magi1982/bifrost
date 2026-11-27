@@ -38,7 +38,7 @@ In parallel the guard watches entries: an entry nothing explains becomes a hint 
   - 🧱 **Blocks** (Bausteine) – how the house works, valid for everyone: entries/exits per door, door direction, neighbours and walking times, garden, known disturbances.
   - 👤 **People** (Personen) – a block plus an identity (phone, BLE/IRK, NFC user, tag) = who.
   - 🔁 **Routines** (Abläufe) – habits with conditions (weekday, time window, calendar words).
-  - ⚠ **Deviations** (Abweichungen) – the "Loki" view: what does not fit.
+- ⚠ **Deviations** (Abweichungen) are **not a pattern type** but a list of moments that did not fit (open / explained). Answering one turns it into a pattern or exception: e.g. a cleaner → person "regular visitor" + routine; animals → block of kind "disturbance" (shown as known exception). Unanswered ones stay open or expire.
 - **Goal** of a pattern: arriving, leaving, at home, going to sleep, getting up, house.
 - **Chain parts:** THEN (order, time span min–typical–max) · AND (any order within a window) · OR (one of) · NOT (must not happen for a while) · COMPANION (any time in a window) · OPTIONAL (usually present).
 - **Nesting:** a type may contain smaller types and its own type (block in block, routine in routine), never upwards; the type follows from the content. No pattern contains itself. UI expands ~4 levels inline, deeper via "Open". The word "level" is not used in the UI.
@@ -130,7 +130,7 @@ In parallel the guard watches entries: an entry nothing explains becomes a hint 
 - Entities: state, confidence, reason, data health, guest mode, expected return, suspicious entry, open questions; per person optional.
 - **Questions:** default recipient is the admin only (configurable); push only for safety, everything else in the Questions inbox (badge, optional weekly digest). Learn first, ask last; ranked by value; grouped; budget (e.g. 1 push/day outside safety, 3 inbox questions/day; modes ask more/normal/little); answers Yes / No / Maybe / Don't know ("Don't know" re-asks only when a similar event happens again, otherwise expires). Every question shows what happened.
 - **"That's wrong" button** on the status (and as HA action) – strongest label.
-- Tabs: Status · People · House · Pattern recognition (Blocks, People, Routines, Deviations, Known exceptions) · Calendars · Signals · Questions · Suggestions · Balance · Timeline · Setup. Simple/Technical switch, ⓘ per step, light/dark, phone layout.
+- Tabs: Status · People · House · Pattern recognition (Blocks incl. known disturbances, People, Routines) · Deviations (open / explained) · Calendars · Signals · Questions · Suggestions · Balance · Timeline · Setup. Simple/Technical switch, ⓘ per step, light/dark, phone layout.
 - Capability check per house ("direction ✓, people 1/5, guard limited") with missing hardware.
 - Profiles cautious / normal / bold; details only in Technical mode. HA blueprints for reactions (later).
 
