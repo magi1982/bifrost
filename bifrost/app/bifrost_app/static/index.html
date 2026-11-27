@@ -32,7 +32,7 @@ main{max-width:1150px;margin:0 auto;padding:14px}
 .tag{display:inline-block;font-size:11px;font-weight:500;padding:2px 8px;border-radius:999px;background:var(--chip);color:var(--sec);white-space:nowrap}
 .tag.on{background:var(--home);color:#fff}.tag.warn{background:#fff3e0;color:#e65100}
 .list .row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--div)}.list .row:first-child{border-top:none}
-.grow{flex:1;min-width:0}.ent{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--sec);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grow{flex:1;min-width:0}.ent{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--sec);overflow-wrap:anywhere;white-space:normal}
 .btn{border:1px solid var(--div);background:transparent;color:var(--primary);border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;font-weight:500}
 .btn.fill{background:var(--primary);color:#fff;border-color:var(--primary)}
 .pbar{height:6px;background:var(--bar);border-radius:3px;overflow:hidden;min-width:50px}.pbar i{display:block;height:100%;border-radius:3px}
@@ -54,7 +54,8 @@ input[type=search]{width:100%;margin-bottom:10px}
 .switch span::before{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
 .switch input:checked+span{background:var(--primary)}.switch input:checked+span::before{transform:translateX(18px)}
 .erow{border-top:1px solid var(--div);padding:8px 0}.erow:first-child{border-top:none}
-.erow .top{display:flex;gap:10px;align-items:center}.erow .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 0 50px}
+.erow .top{display:flex;gap:10px;align-items:center}
+.erow .top>.grow{min-width:0;overflow-wrap:anywhere}.erow .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 0 50px}
 .erow .reasons{display:none;font-size:12px;color:var(--sec);background:var(--chip);border-radius:8px;padding:8px 10px;margin:6px 0 0 50px}.erow .reasons.open{display:block}
 .ico{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:var(--chip);font-size:14px;flex:0 0 auto}
 .empty{color:var(--sec);text-align:center;padding:20px}

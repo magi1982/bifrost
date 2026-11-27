@@ -5,6 +5,7 @@ All notable changes to Bifrost are documented here. The format follows [Keep a C
 ## [0.5.2] – 2026-11-27
 
 ### Fixed
+- Setup: entity ids, areas and integrations were cut off with “…”; the full text now wraps.
 - Setup: calendars, phones and trackers that were only *suggested* had no “Belongs to” dropdown. It now shows for every such entity, and assigning it to a person or the household switches it on.
 
 ### Added
