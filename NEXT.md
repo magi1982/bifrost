@@ -343,3 +343,17 @@ Retired as separate experts: Huginn, Verdandi, Skuld, Mímir, Forseti, Frigg, Yg
 
 ### Idea · Hint when few signals are used (27.11.)
 - If manual activity (lights, buttons) is mostly only "suggested", show one optimisation: "Switch on lights and buttons – they are the best signal that someone is home." Same when motion is only available as aggregated zone sensors.
+
+### Idea · Baseline that says something (27.11.) – waiting for "mach es"
+Problem: the card *Baseline per signal* (Patterns → detectors) shows a 7×24 heat map for **one** signal picked from a drop-down. Nobody clicks through 90 signals, and a heat map alone answers no question.
+
+Proposal – turn it around: Bifrost picks what matters, the heat map is only the detail.
+- **"Unusual in the last 24 h"** (top of the card): at most 5 rows, sorted by rarity, e.g. *Motion basement · 03:12 · usually never at this hour (0 of 6 Tuesdays)*. Each row: signal, time, plain sentence, rarity as a small neon bar. Empty state: *Nothing unusual in the last 24 h.*
+- **"A normal week in your house"**: one heat map for the whole house (all activity signals together, 7×24), with a marker on *now*. Answers "when is somebody usually active?" and shows at a glance what the routines are built on.
+- **Detail on tap**: tapping a row (or a cell) opens the per-signal heat map in the existing data popup – no drop-down any more.
+- Still learning: *Needs 7 days of data – {n} / 7* instead of an empty map.
+
+Entities / API: no new entities; `/api/patterns` gets `unusual: [{entity_id, ts, rarity, seen, weeks}]` and `house_week: [168 values]` from `baseline.py` (already has `rarity()`).
+Limits: rarity needs ≥ 2 weeks per hour slot to be meaningful; below that the row says *too little data*. Energy/air values stay excluded (only activity categories).
+Open questions: show the *unusual* list also on Status? Threshold for "unusual" (proposal: rarity ≥ 0.9)?
+Tests: unusual list ordering and threshold, house-week aggregation ignores energy/air, empty states; GUI check light/dark/390 px.
