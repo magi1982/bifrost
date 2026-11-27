@@ -49,8 +49,11 @@ Bifrost reads the Home Assistant context of every change: by hand, via app or by
 ### Safety
 After an entry the house stays “not empty” for 15 minutes. “Empty” needs every person away, no unknown people inside, the last one out detected (confirmed from outside or by a phone leaving – quiet alone is no proof), healthy data and Bifrost running for at least 10 minutes. If the safety check itself fails, Bifrost never says “empty”. A door opened from outside while everybody is away or asleep, with no explanation, is a **suspicious entry** (option `suspicious_entry_level`). `binary_sensor.bifrost_empty_confirmed` only turns on with option `alarm_signal` **and** a green balance (30 days, ≥ 20 departures, 0 wrong “empty”, data health ≥ 90 %). Bifrost never disarms anything.
 
+### Learning from hindsight
+Bifrost learns only from what is certain afterwards – never from its own live decision: quiet between a confirmed exit and an entry was *certainly empty*; activity inside, or quiet after which activity resumes without anybody coming in (e.g. a child upstairs), was *certainly home*. From this it learns one weight per signal (the **evidence scale**) and shows on **Status** a percentage for Home, Asleep and Away. **Balance** shows the hindsight summary and whether the percentages were right. To test on your own data, copy the database from `/data` and run `python3 tools/backtest.py bifrost.db` – everything stays on your machine.
+
 ### Entities
-`sensor.bifrost_home_status`, `binary_sensor.bifrost_house_empty`, `sensor.bifrost_confidence`, `sensor.bifrost_reason`, `sensor.bifrost_data_health`, `sensor.bifrost_expected_return`, `binary_sensor.bifrost_anomaly`, `binary_sensor.bifrost_guest_mode`, `binary_sensor.bifrost_suspicious_entry`, `binary_sensor.bifrost_empty_confirmed`, `sensor.bifrost_open_questions`, `sensor.bifrost_unknown_people`, `sensor.bifrost_person_<id>`.
+`sensor.bifrost_p_home`, `sensor.bifrost_p_asleep`, `sensor.bifrost_p_away`, `sensor.bifrost_home_status`, `binary_sensor.bifrost_house_empty`, `sensor.bifrost_confidence`, `sensor.bifrost_reason`, `sensor.bifrost_data_health`, `sensor.bifrost_expected_return`, `binary_sensor.bifrost_anomaly`, `binary_sensor.bifrost_guest_mode`, `binary_sensor.bifrost_suspicious_entry`, `binary_sensor.bifrost_empty_confirmed`, `sensor.bifrost_open_questions`, `sensor.bifrost_unknown_people`, `sensor.bifrost_person_<id>`.
 
 Example automation (notification only):
 ```yaml
@@ -116,6 +119,9 @@ Bifrost liest bei jeder Änderung den Home-Assistant-Context: von Hand, per App 
 
 ### Sicherheit
 Nach einem Eintritt bleibt das Haus 15 Minuten „nicht leer“. „Leer“ braucht alle Personen weg, keine Unbekannten im Haus, den erkannten letzten Rausgehenden (von aussen bestätigt oder durch ein Handy, das geht – Ruhe allein beweist nichts), gesunde Daten und dass Bifrost seit mindestens 10 Minuten läuft. Schlägt die Sicherheitsprüfung selbst fehl, sagt Bifrost nie „leer“. Wird eine Tür von aussen geöffnet, während alle weg sind oder schlafen, und nichts erklärt es, ist das ein **verdächtiger Eintritt** (Option `suspicious_entry_level`). `binary_sensor.bifrost_empty_confirmed` schaltet nur mit der Option `alarm_signal` **und** grüner Bilanz ein (30 Tage, ≥ 20 Abfahrten, 0 falsches „leer“, Datengesundheit ≥ 90 %). Bifrost schaltet nie etwas unscharf.
+
+### Lernen aus dem Rückblick
+Bifrost lernt nur aus dem, was im Nachhinein sicher ist – nie aus der eigenen Live-Entscheidung: Ruhe zwischen bestätigtem Austritt und Eintritt war *sicher leer*; Aktivität drinnen oder Ruhe, nach der es drinnen weitergeht, ohne dass jemand hereinkam (z. B. ein Kind oben), war *sicher daheim*. Daraus lernt es ein Gewicht pro Signal (die **Evidenz-Waage**) und zeigt im **Status** Prozente für Daheim, Schläft und Weg (`sensor.bifrost_p_home`, `sensor.bifrost_p_asleep`, `sensor.bifrost_p_away`). Die **Bilanz** zeigt den Rückblick und ob die Prozente gestimmt haben. Zum Testen mit eigenen Daten die Datenbank aus `/data` kopieren und `python3 tools/backtest.py bifrost.db` ausführen – alles bleibt auf deinem Rechner.
 
 ### Tipps
 - Bei jedem Eingang einen Bewegungsmelder innen **und** aussen – dann sieht Bifrost die Richtung.

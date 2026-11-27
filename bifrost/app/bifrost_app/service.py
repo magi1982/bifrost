@@ -18,7 +18,6 @@ from .categories import CATEGORIES, STATUS_IGNORED, STATUS_INCLUDED, derive_role
 from .classifier import Classification, EntityInfo, classify
 from .engine import ARRIVING, AWAY, HOME, Decision, Settings, Signal, decide, parse_time
 from .ha_client import HAClient, HAError
-from .learning import Learner, is_unreliable, trust_score
 from .live import AUTOMATION, SCHEDULED, LiveBoard, NumericEvents, OriginLearner, classify_origin
 from .optimize import suggestions as opt_suggestions
 from .people import public as person_public
@@ -135,7 +134,7 @@ class BifrostService:
             guest_mode=store.get_value("guest_mode") == "on",
             use_learning=bool(options.get("use_learning", True)),
         )
-        self.learner = Learner(store)
+        self._polled: dict[str, str] = {}  # last polled state per signal – events while the live stream is down
         self._last_learn: datetime | None = None
         self.language = self._initial_language()
         self.live = LiveBoard()
@@ -287,8 +286,7 @@ class BifrostService:
                 signals.append(Signal(e.info.entity_id, e.info.name or e.info.entity_id, e.category, e.role, "unavailable", now))
                 continue
             signals.append(Signal(e.info.entity_id, e.info.name or e.info.entity_id, e.category, e.role, st["state"][:255], parse_time(st.get("last_changed"), now)))
-        trust = self.store.get_trust()
-        unreliable = {eid for eid, c in trust.items() if is_unreliable(c)}
+        unreliable = self.brain.unreliable() if self.settings.use_learning else set()
         automated = self.live.automated(timedelta(hours=24), now)
         d = decide(signals, self.settings, now, unreliable, automated)
         try:
@@ -303,10 +301,8 @@ class BifrostService:
             self.extra = {"checks": checks}
         if not self.store.get_value("first_decision"):
             self.store.set_value("first_decision", now.isoformat())
-        try:
-            self.learner.observe(signals, d, now, record_events=not self.stream["connected"])
-        except Exception:  # noqa: BLE001 – learning must never stop detection
-            LOG.exception("Learning step failed")
+        if not self.stream["connected"]:
+            self._record_polled(signals, now)
         with self._lock:
             changed = not self.snap.decision or self.snap.decision.state != d.state
             self.snap.decision, self.snap.decided_at, self.snap.error = d, now, None
@@ -316,6 +312,17 @@ class BifrostService:
             self.publish(d)
             self.publish_extra(d, signals, now)
         return d
+
+    def _record_polled(self, signals: list[Signal], now: datetime) -> None:
+        """Without the live stream: record state changes seen by polling, so hindsight still has events."""
+        for s in signals:
+            prev = self._polled.get(s.entity_id)
+            if prev is not None and prev != s.state:
+                kind = "on" if s.active else "off"
+                if s.entity_id.startswith(("device_tracker.", "person.")):
+                    kind = "home" if s.active else "away"
+                self.store.add_event(now, s.entity_id, s.name, s.category, s.role, s.state, kind=kind)
+            self._polled[s.entity_id] = s.state
 
     def publish(self, d: Decision) -> None:
         """Expose Bifrost's result as Home Assistant entities."""
@@ -457,6 +464,14 @@ class BifrostService:
                         {**common, "friendly_name": f"Bifrost {row['name']}", "icon": "mdi:account", "reason": row["reason"], "strength": row.get("strength")},
                     )
             bal = self.brain.balance_view(now, d.data_health, self._departures(now))
+            pr = ex.get("probabilities") or {}
+            for k in ("home", "asleep", "away"):
+                if k in pr:
+                    self.client.set_state(
+                        f"sensor.bifrost_p_{k}",
+                        str(pr[k]),
+                        {**common, "friendly_name": f"Bifrost probability {k}", "unit_of_measurement": "%", "state_class": "measurement", "icon": "mdi:percent", "source": pr.get("source")},
+                    )
             checks = ex.get("checks") or []
             guard_ok = bool(checks) and all(c["ok"] for c in checks)  # no checks = the guard did not run = not ok
             self.client.set_state(
@@ -613,7 +628,8 @@ class BifrostService:
                     "short_away": v["short_away"],
                 }
             )
-        trust = self.store.get_trust()
+        weights = (self.brain.evidence or {}).get("weights") or {}
+        bad = self.brain.unreliable()
         with self._lock:
             names = {e.info.entity_id: (e.info.name or e.info.entity_id, e.category) for e in self.snap.entities.values()}
         sensors = sorted(
@@ -622,14 +638,14 @@ class BifrostService:
                     "entity_id": k,
                     "name": names.get(k, (k, None))[0],
                     "category": names.get(k, (k, None))[1],
-                    "agree": a,
-                    "disagree": dis,
-                    "score": round(100 * trust_score(a, dis)),
-                    "unreliable": is_unreliable((a, dis)),
+                    "weight": w.get("active", w.get("home")),
+                    "seen_home": w.get("seen_home", 0),
+                    "seen_empty": w.get("seen_empty", 0),
+                    "unreliable": k in bad,
                 }
-                for k, (a, dis) in trust.items()
+                for k, w in weights.items()
             ),
-            key=lambda x: x["score"],
+            key=lambda x: -(x["weight"] or 0),
         )
         return {"days": out, "sensors": sensors, "use_learning": self.settings.use_learning}
 
@@ -662,6 +678,7 @@ class BifrostService:
             "stream": self.stream_view(),
             "guard": {k: (self.extra or {}).get(k) for k in ("checks", "suspicion", "unknown_min", "people_inside_min", "in_progress", "learning", "questions")},
             "ledger": (self.extra or {}).get("ledger"),
+            "probabilities": (self.extra or {}).get("probabilities"),
             "capability": self.brain.detector.model.get("capability", {}),
         }
 
@@ -719,6 +736,9 @@ class BifrostService:
 
     # --- 0.4–1.0 views and actions --------------------------------------------------
     def _departures(self, now: datetime) -> int:
+        hind = self.brain.hind or {}
+        if "departures" in hind:
+            return int(hind["departures"])  # 0.8: departures confirmed in hindsight (exit … entry), not decisions
         dec = self.store.decisions_since(now - timedelta(days=60))
         return sum(1 for g, _ in outcomes_from_decisions(dec, lambda v: parse_time(v, now)) if g == "departure")
 
@@ -804,8 +824,7 @@ class BifrostService:
         now = datetime.now(UTC)
         names = self._names()
         house = self.brain.house_view(names)
-        trust = self.store.get_trust()
-        unreliable = {eid for eid, c in trust.items() if is_unreliable(c)}
+        unreliable = self.brain.unreliable()
         with self._lock:
             ents = {k: e for k, e in self.snap.entities.items() if e.status == STATUS_INCLUDED}
             floors_of = dict(self.floors)

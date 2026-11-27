@@ -2,6 +2,24 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.8.0] – 2026-11-27
+
+### Changed
+- **Bifrost learns from hindsight, not from itself.** Every few hours it looks back and splits the history into *certainly empty* (confirmed exit → quiet → entry, alarm “armed away”), *certainly home* (activity inside; quiet after which activity resumes without anybody coming in – e.g. a child without a phone upstairs) and *unclear*. Routines, calendar words, inside/outside, disturbances and departures learn only from this and from your corrections – never from Bifrost's own live decision.
+- **Evidence scale instead of hand-made confidence.** Every signal gets a learned weight (how much more often it fires when somebody is home than when the house is empty). The live estimate is the sum of what is true right now – explainable on the Status tab. It may only make Bifrost more careful: below 70 % “empty” it says *Unknown*; it never turns a rule decision into “empty”.
+- Signals that fire as often when the house is empty (animals, robots, drafts) are no longer counted as activity – learned from hindsight instead of the old trust score. “That's wrong – this fooled Bifrost” makes a signal count less on the scale.
+- The release gate counts departures confirmed in hindsight, and **“empty” while somebody was certainly inside counts as a wrong “empty”** like an owner's correction.
+
+### Added
+- **Status shows a percentage for every state**: Home, Asleep and Away (together 100 %), the current decision above, “in progress” when a routine runs, and how Bifrost calculated it.
+- Entities `sensor.bifrost_p_home`, `sensor.bifrost_p_asleep`, `sensor.bifrost_p_away`.
+- **Balance**: hindsight summary (hours certainly home / empty / unclear, departures, wrong “empty” in hindsight) and a calibration chart – when Bifrost said “x % empty”, how often was it really empty.
+- **Backtesting on your own data**: `tools/backtest.py` runs the hindsight labeller over a copy of your database locally and compares it with Bifrost's past decisions.
+- Realistic simulator: a child without a phone who stays upstairs, a flapping Wi-Fi tracker, animals.
+
+### Removed
+- The trust learner that judged signals by Bifrost's own decisions.
+
 ## [0.7.0] – 2026-11-27
 
 ### Security

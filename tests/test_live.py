@@ -160,11 +160,10 @@ def test_corrections_teach_something(tmp_path):
     # whole house: Bifrost said away, somebody was home → wrong "empty" in the balance
     r = b.correct("away", "home", now)
     assert "balance:wrong_empty" in r["learned"]
-    # culprit: the hallway motion was the cat while nobody was home → trust drops, disturbance question
-    before = svc.store.get_trust().get("binary_sensor.motion_hallway", (0, 0))
+    # culprit: the hallway motion was the cat while nobody was home → counts less on the scale, disturbance question
     r = b.correct("home", "away", now, culprit="binary_sensor.motion_hallway")
-    after = svc.store.get_trust()["binary_sensor.motion_hallway"]
-    assert "trust:binary_sensor.motion_hallway" in r["learned"] and after[1] >= before[1] + 3
+    assert "trust:binary_sensor.motion_hallway" in r["learned"]
+    assert svc.store.get_obj("stats", "culprits")["binary_sensor.motion_hallway"] == 1
     assert any(q["type"] == "disturbance" for q in b.inbox.all())
     # person: phone said home three times, person was away → that phone only counts as weak
     for _ in range(3):
