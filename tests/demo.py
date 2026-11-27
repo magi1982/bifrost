@@ -94,6 +94,22 @@ class DemoClient:
     def set_state(self, eid, state, attrs):
         self.published[eid] = (state, attrs)
 
+    def get_history(self, eid, start, end):
+        """A plausible day of example history: numbers drift, switches go on and off."""
+        import math
+
+        cur = next((x for x in self.states if x["entity_id"] == eid), {})
+        out = []
+        for i in range(0, 24 * 60, 20):
+            t = self.now - timedelta(minutes=24 * 60 - i)
+            try:
+                v = float(cur.get("state"))
+                st = f"{v + 6 * math.sin(i / 90):.1f}"
+            except (TypeError, ValueError):
+                st = "on" if (i // 20) % 9 in (2, 3) else "home" if eid.startswith("device_tracker.") else "off"
+            out.append({"state": st, "last_changed": t.isoformat()})
+        return out
+
 
 def build(path: str) -> BifrostService:
     sim = household(28, start=datetime.now(UTC) - timedelta(days=29))
