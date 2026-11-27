@@ -19,10 +19,10 @@ from datetime import UTC, datetime, timedelta
 from . import balance, blocks, calwords, guard, timing
 from . import routines as rt
 from .engine import AWAY, Decision, parse_time
-from .location import Fingerprints, validate_floorplan
-from .patterns import outcomes_from_decisions
-from .people import STRENGTH_BY_INTEGRATION, WEAK, PeopleStore, ledger
+from .floorplan import validate_floorplan
+from .people import WEAK, PeopleStore, ledger, source_strength, visibility
 from .questions import Inbox
+from .routines import outcomes_from_decisions
 
 LOG = logging.getLogger(__name__)
 LEARN_DAYS = 56
@@ -43,7 +43,6 @@ class Brain:
         self.detector = blocks.Detector()
         self.gs = guard.GuardState.from_dict(store.get_obj("guard", "state"))
         self.started_at = datetime.now(UTC)
-        self.fingerprints = Fingerprints()
         self._lock = threading.Lock()
         self.identity: deque = deque(maxlen=200)  # recent identity events for explaining entries
         self.motion_last: datetime | None = None
@@ -69,9 +68,11 @@ class Brain:
         return out
 
     def strength(self, entity_id: str) -> str:
-        integ = (self.meta.get(entity_id, {}).get("integration") or "").lower()
         wrong = (self.store.get_obj("stats", "tracker_wrong") or {}).get(entity_id, 0)
-        return WEAK if wrong >= 3 else STRENGTH_BY_INTEGRATION.get(integ, WEAK)
+        return WEAK if wrong >= 3 else source_strength(entity_id, self.meta.get(entity_id))
+
+    def visibility(self, person) -> dict:  # noqa: ANN001
+        return visibility(person, self.meta, self.store.get_obj("stats", "tracker_wrong") or {})
 
     def on_edge(self, edge: dict) -> None:
         """Called for every clean edge from the live stream."""
@@ -136,6 +137,9 @@ class Brain:
             persons = self.people.all()
             simple_states = {k: v.get("state") for k, v in states.items()}
             led = ledger(persons, simple_states, {t: self.strength(t) for p in persons for t in p.sources}, self.gs.unknown_min)
+            vis = {p.id: self.visibility(p)["level"] for p in persons}
+            for row in led["people"]:
+                row["visibility"] = vis.get(row["id"])
             can_dir = any(e.get("direction") for e in self.detector.model.get("entrances", []))
             warming = now - self.started_at < guard.STARTUP_HOLD
             d2, checks = guard.apply(d, led, self.gs, now, can_dir, warming_up=warming)
@@ -258,7 +262,7 @@ class Brain:
             tok_owner[f"{eid}:home"] = tok_owner[f"{eid}:away"] = name
         for p in persons:
             tok_owner[f"person:{p.id}:home"] = p.name
-        self.routines = rt.mine(events, outs, spans, tok_owner)
+        self.routines = rt.stabilise(rt.mine(events, outs, spans, tok_owner), self.routines, now)
         self.store.put_obj("model", "routines", {"items": self.routines})
         self.timing = timing.learn(person_events)
         self.timing["_durations"] = timing.durations(decisions, _p)

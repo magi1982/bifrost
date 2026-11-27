@@ -60,17 +60,6 @@ def validate_guest(body: object) -> bool:
     return body["on"]
 
 
-PATTERN_ID_RE = re.compile(r"^[0-9a-f]{10}$")
-
-
-def validate_pattern(body: object) -> tuple[str, str]:
-    if not isinstance(body, dict) or not isinstance(body.get("id"), str) or not PATTERN_ID_RE.match(body["id"]):
-        raise ValueError("invalid pattern id")
-    if body.get("status") not in ("enabled", "disabled"):
-        raise ValueError("status must be enabled or disabled")
-    return body["id"], body["status"]
-
-
 def _entity(body: dict, key: str = "entity_id") -> str:
     v = body.get(key)
     if not isinstance(v, str) or not ENTITY_RE.match(v):
@@ -97,6 +86,7 @@ VIEWS = {
     "/api/deviations": "deviations_view",
     "/api/questions": "questions_view",
     "/api/balance": "balance_view",
+    "/api/catalog": "catalog_view",
 }
 
 ACTIONS = {
@@ -106,8 +96,7 @@ ACTIONS = {
     "/api/optimization/reset": lambda svc, b: svc.reset_optimizations(),
     "/api/owner": lambda svc, b: svc.set_owner(b.get("entity_id"), b.get("owner")),
     "/api/access_map": lambda svc, b: svc.brain.people.map_access(b.get("value"), b.get("target")),
-    "/api/irk": lambda svc, b: svc.brain.people.save_irk(b),
-    "/api/irk/delete": lambda svc, b: svc.brain.people.delete_irk(b.get("id")),
+    "/api/irk/delete_all": lambda svc, b: svc.brain.people.delete_all_irks(),
     "/api/answer": lambda svc, b: svc.answer(_str(b, "id", 40), _str(b, "answer", 10), b.get("label") if isinstance(b.get("label"), str) else None),
     "/api/correct": lambda svc, b: svc.correct(
         _str(b, "actual", 10),
@@ -196,11 +185,8 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
                 return self._send(HTTPStatus.OK, service.dashboard_view())
             if route == "/api/timeline":
                 return self._send(HTTPStatus.OK, service.timeline_view())
-            if route == "/api/patterns":
-                return self._send(HTTPStatus.OK, service.patterns_view())
             if route == "/api/calendars":
-                words = service.brain.words.get("words", {}) if hasattr(service, "brain") else {}
-                return self._send(HTTPStatus.OK, {**service.calendars_view(), "words": words})
+                return self._send(HTTPStatus.OK, service.calendars_view())
             view = VIEWS.get(route)
             if view and hasattr(service, view):
                 return self._send(HTTPStatus.OK, getattr(service, view)())
@@ -229,14 +215,6 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
             if route == "/api/scan":
                 service.request_scan()
                 return self._send(HTTPStatus.ACCEPTED, {"ok": True})
-            if route == "/api/pattern":
-                try:
-                    pid, status = validate_pattern(body)
-                    return self._send(HTTPStatus.OK, service.set_pattern(pid, status))
-                except ValueError as err:
-                    return self._send(HTTPStatus.BAD_REQUEST, {"error": str(err)})
-                except KeyError:
-                    return self._send(HTTPStatus.NOT_FOUND, {"error": "unknown pattern"})
             if route == "/api/learn":
                 service.learn_job(datetime.now(UTC))
                 return self._send(HTTPStatus.OK, {"ok": True})

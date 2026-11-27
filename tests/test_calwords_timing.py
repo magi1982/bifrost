@@ -14,7 +14,7 @@ def entry(day: int, title: str, h1=8, h2=17, allday=False):
 
 def test_words_skip_sensitive_stop_words():
     assert calwords.words("Physio Weinfelden mit Kind") == ["weinfelden", "kind"]
-    assert calwords.words("Spritze Aimovig") == []
+    assert calwords.words("Spritze Impfung") == []
 
 
 def test_learn_effects_per_person_house_and_day_type():

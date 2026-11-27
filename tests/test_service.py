@@ -135,46 +135,6 @@ def test_expected_return_from_history(tmp_path):
     assert ret is not None and ret.hour == 17 and 30 <= ret.minute <= 33
 
 
-def _seed_departures(store, n, with_noise=0):
-    from datetime import timedelta
-
-    base = datetime.now(UTC).replace(hour=7, minute=0, second=0, microsecond=0) - timedelta(days=n + 1)
-    for i in range(n):
-        day = base + timedelta(days=i)
-        store.add_decision(day, "home", 90, [])
-        store.add_event(day + timedelta(minutes=10), "binary_sensor.front_door", "Front door", "openings", "Trigger", "on")
-        store.add_event(day + timedelta(minutes=14), "person.example_a", "Person A", "devices", "Evidence", "not_home")
-        store.add_decision(day + timedelta(minutes=20), "leaving", 60, [])
-        store.add_decision(day + timedelta(minutes=40), "away", 90, [])
-        store.add_decision(day + timedelta(hours=9), "home", 90, [])
-    return base
-
-
-def test_learn_job_finds_pattern_and_drift(tmp_path):
-    svc, client = make(tmp_path)
-    svc.scan()
-    _seed_departures(svc.store, 7)
-    svc.learn_job(datetime.now(UTC))
-    pats = svc.patterns_view()["patterns"]
-    dep = [p for p in pats if p["outcome"] == "departure"]
-    assert dep and dep[0]["status"] == "suggested" and dep[0]["support"] == 7
-    assert [s["entity_id"] for s in dep[0]["steps"]] == ["binary_sensor.front_door", "person.example_a"]
-    pid = dep[0]["id"]
-    svc.set_pattern(pid, "enabled")
-    svc.evaluate()
-    assert f"binary_sensor.bifrost_pattern_{pid}" in client.published
-    # drift: the door now opens often without anyone leaving -> precision drops -> "changed"
-    from datetime import timedelta
-
-    for i in range(6):
-        t = datetime.now(UTC) - timedelta(hours=3 + i * 5)
-        svc.store.add_event(t, "binary_sensor.front_door", "Front door", "openings", "Trigger", "on")
-        svc.store.add_event(t + timedelta(minutes=4), "person.example_a", "Person A", "devices", "Evidence", "not_home")
-    svc.learn_job(datetime.now(UTC))
-    st = {p["id"]: p["status"] for p in svc.patterns_view()["patterns"]}
-    assert st[pid] == "changed"
-
-
 def test_calendar_learning_without_titles(tmp_path):
     import json
     from datetime import timedelta
@@ -185,7 +145,7 @@ def test_calendar_learning_without_titles(tmp_path):
     svc.update_entity("calendar.example_work", "included", None, None)
     entries = []
     base = datetime.now(UTC).replace(hour=8, minute=0, second=0, microsecond=0) - timedelta(days=10)
-    for i in range(4):
+    for i in range(6):
         st = base + timedelta(days=i)
         svc.store.add_decision(st - timedelta(hours=1), "home", 90, [])
         svc.store.add_decision(st, "away", 90, [])
@@ -194,12 +154,12 @@ def test_calendar_learning_without_titles(tmp_path):
     client.calendar_entries = entries
     svc.learn_job(datetime.now(UTC))
     view = svc.calendars_view()
-    kws = {k["keyword"]: k for k in view["calendars"][0]["insights"]}
-    assert kws["office"]["means_away"] and kws["office"]["away_share"] == 100
-    raw = json.dumps(svc.store.get_calendar_stats())
+    kws = {k["word"]: k for k in view["words"]}
+    assert kws["office"]["effects"]["house_empty"] == 1.0
+    raw = json.dumps(svc.store.get_obj("model", "calwords"))
     assert "Office day Zurich" not in raw  # full titles are never stored
     d = svc.evaluate()
-    assert any("usually away" in r for r in d.reasons)
+    assert any("usually nobody home" in r for r in d.reasons)
     assert not any("Office day Zurich" in r for r in d.reasons)  # the title itself is never echoed
 
 
@@ -240,3 +200,17 @@ def test_guard_state_survives_a_restart(tmp_path):
     svc.evaluate()
     again = BifrostService(FakeClient(), svc.store, {})
     assert again.brain.gs.unknown_min == 2
+
+
+def test_catalog_counts_by_ha_standards(tmp_path):
+    svc, client = make(tmp_path)
+    client.states += [
+        {"entity_id": "device_tracker.iphone_ble", "state": "home", "last_changed": OLD, "attributes": {"source_type": "bluetooth_le"}},
+        {"entity_id": "alarm_control_panel.house", "state": "disarmed", "last_changed": OLD, "attributes": {}},
+        {"entity_id": "vacuum.robot", "state": "docked", "last_changed": OLD, "attributes": {}},
+    ]
+    svc.scan()
+    kinds = {k["kind"]: k for k in svc.catalog_view()["kinds"]}
+    assert kinds["motion"]["found"] == 1 and kinds["phones"]["found"] == 1
+    assert kinds["bluetooth"]["found"] == 1 and kinds["alarm"]["found"] == 1 and kinds["robots_cars"]["found"] == 1
+    assert kinds["cameras"]["found"] == 0

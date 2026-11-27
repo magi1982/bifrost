@@ -4,6 +4,7 @@ python tools/gui_check.py [base_url] [out_dir]
 """
 
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -67,7 +68,8 @@ ENGLISH_JS = r"""() => {
 def run() -> int:
     problems = []
     with sync_playwright() as p:
-        b = p.chromium.launch(executable_path="/usr/bin/google-chrome")
+        chrome = os.environ.get("BIFROST_CHROME") or ("/usr/bin/google-chrome" if Path("/usr/bin/google-chrome").exists() else None)
+        b = p.chromium.launch(executable_path=chrome) if chrome else p.chromium.launch()
         for scheme, w, h in (("light", 1200, 900), ("dark", 1200, 900), ("light", 390, 844), ("dark", 390, 844)):
             ctx = b.new_context(viewport={"width": w, "height": h}, color_scheme=scheme, locale="de-CH")
             pg = ctx.new_page()

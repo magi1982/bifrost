@@ -11,9 +11,7 @@ from collections import Counter
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 
-from . import __version__, guard, i18n
-from . import calendars as cal
-from . import patterns as pat
+from . import __version__, calwords, guard, i18n
 from .balance import signal as _signal
 from .brain import Brain
 from .categories import CATEGORIES, STATUS_IGNORED, STATUS_INCLUDED, derive_role
@@ -25,6 +23,7 @@ from .live import AUTOMATION, SCHEDULED, LiveBoard, NumericEvents, OriginLearner
 from .optimize import suggestions as opt_suggestions
 from .people import public as person_public
 from .preprocess import DuplicateDetector, Edge, EdgeFilter
+from .routines import outcomes_from_decisions
 from .store import Store
 
 LOG = logging.getLogger(__name__)
@@ -71,6 +70,54 @@ class Snapshot:
     error: str | None = None
 
 
+CATALOG_KINDS = ("motion", "openings", "access", "phones", "bluetooth", "light", "media", "air_water", "power", "calendars", "modes", "alarm", "cameras", "robots_cars")
+_CAR_WORDS = ("car", "auto", "tesla", "vehicle", "fahrzeug")
+
+
+def catalog_kind(info: EntityInfo, category: str | None, source_type: str | None = None) -> str | None:  # noqa: C901
+    """Map an entity to a catalogue kind by HA standards only."""
+    d, dc, eid = info.domain, (info.device_class or "").lower(), info.entity_id.lower()
+    text = eid + " " + (info.name or "").lower()
+    st = (source_type or "").lower()
+    if d == "alarm_control_panel":
+        return "alarm"
+    if d in ("vacuum", "lawn_mower") or (d == "device_tracker" and any(w in text for w in _CAR_WORDS)):
+        return "robots_cars"
+    if d == "device_tracker":
+        if st.startswith("bluetooth") or (info.integration or "") in ("private_ble_device", "ibeacon", "bluetooth_le_tracker"):
+            return "bluetooth"
+        return "phones"
+    if d == "person":
+        return "phones"
+    if (info.integration or "") == "bermuda":
+        return "bluetooth"
+    if (
+        "person" in eid
+        and (d == "sensor" and (info.unit in (None, "", "people", "persons")) or (d == "binary_sensor" and dc in ("occupancy", "motion", "")))
+        and any(w in (info.integration or "") for w in ("frigate", "unifiprotect", "reolink", "camera", "doods", "deepstack"))
+    ):
+        return "cameras"
+    if d == "binary_sensor" and dc in ("motion", "occupancy", "presence"):
+        return "motion"
+    if d == "binary_sensor" and dc in ("door", "window", "garage_door", "opening"):
+        return "openings"
+    if d == "lock" or category == "access":
+        return "access"
+    if d in ("light",) or (d in ("switch", "event", "button") and category == "manual"):
+        return "light"
+    if d == "media_player":
+        return "media"
+    if d == "sensor" and (dc in ("carbon_dioxide", "humidity", "water", "volume_flow_rate") or (info.unit or "") in ("ppm", "L/min", "m³/h")):
+        return "air_water"
+    if d == "sensor" and dc in ("power", "energy"):
+        return "power"
+    if d == "calendar":
+        return "calendars"
+    if category in ("mode_home", "mode_away"):
+        return "modes"
+    return None
+
+
 def _is_number(v: str | None) -> bool:
     try:
         float(v or "x")
@@ -99,6 +146,7 @@ class BifrostService:
         except ValueError:
             LOG.warning("Stored origin data unreadable – starting fresh")
         self.floors: dict[str, dict] = {}
+        self.source_types: dict[str, str | None] = {}
         self._states: dict[str, dict] = {}
         self.snap = Snapshot()
         self._lock = threading.Lock()
@@ -176,9 +224,19 @@ class BifrostService:
             self.snap.entities = result
             self.snap.scanned_at = datetime.now(UTC)
             self.floors = area_floor
+            self.source_types = {k: (v.get("attributes") or {}).get("source_type") for k, v in states.items() if k.startswith("device_tracker.")}
         self.brain.set_meta(
             {
-                eid: {"name": e.info.name, "category": e.category, "device_class": e.info.device_class, "area": e.info.area, "integration": e.info.integration, "role": e.role}
+                eid: {
+                    "name": e.info.name,
+                    "category": e.category,
+                    "device_class": e.info.device_class,
+                    "area": e.info.area,
+                    "integration": e.info.integration,
+                    "role": e.role,
+                    "unit": e.info.unit,
+                    "source_type": (states.get(eid, {}).get("attributes") or {}).get("source_type"),
+                }  # fmt: skip
                 for eid, e in result.items()
                 if e.status == STATUS_INCLUDED
             }
@@ -257,7 +315,6 @@ class BifrostService:
         if self.options.get("publish_entities", True):
             self.publish(d)
             self.publish_extra(d, signals, now)
-            self.publish_patterns()
         return d
 
     def publish(self, d: Decision) -> None:
@@ -431,30 +488,10 @@ class BifrostService:
     def learn_job(self, now: datetime) -> None:
         """Mine patterns and learn calendars (every few hours). Never raises."""
         self._last_learn = now
-        try:
-            events = self.store.events_since(now - timedelta(days=56), limit=200000)
-            decisions = self.store.decisions_since(now - timedelta(days=56))
-            found = pat.mine(events, decisions, lambda v: parse_time(v, now), self._names())
-            known = self.store.get_patterns()
-            seen_ids = set()
-            for p in found:
-                seen_ids.add(p.id)
-                old = known.get(p.id)
-                status = old["status"] if old else "suggested"
-                baseline = old["baseline"] if old else None
-                if status == "enabled" and baseline is not None and p.precision < baseline - 0.10:
-                    status = "changed"  # drift: the pattern no longer holds as well as when it was switched on
-                self.store.upsert_pattern(p.id, p.to_dict(), status, baseline, now.isoformat())
-            for pid, old in known.items():
-                if pid not in seen_ids and old["status"] == "enabled":
-                    self.store.upsert_pattern(pid, old["data"], "changed", old["baseline"], old["seen"])
-            LOG.info("Pattern mining: %d patterns", len(found))
-        except Exception:  # noqa: BLE001
-            LOG.exception("Pattern mining failed")
         cal_entries: dict[str, list[dict]] = {}
         if self.options.get("learn_calendars", True):
             try:
-                start, end = cal.window(now, days=56)
+                start, end = calwords.window(now, days=56)
                 with self._lock:
                     cids = [e.info.entity_id for e in self.snap.entities.values() if e.info.domain == "calendar" and e.status == STATUS_INCLUDED]
                 for cid in cids:
@@ -470,83 +507,25 @@ class BifrostService:
             LOG.info("Recognition learned: %s", res)
         except Exception:  # noqa: BLE001
             LOG.exception("Recognition learning failed")
-        if not self.options.get("learn_calendars", True):
-            return
-        try:
-            start, end = cal.window(now)
-            decisions = self.store.decisions_since(start)
-            with self._lock:
-                cals = [e.info.entity_id for e in self.snap.entities.values() if e.info.domain == "calendar" and e.status == STATUS_INCLUDED]
-            for cid in cals:
-                entries = self.client.get_calendar(cid, start.isoformat(), end.isoformat())
-                self.store.set_calendar_stats(cid, cal.learn(cid, entries, decisions, lambda v: parse_time(v, now)))
-        except Exception:  # noqa: BLE001
-            LOG.exception("Calendar learning failed")
-
-    def set_pattern(self, pid: str, status: str) -> dict:
-        known = self.store.get_patterns()
-        if pid not in known:
-            raise KeyError(pid)
-        p = known[pid]
-        baseline = p["data"]["precision"] / 100 if status == "enabled" else p["baseline"]
-        self.store.upsert_pattern(pid, p["data"], status, baseline, p["seen"])
-        return {"id": pid, "status": status}
 
     def _add_context(self, d: Decision, states: dict, now: datetime) -> None:
-        """Add pattern progress and calendar hints to the reasons (context only – never changes the state)."""
-        recent = [(parse_time(e["ts"], now), tok) for e in self.store.events_since(now - pat.WINDOW) if (tok := pat.step_token(e["entity_id"], e["state"]))]
-        self._pattern_live = {}
-        for pid, p in self.store.get_patterns().items():
-            if p["status"] != "enabled":
-                continue
-            toks = [f"{s['entity_id']}:{s['state']}" for s in p["data"]["steps"]]
-            k = pat.progress(toks, recent, now)
-            self._pattern_live[pid] = k
-            if k == len(toks):
-                d.reasons.append(f"Pattern matched: {p['data']['outcome_label']} usually follows in ~{p['data']['lead']} min")
+        """Add calendar hints to the reasons (context only – never changes the state)."""
         if self.options.get("learn_calendars", True):
-            active = [(eid, st.get("attributes", {}).get("message", "")) for eid, st in states.items() if eid.startswith("calendar.") and st.get("state") == "on"]
-            d.reasons.extend(cal.active_hint(active, self.store.get_calendar_stats()))
-
-    def publish_patterns(self) -> None:
-        live = getattr(self, "_pattern_live", {})
-        for pid, p in self.store.get_patterns().items():
-            if p["status"] != "enabled":
-                continue
-            n, k = len(p["data"]["steps"]), live.get(pid, 0)
-            try:
-                self.client.set_state(
-                    f"binary_sensor.bifrost_pattern_{pid}",
-                    "on" if k == n else "off",
-                    {
-                        "friendly_name": f"Bifrost pattern: {p['data']['outcome_label']} ({n} steps)",
-                        "icon": "mdi:timeline-check",
-                        "progress": f"{k}/{n}",
-                        "outcome": p["data"]["outcome"],
-                        "precision": p["data"]["precision"],
-                        "attribution": "Bifrost",
-                    },
-                )
-            except HAError as err:
-                LOG.warning("Publishing pattern failed: %s", err)
-
-    def patterns_view(self) -> dict:
-        live = getattr(self, "_pattern_live", {})
-        out = []
-        for pid, p in self.store.get_patterns().items():
-            out.append({**p["data"], "status": p["status"], "seen": p["seen"], "baseline": round(100 * p["baseline"]) if p["baseline"] else None, "progress": live.get(pid, 0)})
-        order = {"changed": 0, "suggested": 1, "enabled": 2, "disabled": 3}
-        out.sort(key=lambda x: (order.get(x["status"], 9), -x["precision"]))
-        return {"patterns": out, "last_learn": self._last_learn.isoformat() if self._last_learn else None, "min_support": pat.MIN_SUPPORT, "min_precision": round(100 * pat.MIN_PRECISION)}
+            active = [str((st.get("attributes") or {}).get("message", "")) for eid, st in states.items() if eid.startswith("calendar.") and st.get("state") == "on"]
+            d.reasons.extend(calwords.hints(active, self.brain.words))
 
     def calendars_view(self) -> dict:
+        """Calendar words Bifrost learned (only words and counters, never titles)."""
         names = self._names()
-        out = []
-        for cid, st in self.store.get_calendar_stats().items():
-            out.append({"calendar": cid, "name": names.get(cid, cid), "entries": st.get("entries", 0), "away": st.get("away", 0), "insights": cal.insights(st), "updated": st.get("updated")})
         with self._lock:
             used = [e.info.entity_id for e in self.snap.entities.values() if e.info.domain == "calendar" and e.status == STATUS_INCLUDED]
-        return {"calendars": out, "used": used, "enabled": bool(self.options.get("learn_calendars", True)), "min_obs": cal.MIN_OBS}
+        words = self.brain.words.get("words", {})
+        return {
+            "used": [{"entity_id": c, "name": names.get(c, c)} for c in used],
+            "enabled": bool(self.options.get("learn_calendars", True)),
+            "min_word": calwords.MIN_WORD,
+            "words": [{"word": w, **v, "calendars": [names.get(c, c) for c in v.get("calendars", [])]} for w, v in words.items()],
+        }
 
     def _initial_language(self) -> str:
         """Stored choice, otherwise the Home Assistant language on first start."""
@@ -741,7 +720,25 @@ class BifrostService:
     # --- 0.4–1.0 views and actions --------------------------------------------------
     def _departures(self, now: datetime) -> int:
         dec = self.store.decisions_since(now - timedelta(days=60))
-        return sum(1 for g, _ in pat.outcomes_from_decisions(dec, lambda v: parse_time(v, now)) if g == "departure")
+        return sum(1 for g, _ in outcomes_from_decisions(dec, lambda v: parse_time(v, now)) if g == "departure")
+
+    def catalog_view(self) -> dict:
+        """ "What Bifrost sees in your home": per kind of signal how many entities exist and how many are used.
+
+        Recognised only by Home Assistant standards (domain, device_class, source_type, unit) – never by vendor.
+        """
+        with self._lock:
+            ents = list(self.snap.entities.values())
+            stypes = dict(self.source_types)
+        counts = {k: {"kind": k, "found": 0, "used": 0} for k in CATALOG_KINDS}
+        for e in ents:
+            if e.info.disabled:
+                continue
+            k = catalog_kind(e.info, e.category, stypes.get(e.info.entity_id))
+            if k:
+                counts[k]["found"] += 1
+                counts[k]["used"] += e.status == STATUS_INCLUDED
+        return {"kinds": list(counts.values())}
 
     def people_view(self) -> dict:
         led = (self.extra or {}).get("ledger") or {}
@@ -751,8 +748,10 @@ class BifrostService:
         stats = self.store.get_obj("stats", "access_users") or {}
         out = []
         for p in self.brain.people.all():
+            vis = self.brain.visibility(p)
             out.append({
-                **person_public(p), "now": rows.get(p.id),
+                **person_public(p), "now": rows.get(p.id), "visibility": vis["level"],
+                "source_kinds": [{**k, "name": names.get(k["entity_id"], k["entity_id"])} for k in vis["sources"]],
                 "tracker_names": [names.get(e, e) for e in p.trackers + p.tags],
                 "calendar_names": [names.get(e, e) for e in p.calendars],
                 "irks": [k["label"] for k in irks if k.get("owner") == p.id],

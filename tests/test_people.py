@@ -8,7 +8,7 @@ IRK = "0123456789abcdef0123456789abcdef"
 
 def test_validate_and_public_never_shows_keys():
     p = validate({"name": "Person A", "trackers": ["device_tracker.phone_a"], "irk": IRK.upper()})
-    assert p.id == "person_a" and p.irk == IRK
+    assert p.id == "person_a" and p.irk == ""  # since 0.7 keys live in Home Assistant
     pub = public(p)
     assert "irk" not in pub and IRK not in str(pub)
 
@@ -22,7 +22,6 @@ def test_validate_and_public_never_shows_keys():
         {"name": "A", "trackers": ["light.x"]},
         {"name": "A", "trackers": "device_tracker.x"},
         {"name": "A", "calendars": ["sensor.x"]},
-        {"name": "A", "irk": "xyz"},
         {"name": "A", "nfc_user": "a;b"},
         {"name": "A", "id": "../etc"},
     ],
@@ -36,12 +35,10 @@ def test_slugify_handles_umlauts():
     assert slugify("Kind Ö") == "kind_o"
 
 
-def test_legacy_irk_moves_to_setup_keys_and_sources_are_kept(tmp_path):
+def test_saving_keeps_sources_and_never_takes_a_key(tmp_path):
     ps = PeopleStore(Store(str(tmp_path / "s.db")))
     ps.save({"name": "Person A", "irk": IRK, "trackers": ["device_tracker.a"]})
-    assert ps.get("person_a").irk == ""
-    keys = ps.irks()
-    assert len(keys) == 1 and keys[0]["owner"] == "person_a" and keys[0]["key"] == "••••cdef" and IRK not in str(keys)
+    assert ps.get("person_a").irk == "" and ps.irks() == []
     ps.save({"id": "person_a", "name": "Person A renamed"})  # People tab sends name only
     assert ps.get("person_a").trackers == ["device_tracker.a"]
     with pytest.raises(ValueError):
@@ -141,17 +138,35 @@ def test_access_values_person_household_ignore_denied_or_unassigned(tmp_path):
         ps.map_access("<x>", "alex")
 
 
-def test_irk_keys_validation(tmp_path):
-    ps = PeopleStore(Store(str(tmp_path / "k.db")))
-    ps.save({"name": "Alex"})
-    k = ps.save_irk({"label": "Alex iPhone", "key": IRK, "owner": "alex"})
-    assert k["key"] == "••••cdef"
-    ps.save_irk({"id": k["id"], "label": "Alex iPhone 15", "key": "", "owner": ""})  # empty key keeps it
-    assert ps.irk_keys()[0]["key"] == IRK and ps.irk_keys()[0]["owner"] == ""
-    for bad in ({"label": "x", "key": "123"}, {"label": "", "key": IRK}, {"label": "x", "key": IRK}):
-        with pytest.raises(ValueError):
-            ps.save_irk(bad)
-    assert ps.delete_irk(k["id"]) == {"deleted": True}
+def test_legacy_irk_keys_are_only_listed_masked_and_deleted(tmp_path):
+    from bifrost_app.people import validate
+
+    st = Store(str(tmp_path / "k.db"))
+    ps = PeopleStore(st)
+    st.put_obj("irk", "old_1", {"id": "old_1", "label": "Alex iPhone", "key": IRK, "owner": ""})
+    assert ps.irks()[0]["key"] == "••••cdef" and IRK not in str(ps.irks())
+    assert validate({"name": "Alex", "irk": IRK}).irk == ""  # no new keys since 0.7
+    assert ps.delete_all_irks()["deleted"] == 1 and ps.irks() == []
+
+
+def test_visibility_follows_from_the_sources(tmp_path):
+    from bifrost_app.people import Person, source_kind, visibility
+
+    meta = {
+        "device_tracker.phone_a": {"source_type": "gps"},
+        "device_tracker.phone_b": {"source_type": "router", "integration": "unifi"},
+        "device_tracker.iphone_ble": {"source_type": "bluetooth_le", "integration": "private_ble_device"},
+        "sensor.iphone_a_area": {"integration": "bermuda", "name": "iPhone A Area"},
+    }
+    assert visibility(Person("a", "A", trackers=["device_tracker.phone_a"]), meta)["level"] == "good"
+    assert visibility(Person("b", "B", trackers=["device_tracker.phone_b"]), meta)["level"] == "medium"
+    assert visibility(Person("c", "C"), meta)["level"] == "invisible"
+    assert visibility(Person("d", "D", access_users=["D"]), meta)["level"] == "medium"
+    assert visibility(Person("e", "E", tags=["sensor.iphone_a_area"]), meta)["level"] == "good"
+    assert source_kind("device_tracker.iphone_ble", meta["device_tracker.iphone_ble"]) == "bluetooth"
+    assert source_kind("sensor.iphone_a_area", meta["sensor.iphone_a_area"]) == "room"
+    # three wrong answers make a phone weak
+    assert visibility(Person("a", "A", trackers=["device_tracker.phone_a"]), meta, {"device_tracker.phone_a": 3})["level"] == "medium"
 
 
 def test_assigning_a_suggested_calendar_switches_it_on(tmp_path):
