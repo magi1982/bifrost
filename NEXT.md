@@ -110,6 +110,25 @@ Most devices the Shelly proxies hear never become an entity. Home Assistant stil
 - **Privacy** – addresses stay in the app's own storage, are shown shortened, never exported or logged; devices seen < 3 times in a week are forgotten.
 Limits: iPhones and modern Android phones rotate their address every ~15 min – without an IRK they can be counted and typed ("an Apple phone"), not identified. Needs the Bluetooth integration in HA with the Shellys as proxies (active scanning gives names).
 
+**Concept v2 (27.11.) · Setup section "Bluetooth nearby" – what we can use it for** – mockup: private artifact "Bifrost Bluetooth"
+*Data path.* Read-only WebSocket subscription to HA's advertisements. Advertisements arrive many times per second, so Bifrost aggregates in memory per device and minute (best scanner, RSSI, seen yes/no) and stores 5-minute buckets only. Caps: 500 devices, 14 days; a device unseen for 14 days is forgotten unless the owner named it. **Off by default** – switch "Record Bluetooth surroundings" with an explanation.
+
+*Recognisable or not.* Each device gets "recognisable: yes / until restart / no" from its address type: public or static addresses (TVs, speakers, sensors, car kits, scanners, many fitness bands) are stable; phones rotate (resolvable private) and are only counted per type ("3 Apple phones nearby") – never followed.
+
+*Groups (learned, no setting)*
+- **House devices** – stationary, heard all day by the same scanner (TV, speakers, BTHome sensors). Use: scanner health ("Shelly garage no longer hears the freezer sensor").
+- **Moves with a person** – comes and goes with a phone or code ≥ 80 % → "belongs to …?". Use: extra person source (watch, car kit, earbuds).
+- **Regular visitors** – not stationary, seen on ≥ 3 different days in 4 weeks, stays < 30 min, first heard by an outdoor or entrance scanner, often at similar times (e.g. Mon–Fri 10:15–10:25). The owner names them ("Post", "Cleaner", "Grandma"). Use: explains an "unknown person" at the door, identity step in the incident chain ("approach: Post"), optional push "Post was here 10:22", `binary_sensor.bifrost_visitor_<slug>`.
+- **Passers-by** – seen once or twice, weak signal, outdoor scanner only → hidden, only counted.
+- **Phones nearby (anonymous)** – number of rotating Apple/Android phones in the house now vs. usual; a weak extra presence clue that needs no IRK (cannot see children without a phone, never decides alone).
+
+*UI (Setup → "Bluetooth nearby")*: KPI row (scanners, devices now, regular visitors, phones nearby); filter chips per group; per device: type icon and label from public identifiers (manufacturer, Apple message type, service UUID, name), best scanner ≈ room with signal bar, 7-day rhythm strip, visits and typical time, verdict pill, actions *Name*, *Belongs to person*, *Ignore*, *Use as entity* (explains iBeacon / Private BLE Device / BTHome / Bermuda).
+
+*Limits.* No guarantee: a postman is only found if they carry something with a stable address (handheld scanner, van, band); rotating phones are not recognisable. Bluetooth reach goes through walls – a neighbour can look like a "house device".
+*Privacy.* Third-party devices are recorded only as type + shortened address, never exported, logged or sent anywhere; names come only from the owner; forgotten after 14 days. The owner is responsible for informing regular visitors where the law asks for it.
+*Open questions.* Off by default – yes? Retention 14 days – ok? Push for named visitors ("Post was here") – yes/no? Use "phones nearby" as a weak evidence signal or only display it?
+*Tests.* Aggregation and caps; address-type → recognisable; grouping on a simulated week (TV, watch with a person, Mon–Fri visitor, passers-by, rotating phones); forgetting after 14 days; naming creates the visitor entity; no address in logs; GUI check light/dark/390 px.
+
 ### Done in 0.10.0 · Signal value – which sensors help, which are useless (requested 27.11.)
 Decisions: only suggest switching off; useless/slow signals disappear from the House tab, a separate button shows the archived ones.
 Goal: Bifrost reads every entity and learns by itself which signals help to tell "home" from "empty" – and which bring nothing (e.g. aggregated presence zones from another system that stay "on" for a long time, sensors that hardly change). Filterable in Setup.
