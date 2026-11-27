@@ -66,6 +66,10 @@ class Store:
         self._lock = threading.Lock()
         self._db = sqlite3.connect(path, check_same_thread=False)
         self._db.executescript(SCHEMA)
+        cols = {r[1] for r in self._db.execute("PRAGMA table_info(events)").fetchall()}
+        if "kind" not in cols:  # 0.4: edge kind (on/off/home/away/gap/change)
+            self._db.execute("ALTER TABLE events ADD COLUMN kind TEXT NOT NULL DEFAULT ''")
+            self._db.commit()
         self.retention_days = retention_days
 
     # --- user overrides --------------------------------------------------------
@@ -108,20 +112,20 @@ class Store:
         return [{"ts": r[0], "state": r[1], "confidence": r[2]} for r in rows]
 
     # --- signal events (state changes of used signals) ----------------------
-    def add_event(self, ts: datetime, entity_id: str, name: str, category: str, role: str, state: str) -> None:
+    def add_event(self, ts: datetime, entity_id: str, name: str, category: str, role: str, state: str, kind: str = "") -> None:
         with self._lock, self._db:
             self._db.execute(
-                "INSERT INTO events(ts, entity_id, name, category, role, state) VALUES (?,?,?,?,?,?)",
-                (ts.isoformat(), entity_id, name[:120], category, role, state[:64]),
+                "INSERT INTO events(ts, entity_id, name, category, role, state, kind) VALUES (?,?,?,?,?,?,?)",
+                (ts.astimezone(UTC).isoformat(), entity_id, name[:120], category, role, (state or "")[:64], kind[:12]),
             )
 
     def events_since(self, since: datetime, limit: int = 2000) -> list[dict]:
         with self._lock:
             rows = self._db.execute(
-                "SELECT ts, entity_id, name, category, role, state FROM events WHERE ts >= ? ORDER BY ts DESC LIMIT ?",
-                (since.isoformat(), int(limit)),
+                "SELECT ts, entity_id, name, category, role, state, kind FROM events WHERE ts >= ? ORDER BY ts DESC LIMIT ?",
+                (since.astimezone(UTC).isoformat(), int(limit)),
             ).fetchall()
-        return [{"ts": r[0], "entity_id": r[1], "name": r[2], "category": r[3], "role": r[4], "state": r[5]} for r in rows]
+        return [{"ts": r[0], "entity_id": r[1], "name": r[2], "category": r[3], "role": r[4], "state": r[5], "kind": r[6]} for r in rows]
 
     # --- learned trust per signal -------------------------------------------
     def add_trust(self, entity_id: str, agree: int, disagree: int) -> None:

@@ -18,6 +18,7 @@ from .classifier import Classification, EntityInfo, classify
 from .engine import ARRIVING, AWAY, HOME, Decision, Settings, Signal, decide, parse_time
 from .ha_client import HAClient, HAError
 from .learning import Learner, is_unreliable, trust_score
+from .preprocess import DuplicateDetector, EdgeFilter
 from .store import Store
 
 LOG = logging.getLogger(__name__)
@@ -78,6 +79,11 @@ class BifrostService:
         self._lock = threading.Lock()
         self._scan_requested = threading.Event()
         self._stop = threading.Event()
+        # 0.4 live event stream
+        self.edges = EdgeFilter()
+        self.duplicates = DuplicateDetector()
+        self.stream = {"connected": False, "events": 0, "since": None, "error": None}
+        self._stream_lock = threading.Lock()
 
     # --- scanning --------------------------------------------------------------
     def scan(self) -> None:
@@ -154,7 +160,7 @@ class BifrostService:
         except Exception:  # noqa: BLE001 – context is optional
             LOG.exception("Pattern/calendar context failed")
         try:
-            self.learner.observe(signals, d, now)
+            self.learner.observe(signals, d, now, record_events=not self.stream["connected"])
         except Exception:  # noqa: BLE001 – learning must never stop detection
             LOG.exception("Learning step failed")
         with self._lock:
@@ -515,6 +521,7 @@ class BifrostService:
             "decision": None if not d else {**asdict(d), "label": STATE_LABEL.get(d.state, d.state), "last_activity": d.last_activity.isoformat() if d.last_activity else None},
             "history": self.store.history(24),
             "guest_mode": self.settings.guest_mode,
+            "stream": self.stream_view(),
         }
 
     def entities_view(self) -> dict:
@@ -543,10 +550,70 @@ class BifrostService:
             "entities": ents,
         }
 
+    # --- live event stream (0.4) -------------------------------------------------
+    def _included(self) -> dict[str, ScannedEntity]:
+        with self._lock:
+            return {k: e for k, e in self.snap.entities.items() if e.status == STATUS_INCLUDED}
+
+    def _seed_edges(self) -> None:
+        """After (re)connecting: learn the current state of every used signal without creating edges."""
+        inc = self._included()
+        try:
+            states = self.client.get_states()
+        except HAError:
+            states = []
+        now = datetime.now(UTC)
+        with self._stream_lock:
+            for st in states:
+                eid = st.get("entity_id")
+                if eid in inc:
+                    self.edges.feed(eid, st.get("state"), parse_time(st.get("last_changed"), now))
+            self.stream.update(connected=True, since=now.isoformat(), error=None)
+        LOG.info("Live event stream connected")
+
+    def on_state_changed(self, entity_id: str, state: str | None, ts: datetime) -> None:
+        ent = self._included().get(entity_id)
+        if ent is None:
+            return
+        with self._stream_lock:
+            edges = self.edges.feed(entity_id, state, ts)
+            for e in edges:
+                self.duplicates.feed(e)
+                self.stream["events"] += 1
+        for e in edges:
+            self.store.add_event(e.ts, entity_id, ent.info.name or entity_id, ent.category or "", ent.role or "", e.state, kind=e.kind)
+
+    def _stream_loop(self) -> None:
+        backoff = 5
+        while not self._stop.is_set():
+            try:
+                self.client.stream_state_changes(self.on_state_changed, self._stop, on_connected=self._seed_edges)
+                backoff = 5
+            except Exception as err:  # noqa: BLE001 – reconnect on any connection problem
+                with self._stream_lock:
+                    self.stream.update(connected=False, error=str(err)[:200])
+                LOG.warning("Live event stream lost (%s) – retry in %d s", err, backoff)
+                self._stop.wait(backoff)
+                backoff = min(backoff * 2, 120)
+        with self._stream_lock:
+            self.stream["connected"] = False
+
+    def start_stream(self) -> threading.Thread | None:
+        if not self.options.get("event_stream", True) or not hasattr(self.client, "stream_state_changes"):
+            return None
+        t = threading.Thread(target=self._stream_loop, name="bifrost-stream", daemon=True)
+        t.start()
+        return t
+
+    def stream_view(self) -> dict:
+        with self._stream_lock:
+            return {**self.stream, "flicker_ignored": self.edges.flicker_count(), "duplicates": self.duplicates.candidates()}
+
     # --- loop --------------------------------------------------------------------
     def run_forever(self) -> None:
         interval = int(self.options.get("update_interval", 30))
         last_scan_day = None
+        stream_started = False
         while not self._stop.is_set():
             try:
                 today = datetime.now(UTC).date()
@@ -555,6 +622,9 @@ class BifrostService:
                     self.scan()
                     last_scan_day = today
                     self.store.prune()
+                if not stream_started:
+                    stream_started = True
+                    self.start_stream()
                 self.evaluate()
                 now = datetime.now(UTC)
                 if self._last_learn is None or now - self._last_learn > timedelta(hours=6):

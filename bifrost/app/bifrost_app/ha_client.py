@@ -15,6 +15,7 @@ import socket
 import struct
 import urllib.parse
 import urllib.request
+from datetime import UTC, datetime
 from typing import Any
 
 LOG = logging.getLogger(__name__)
@@ -102,6 +103,40 @@ class HAClient:
         finally:
             ws.close()
 
+    def stream_state_changes(self, on_change, stop, on_connected=None, idle_seconds: float = 30) -> None:  # noqa: ANN001
+        """Subscribe to state_changed and call on_change(entity_id, state, ts) until stop is set.
+
+        Returns when stop is set; raises HAError/OSError on connection problems (the caller reconnects).
+        """
+        ws = _SimpleWebSocket(self._ws_url(), self.timeout)
+        try:
+            hello = ws.recv_json()
+            if hello.get("type") != "auth_required":
+                raise HAError("Unexpected WebSocket greeting")
+            ws.send_json({"type": "auth", "access_token": self._token})
+            if ws.recv_json().get("type") != "auth_ok":
+                raise HAError("WebSocket authentication failed")
+            ws.send_json({"id": 1, "type": "subscribe_events", "event_type": "state_changed"})
+            msg = ws.recv_json()
+            if not msg.get("success"):
+                raise HAError("Subscribing to state changes failed")
+            if on_connected:
+                on_connected()
+            ws.sock.settimeout(idle_seconds)
+            next_id = 2
+            while not stop.is_set():
+                try:
+                    msg = ws.recv_json()
+                except TimeoutError:
+                    ws.send_json({"id": next_id, "type": "ping"})  # keep the connection alive
+                    next_id += 1
+                    continue
+                change = parse_state_changed(msg)
+                if change:
+                    on_change(*change)
+        finally:
+            ws.close()
+
     def _ws_url(self) -> str:
         u = urllib.parse.urlparse(self.base_url)
         path = "/core/websocket" if os.environ.get("SUPERVISOR_TOKEN") and not os.environ.get("HA_URL") else "/api/websocket"
@@ -132,10 +167,16 @@ class _SimpleWebSocket:
         if b" 101 " not in status.split(b"\r\n", 1)[0]:
             raise HAError("WebSocket upgrade refused")
         self._buf = rest
+        self._in_frame = False
 
     def _read(self, n: int) -> bytes:
         while len(self._buf) < n:
-            chunk = self.sock.recv(65536)
+            try:
+                chunk = self.sock.recv(65536)
+            except TimeoutError:
+                if self._in_frame or self._buf:
+                    raise HAError("WebSocket stalled in the middle of a message") from None
+                raise
             if not chunk:
                 raise HAError("WebSocket closed")
             self._buf += chunk
@@ -148,7 +189,9 @@ class _SimpleWebSocket:
     def recv_json(self) -> dict:
         payload = b""
         while True:
+            self._in_frame = bool(payload)
             b1, b2 = self._read(2)
+            self._in_frame = True
             fin, opcode, length = b1 & 0x80, b1 & 0x0F, b2 & 0x7F
             if length == 126:
                 length = struct.unpack(">H", self._read(2))[0]
@@ -166,6 +209,7 @@ class _SimpleWebSocket:
                 continue
             payload += data
             if fin:
+                self._in_frame = False
                 return json.loads(payload)
 
     def close(self) -> None:
@@ -174,6 +218,26 @@ class _SimpleWebSocket:
         except OSError:
             pass
         self.sock.close()
+
+
+def parse_state_changed(msg: dict) -> tuple[str, str | None, datetime] | None:
+    """Extract (entity_id, new state, change time) from a state_changed event message."""
+    if msg.get("type") != "event":
+        return None
+    data = (msg.get("event") or {}).get("data") or {}
+    eid = data.get("entity_id")
+    new = data.get("new_state") or {}
+    if not isinstance(eid, str) or not eid:
+        return None
+    ts_raw = new.get("last_changed") or (msg.get("event") or {}).get("time_fired")
+    try:
+        ts = datetime.fromisoformat(str(ts_raw).replace("Z", "+00:00"))
+    except ValueError:
+        ts = datetime.now(UTC)
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=UTC)
+    state = new.get("state") if new else None
+    return eid, (str(state) if state is not None else None), ts
 
 
 def encode_frame(payload: bytes, opcode: int = 0x1) -> bytes:
