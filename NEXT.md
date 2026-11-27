@@ -504,6 +504,9 @@ Every placed gateway and every calibration point fits a simple multi-wall model:
 
 **Limits**: room-level accuracy; rotating phones are only placed while their address lasts (~15 min); everything stays local.
 **Decided (27.11.)**: build straight away (no design round), in stages 0.11a map → 0.11b Bluetooth and visitors → 0.11c everyday life. Push for **named** visitors, switchable per visitor. Phones: family phones shown **with the family member's name** (HA app / Private BLE Device), other phones only counted.
-**Still open**: Bluetooth recording off by default and 14 days retention (explained again to the maintainer).
+**Decided (27.11.)**: calibration is done with the owner's phone resolved by its IRK (HA Private BLE Device).
+**Retention, clarified**: rotating addresses (phones without IRK) are never stored per device – only counted per type and dropped after ~15 min. The 14 days apply only to devices with a fixed address (TVs, sensors, tags, watches, car kits, handheld scanners): how long Bifrost keeps one that stopped appearing, unless it was named.
+**Still open**: recording on or off after the update; 14 days for fixed-address devices ok?
+**To discuss (reminder set for the maintainer)**: what Bifrost does when it says "everybody away" and a Bluetooth device moves inside the house.
 **Status**: 0.11a (house map 2.0, device placement) built in 0.11.0. Map look: 6 proposals (artifact "Bifrost Kartenwerkstatt") – waiting for the maintainer's choice.
 **Tests**: episode cutting and merged automation steps; closed-pattern filter; scoring on a simulated month (morning chain, cleaner Tuesday, pool timer, broken habit); floor decision with hysteresis and stairs; fingerprint room match; editor: rectangles, stairs, device placement saved per floor; GUI check light/dark/390 px.
