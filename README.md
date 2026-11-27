@@ -100,7 +100,7 @@ New entities: `binary_sensor.bifrost_suspicious_entry`, `binary_sensor.bifrost_e
 | `log_level` | info | Logging detail |
 
 ### Privacy & security
-Everything stays in your home. No cloud, no telemetry, no dependencies outside the Python standard library. The UI is only reachable through Home Assistant. See [SECURITY.md](SECURITY.md).
+Everything stays in your home. No cloud, no telemetry, no dependencies outside the Python standard library. The UI is only reachable through Home Assistant (Ingress), and the app runs with its own AppArmor profile (security rating 8 of 8). See [SECURITY.md](SECURITY.md).
 
 ### Roadmap
 BLE room location with ESP32 scanners, Loxone read-only connector for alarm and NFC. See [NEXT.md](NEXT.md).
@@ -187,7 +187,7 @@ Neue Entitäten ab 0.2: `sensor.bifrost_expected_return` (übliche Rückkehrzeit
 | `log_level` | info | Detailgrad der Protokolle |
 
 ### Datenschutz & Sicherheit
-Alles bleibt zu Hause. Keine Cloud, keine Telemetrie, keine Fremdbibliotheken. Die Oberfläche ist nur über Home Assistant erreichbar. Bifrost schaltet eine Alarmanlage **nie** unscharf. Details in [SECURITY.md](SECURITY.md).
+Alles bleibt zu Hause. Keine Cloud, keine Telemetrie, keine Fremdbibliotheken. Die Oberfläche ist nur über Home Assistant erreichbar (Ingress), und die App läuft mit eigenem AppArmor-Profil (Sicherheitsbewertung 8 von 8). Bifrost schaltet eine Alarmanlage **nie** unscharf. Details in [SECURITY.md](SECURITY.md).
 
 ### Ausblick
 BLE-Raumortung mit ESP32-Scannern, Loxone-Anbindung (nur lesen) für Alarm und NFC. Siehe [NEXT.md](NEXT.md).

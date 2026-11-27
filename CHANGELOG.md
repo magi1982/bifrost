@@ -2,6 +2,11 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.5.1] – 2026-11-27
+
+### Security
+- **Own AppArmor profile** (`apparmor.txt`): based on Docker's default container profile, plus restrictions Bifrost never needs – no raw or packet sockets, no mounts, its own code is read-only at runtime, no access to SSH keys, `/ssl` or writes to `/share`. Raises the Home Assistant security rating from 7 to 8 (the maximum) once the app is installed.
+
 ## [0.5.0] – 2026-11-27
 
 ### Changed
