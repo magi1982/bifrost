@@ -73,6 +73,9 @@ One pattern engine, used on several levels – higher levels use the events of l
 - **Never-seen patterns (learned negatives):** combinations that never happened in N observations ("entry through door B at night: 0 of 400") become taboo patterns whose strength grows with N.
 - **Contradictions (fixed logic, not learned):** indoor motion while the house is confirmed empty and no entry before; motion in a room not reachable from any entrance on the room map; a window opened from inside while everyone is away.
 - Weak in the first weeks (small N); contradictions work from day one.
+- **Noise is a pattern too ("known disturbances"):** e.g. animals triggering one motion sensor. Humans leave chains (entrance → hallway → next room); noise is an isolated trigger without entry and without follow-up on neighbouring sensors. Such recurring isolated triggers become a "disturbance" block that explains the event.
+- **Learning from answers:** the push "motion in hallway while nobody is home – was that something?" offers "animal / disturbance", "that was us", "unknown!". The answer is stored as a narrow exception (this sensor, isolated, no entry, no follow-up) – never "ignore this sensor". Exceptions are listed in the app, can be deleted and are re-checked after some weeks.
+- **Storage:** everything learned (patterns, taboo patterns, counters, exceptions, answers) lives in Bifrost's local database in the app folder and is visible in the pattern recognition tab ("Deviations" and "Known exceptions").
 
 ### Entry guard (suspicious entries) – idea
 - **Every entry must be explained:** known phone/BLE arriving, NFC disarm at the keypad, somebody was already inside (inside motion before), a learned pattern (e.g. regular visitor), or guest mode. Otherwise: unexplained entry.
