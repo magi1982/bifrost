@@ -124,9 +124,15 @@ Limits: iPhones and modern Android phones rotate their address every ~15 min –
 
 *UI (Setup → "Bluetooth nearby")*: KPI row (scanners, devices now, regular visitors, phones nearby); filter chips per group; per device: type icon and label from public identifiers (manufacturer, Apple message type, service UUID, name), best scanner ≈ room with signal bar, 7-day rhythm strip, visits and typical time, verdict pill, actions *Name*, *Belongs to person*, *Ignore*, *Use as entity* (explains iBeacon / Private BLE Device / BTHome / Bermuda).
 
+*Position (triangulation, 27.11.).* Every advertisement carries the scanner (source) and its RSSI, so for one device Bifrost gets a vector "Shelly hall −62, Shelly living −71, Shelly door outside −80 …". Geometric trilateration (RSSI → metres → circles) is poor indoors (walls, bodies, antenna direction, ±5–10 dB noise) – Bifrost uses **fingerprints** instead and learns them itself:
+- each room gets a typical RSSI vector; calibrated automatically from stationary devices in rooms with a known area (TV in the living room) and from moments when only one room's motion sensor fires while a device is heard;
+- a device is placed in the room whose fingerprint is nearest (k-nearest neighbours), with a confidence; below it only "in the house" / "outside" (same avatar rule as today);
+- the most useful answer is **inside or outside**: a visitor device at the front door vs. in the hallway; this works with two scanners per entrance (one outside, one inside);
+- optional: if the Shellys are placed on the floor-plan grid (House tab), the position is drawn as a soft dot between them – shown as an area, never as an exact point.
+Accuracy to expect: room level (2–5 m) with ≥ 3 scanners hearing the device; Shelly scanning misses packets, so positions are smoothed over ~30 s. Rotating phones can be placed for as long as their address lasts (~15 min) – enough for "2 phones in the upper floor", never for following a person.
 *Limits.* No guarantee: a postman is only found if they carry something with a stable address (handheld scanner, van, band); rotating phones are not recognisable. Bluetooth reach goes through walls – a neighbour can look like a "house device".
 *Privacy.* Third-party devices are recorded only as type + shortened address, never exported, logged or sent anywhere; names come only from the owner; forgotten after 14 days. The owner is responsible for informing regular visitors where the law asks for it.
-*Open questions.* Off by default – yes? Retention 14 days – ok? Push for named visitors ("Post was here") – yes/no? Use "phones nearby" as a weak evidence signal or only display it?
+*Open questions.* Place the Shellys on the floor plan, or is their HA area enough? Off by default – yes? Retention 14 days – ok? Push for named visitors ("Post was here") – yes/no? Use "phones nearby" as a weak evidence signal or only display it?
 *Tests.* Aggregation and caps; address-type → recognisable; grouping on a simulated week (TV, watch with a person, Mon–Fri visitor, passers-by, rotating phones); forgetting after 14 days; naming creates the visitor entity; no address in logs; GUI check light/dark/390 px.
 
 ### Done in 0.10.0 · Signal value – which sensors help, which are useless (requested 27.11.)
