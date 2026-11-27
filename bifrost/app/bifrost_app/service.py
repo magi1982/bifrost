@@ -671,6 +671,51 @@ class BifrostService:
         dec = self.store.decisions_since(now - timedelta(days=60))
         return sum(1 for g, _ in outcomes_from_decisions(dec, lambda v: parse_time(v, now)) if g == "departure")
 
+    SECRET_KEYS = ("token", "password", "secret", "api_key", "apikey", "access", "code", "pin", "key")
+
+    def entity_detail(self, entity_id: str) -> dict:
+        """Everything about one entity for the Setup pop-up: HA state, attributes, 24 h history, what Bifrost makes of it."""
+        with self._lock:
+            e = self.snap.entities.get(entity_id)
+        if e is None:
+            raise KeyError(entity_id)
+        now = datetime.now(UTC)
+        st = self._states.get(entity_id) or next((x for x in self._safe_states() if x.get("entity_id") == entity_id), {})
+        attrs = {}
+        for k, v in (st.get("attributes") or {}).items():
+            if any(w in str(k).lower() for w in self.SECRET_KEYS):
+                continue  # never show tokens, codes or keys (e.g. camera access tokens)
+            if k == "entity_picture":
+                continue
+            attrs[str(k)[:60]] = v if isinstance(v, (int, float, bool)) or v is None else str(v)[:200]
+        history: list[list] = []
+        try:
+            for h in self.client.get_history(entity_id, (now - timedelta(hours=24)).isoformat(), now.isoformat())[-500:]:
+                history.append([h.get("last_changed") or h.get("last_updated"), str(h.get("state"))[:60]])
+        except Exception as err:  # noqa: BLE001 – the history is a nice-to-have
+            LOG.info("History for %s not available: %s", entity_id, type(err).__name__)
+        events = [
+            {"ts": x["ts"], "kind": x.get("kind"), "state": x.get("state")}
+            for x in self.store.events_since(now - timedelta(hours=24), limit=3000) if x["entity_id"] == entity_id
+        ][:100]  # fmt: skip
+        ev = (self.brain.evidence or {}).get("weights", {}).get(entity_id)
+        return {
+            "entity": {**e.to_dict(), "value": (self.brain.value or {}).get(entity_id)},
+            "state": st.get("state"),
+            "last_changed": st.get("last_changed"),
+            "attributes": dict(list(attrs.items())[:40]),
+            "history": history,
+            "events": events,
+            "weight": ev,
+            "owner": self.brain.people.owner_of(entity_id),
+        }
+
+    def _safe_states(self) -> list[dict]:
+        try:
+            return self.client.get_states()
+        except HAError:
+            return []
+
     def catalog_view(self) -> dict:
         """ "What Bifrost sees in your home": per kind of signal how many entities exist and how many are used.
 

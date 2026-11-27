@@ -2,6 +2,17 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.10.1] – 2026-11-27
+
+### Changed
+- **“That's wrong” sits right under the state** in the result card on the Status tab. It offers only the states Bifrost did not say (e.g. *Away* and *Asleep* when it says *Home*), then optionally what fooled it.
+- States of signals (on, off, open …) are translated in the German UI.
+- **Painting rooms is clearer**: every room has its own colour while editing, the room you edit is highlighted (the others dimmed) and named with its number of cells; tools *Paint*, *Erase* and *Pick a room* (tap a room in the plan), *Undo*; rooms not placed yet are marked.
+- The “That's wrong” button per person is gone – corrections are made once, on the Status tab.
+
+### Added
+- **Data** button at every entity in Setup: a pop-up with the current state, the attributes and the last 24 hours of history from Home Assistant, plus what Bifrost makes of it (category, value, events, weight). Tokens, codes and keys in attributes are never shown.
+
 ## [0.10.0] – 2026-11-27
 
 ### Added

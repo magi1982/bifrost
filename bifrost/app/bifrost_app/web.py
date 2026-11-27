@@ -193,6 +193,15 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
             view = VIEWS.get(route)
             if view and hasattr(service, view):
                 return self._send(HTTPStatus.OK, getattr(service, view)())
+            if route == "/api/entity_detail":
+                query = parse_qs(self.path.split("?", 1)[1]) if "?" in self.path else {}
+                eid = (query.get("entity_id") or [""])[0]
+                if not ENTITY_RE.match(eid):
+                    return self._send(HTTPStatus.BAD_REQUEST, {"error": "invalid entity_id"})
+                try:
+                    return self._send(HTTPStatus.OK, service.entity_detail(eid))
+                except KeyError:
+                    return self._send(HTTPStatus.NOT_FOUND, {"error": "unknown entity"})
             if route == "/api/floorplan":
                 query = parse_qs(self.path.split("?", 1)[1]) if "?" in self.path else {}
                 key = (query.get("floor") or [""])[0]
