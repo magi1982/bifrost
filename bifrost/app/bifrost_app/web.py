@@ -71,8 +71,8 @@ def validate_pattern(body: object) -> tuple[str, str]:
     return body["id"], body["status"]
 
 
-def _entity(body: dict) -> str:
-    v = body.get("entity_id")
+def _entity(body: dict, key: str = "entity_id") -> str:
+    v = body.get(key)
     if not isinstance(v, str) or not ENTITY_RE.match(v):
         raise ValueError("invalid entity_id")
     return v
@@ -90,6 +90,7 @@ VIEWS = {
     "/api/live": "live_view",
     "/api/optimizations": "optimizations_view",
     "/api/sources": "sources_view",
+    "/api/correct/candidates": "correct_candidates",
     "/api/people": "people_view",
     "/api/house": "house_view",
     "/api/recognition": "recognition_view",
@@ -108,7 +109,11 @@ ACTIONS = {
     "/api/irk": lambda svc, b: svc.brain.people.save_irk(b),
     "/api/irk/delete": lambda svc, b: svc.brain.people.delete_irk(b.get("id")),
     "/api/answer": lambda svc, b: svc.answer(_str(b, "id", 40), _str(b, "answer", 10), b.get("label") if isinstance(b.get("label"), str) else None),
-    "/api/correct": lambda svc, b: svc.correct(_str(b, "actual", 10)),
+    "/api/correct": lambda svc, b: svc.correct(
+        _str(b, "actual", 10),
+        _entity(b, "culprit") if b.get("culprit") else None,
+        _str(b, "person", 40) if b.get("person") else None,
+    ),
     "/api/exception/delete": lambda svc, b: {"deleted": svc.brain.inbox.remove_exception(_str(b, "sensor", 255))},
     "/api/floorplan": lambda svc, b: (svc.brain.floorplan(_str(b, "image", FLOORPLAN_BODY)), {"ok": True})[1],
 }

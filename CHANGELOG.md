@@ -2,6 +2,19 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.5.3] – 2026-11-27
+
+### Changed
+- **“That's wrong” now teaches something and sits where you need it** – right under the result on the Status tab, and per person in the People tab.
+  - Whole house: pick what is really true. A wrong “empty” or a wrong “home” counts in the balance (a wrong “empty” blocks the alarm signal).
+  - Then optionally tap **what fooled Bifrost** from the signals that changed in the last 30 minutes: that signal loses trust; a motion sensor that fired while nobody was home also gets the question “animal or disturbance?”.
+  - Per person: “home” or “away”. The person's phones that said otherwise lose reliability; after three mistakes they only count as a weak source.
+  - Bifrost tells you after each correction what it learned.
+
+### Fixed
+- Corrections made in the same instant overwrote each other.
+- The suspicious-entry banner showed the entity id instead of its name.
+
 ## [0.5.2] – 2026-11-27
 
 ### Fixed
