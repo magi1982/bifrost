@@ -8,6 +8,9 @@ All notable changes to Bifrost are documented here. The format follows [Keep a C
 - **New sensors are never overlooked.** Entities that appear after the first scan are highlighted as **New** in Setup (filter *New*, button *Seen*, *Mark all as seen*) and announced on the Status tab.
 - **Push message to your phone** when new sensors appear: pick a notify service of Home Assistant (e.g. the Home Assistant app on your iPhone) in the new Setup card *Notifications*, with a test button. Each new sensor is announced once.
 - Setup: entities disabled in Home Assistant are hidden by default; the filter *Disabled in HA* shows them.
+- Status: card **What Bifrost processes** – events in the last hour and 24 hours, live connection, last and next learning run, how far the evidence scale and hindsight are.
+- Calendar words: what was read in the last learning run (entries per calendar, calendars that failed) and words that are almost learned.
+- The list of Bifrost's own entities moved from the Status tab into the **ⓘ** info window in the header.
 
 ### Fixed
 - **Energy, water and air values are no longer activity.** A power sensor that keeps changing made a room look busy (e.g. a technical room) and kept the house “not empty”. These values now only add context – as jumps they still support patterns – and never light up a room or count as somebody being there.
