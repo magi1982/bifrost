@@ -36,6 +36,12 @@ Nothing house-specific is hard-coded (rooms, doors, names). Bifrost observes, di
 - 0.6 Learn: calendar learning 2.0, missing patterns, day type, Huginn/Verdandi/Skuld.
 - 0.7 → 1.0: room map + BLE location, Forseti fusion, Loki, CO₂, Gjallarhorn.
 
+### Naming: tab "Pattern recognition" with three types
+- 🧱 **Blocks** (DE: Bausteine) – how the house works, valid for everyone (e.g. "entry via garage").
+- 👤 **People** (DE: Personen) – a block plus a phone/tag = who (e.g. "person A comes home").
+- 🔁 **Routines** (DE: Abläufe) – habits (e.g. "weekday evening arrival").
+- Nesting: a type may contain smaller types *and* its own type (block in block, routine in routine); never upwards – the type follows from the content (only sensors/blocks → block; contains a person → people; contains habit timing → routine). No pattern contains itself; the UI expands about 4 levels inline, deeper via "Open". The word "level" is not used in the UI.
+
 ### Layered events (clarified architecture)
 One pattern engine, used on several levels – higher levels use the events of lower levels as steps:
 1. **Raw signals** (Ratatoskr).
