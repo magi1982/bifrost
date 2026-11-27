@@ -596,8 +596,21 @@ class BifrostService:
                 start, end = calwords.window(now, days=56)
                 with self._lock:
                     cids = [e.info.entity_id for e in self.snap.entities.values() if e.info.domain == "calendar" and e.status == STATUS_INCLUDED]
+                stats: dict[str, dict] = {}
+                counts: dict[str, int] = {}
                 for cid in cids:
-                    cal_entries[cid] = self.client.get_calendar(cid, start.isoformat(), end.isoformat())
+                    try:
+                        cal_entries[cid] = self.client.get_calendar(cid, start.isoformat(), end.isoformat())
+                        stats[cid] = {"entries": len(cal_entries[cid]), "ok": True}
+                        for e in cal_entries[cid]:
+                            for w in set(calwords.words(str(e.get("summary") or ""))):
+                                counts[w] = counts.get(w, 0) + 1
+                    except Exception:  # noqa: BLE001 – one broken calendar must not stop the others
+                        stats[cid] = {"entries": 0, "ok": False}
+                        LOG.warning("Reading calendar %s failed", cid)
+                # diagnostics for the UI: how much was read, which words are almost learned (words only, never titles)
+                almost = sorted(((n, w) for w, n in counts.items() if n < calwords.MIN_WORD), reverse=True)[:8]
+                self.store.put_obj("model", "calread", {"at": now.isoformat(), "calendars": stats, "almost": [[w, n] for n, w in almost]})
             except Exception:  # noqa: BLE001
                 LOG.exception("Reading calendars failed")
         try:
@@ -622,7 +635,11 @@ class BifrostService:
         with self._lock:
             used = [e.info.entity_id for e in self.snap.entities.values() if e.info.domain == "calendar" and e.status == STATUS_INCLUDED]
         words = self.brain.words.get("words", {})
+        read = self.store.get_obj("model", "calread") or {}
         return {
+            "read": {"at": read.get("at"), "calendars": [{"name": names.get(c, c), **v} for c, v in (read.get("calendars") or {}).items()], "almost": read.get("almost", [])},
+            "next_learn": (self._last_learn + timedelta(hours=6)).isoformat() if self._last_learn else None,
+            "hindsight_empty_h": ((self.brain.hind or {}).get("stats") or {}).get("empty_h"),
             "used": [{"entity_id": c, "name": names.get(c, c)} for c in used],
             "enabled": bool(self.options.get("learn_calendars", True)),
             "min_word": calwords.MIN_WORD,
@@ -692,7 +709,24 @@ class BifrostService:
             "ledger": (self.extra or {}).get("ledger"),
             "probabilities": (self.extra or {}).get("probabilities"),
             "new_entities": sum(1 for e in self.snap.entities.values() if e.new),
+            "work": self._work(),
             "capability": self.brain.detector.model.get("capability", {}),
+        }
+
+    def _work(self) -> dict:
+        """What Bifrost processes: events per hour/day, live stream, learning runs."""
+        now = datetime.now(UTC)
+        with self._stream_lock:
+            stream = {"connected": bool(self.stream.get("connected")), "since": self.stream.get("since"), "events": self.stream.get("events", 0)}
+        return {
+            "events_1h": self.store.count_events_since(now - timedelta(hours=1)),
+            "events_24h": self.store.count_events_since(now - timedelta(hours=24)),
+            "stream": stream,
+            "signals": sum(1 for e in self.snap.entities.values() if e.status == STATUS_INCLUDED),
+            "last_learn": self._last_learn.isoformat() if self._last_learn else None,
+            "next_learn": (self._last_learn + timedelta(hours=6)).isoformat() if self._last_learn else None,
+            "hindsight": (self.brain.hind or {}).get("stats"),
+            "evidence": (self.brain.evidence or {}).get("samples"),
         }
 
     def optimizations_view(self) -> dict:

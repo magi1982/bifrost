@@ -154,6 +154,9 @@ def test_calendar_learning_without_titles(tmp_path):
     client.calendar_entries = entries
     svc.learn_job(datetime.now(UTC))
     view = svc.calendars_view()
+    assert view["read"]["calendars"][0]["entries"] == 6 and view["read"]["calendars"][0]["ok"]
+    work = svc.status_view()["work"]
+    assert work["events_24h"] == 0 and work["last_learn"] and view["next_learn"]
     kws = {k["word"]: k for k in view["words"]}
     assert kws["office"]["effects"]["house_empty"] == 1.0
     raw = json.dumps(svc.store.get_obj("model", "calwords"))
