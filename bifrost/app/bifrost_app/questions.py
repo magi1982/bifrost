@@ -28,7 +28,7 @@ LABEL_RE = re.compile(r"^[\w .,'\-]{1,40}$", re.UNICODE)
 
 
 def qid(qtype: str, key: str) -> str:
-    return qtype + "_" + hashlib.sha1(key.encode()).hexdigest()[:10]  # noqa: S324 – id only, not security
+    return qtype + "_" + hashlib.sha1(key.encode(), usedforsecurity=False).hexdigest()[:10]
 
 
 def category(qtype: str) -> str:
@@ -114,7 +114,7 @@ class Inbox:
     def deviation(self, kind: str, key: str, facts: dict, now: datetime, question: str | None = None) -> dict:
         if kind not in DEV_KINDS:
             raise ValueError("unknown deviation kind")
-        oid = "dev_" + hashlib.sha1(f"{kind}|{key}|{now.isoformat()[:16]}".encode()).hexdigest()[:12]  # noqa: S324
+        oid = "dev_" + hashlib.sha1(f"{kind}|{key}|{now.isoformat()[:16]}".encode(), usedforsecurity=False).hexdigest()[:12]
         label = self.label_for(kind, key)
         d = {"id": oid, "kind": kind, "key": key, "facts": facts, "ts": now.isoformat(), "status": "explained" if label else "open", "label": label, "question": question}
         self.store.put_obj(KIND_DEV, oid, d)

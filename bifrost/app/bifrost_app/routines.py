@@ -194,7 +194,7 @@ def mine(events: list[dict], outcomes: list[tuple[str, datetime]], calendar_word
         if seen < MIN_SEEN or prec < MIN_PRECISION or (prec + 0.01 < best_single and len(core) > 1):  # worse than one step alone
             continue
         tokens = sorted({x for s in steps for x in s["tokens"]} | {c["token"] for c in comp})
-        pid = "r" + hashlib.sha1((goal + "|" + "|".join(tokens)).encode()).hexdigest()[:8]  # noqa: S324
+        pid = "r" + hashlib.sha1((goal + "|" + "|".join(tokens)).encode(), usedforsecurity=False).hexdigest()[:8]
         who = sorted({owners[t] for t in tokens if t in owners})
         plans.append(
             {
