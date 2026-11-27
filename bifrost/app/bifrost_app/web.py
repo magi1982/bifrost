@@ -92,6 +92,8 @@ VIEWS = {
     "/api/catalog": "catalog_view",
     "/api/notify": "notify_view",
     "/api/own_entities": "own_entities_view",
+    "/api/bluetooth": "bluetooth_view",
+    "/api/calib": "calib_view",
     "/api/incidents": "incidents_view",
 }
 
@@ -116,6 +118,9 @@ ACTIONS = {
     "/api/layout/reset": lambda svc, b: svc.reset_layout(b.get("floor")),
     "/api/map": lambda svc, b: svc.set_map(b),
     "/api/own_entities": lambda svc, b: svc.set_own_entity(b),
+    "/api/bluetooth": lambda svc, b: svc.set_bluetooth(b),
+    "/api/calib/start": lambda svc, b: svc.calib_start(b),
+    "/api/calib/delete": lambda svc, b: svc.calib_delete(b),
     "/api/own_entities/remove": lambda svc, b: svc.remove_leftover(b),
     "/api/map/reset": lambda svc, b: svc.reset_map(b.get("floor")),
     "/api/pattern_entity": lambda svc, b: svc.set_pattern_entity(b),
@@ -141,12 +146,13 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
             self._send(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
             return False
 
-        def _send(self, code: HTTPStatus, obj: object, ctype: str = "application/json") -> None:
+        def _send(self, code: HTTPStatus, obj: object, ctype: str = "application/json", cache: bool = False) -> None:
             data = obj if isinstance(obj, bytes) else json.dumps(obj, ensure_ascii=False, default=str).encode()
             self.send_response(code)
             self.send_header("Content-Type", ctype + ("; charset=utf-8" if ctype.startswith(("text", "application/json")) else ""))
             self.send_header("Content-Length", str(len(data)))
-            self.send_header("Cache-Control", "no-store")
+            # pictures carry a version in their URL, so the browser may keep them; everything else is always fresh
+            self.send_header("Cache-Control", "private, max-age=604800, immutable" if cache else "no-store")
             for k, v in SECURITY_HEADERS.items():
                 self.send_header(k, v)
             self.end_headers()
@@ -220,7 +226,7 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
                 fp = service.brain.floorplan_bytes(key)
                 if not fp:
                     return self._send(HTTPStatus.NOT_FOUND, {"error": "no floor plan"})
-                return self._send(HTTPStatus.OK, fp[0], fp[1])
+                return self._send(HTTPStatus.OK, fp[0], fp[1], cache=True)
             self._send(HTTPStatus.NOT_FOUND, {"error": "not found"})
 
         def do_POST(self) -> None:  # noqa: N802

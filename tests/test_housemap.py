@@ -160,3 +160,41 @@ def test_service_floorplan_layers(tmp_path):
         svc.set_floorplan({"floor": floor, "image": img, "layer": 9})
     svc.delete_floorplan(floor, 2)
     assert [p["n"] for p in svc.live_view()["layouts"][floor]["plans"]] == [0]
+
+
+def test_plan_existence_is_cached_and_versioned(tmp_path):
+    import base64
+
+    from demo import build
+
+    from bifrost_app.floorplan import PNG_MAGIC
+
+    svc = build(str(tmp_path / "h.db"))
+    floor = next(f for f in svc.live_view()["floors"] if f["areas"])["name"]
+    calls = []
+    orig = svc.store.get_value
+    svc.store.get_value = lambda k: (calls.append(k), orig(k))[1]
+    svc.live_view()
+    svc.live_view()
+    assert sum(1 for k in calls if k.startswith("floorplan:")) == 0  # never reads the picture itself
+    svc.store.get_value = orig
+    svc.set_floorplan({"floor": floor, "image": base64.b64encode(PNG_MAGIC + b"0" * 20).decode(), "layer": 1})
+    plan = svc.live_view()["layouts"][floor]["plans"][0]
+    assert plan["n"] == 1 and plan["v"]
+
+
+def test_own_mqtt_entities_are_not_new_sensors(tmp_path):
+    from demo import build
+
+    svc = build(str(tmp_path / "h.db"))
+    orig = svc.client.registries
+
+    def reg():
+        r = orig()
+        r["entities"].append({"entity_id": "binary_sensor.sofa_occupancy", "platform": "mqtt", "unique_id": "bifrost_zone_sofa_binary_sensor"})
+        return r
+
+    svc.client.registries = reg
+    svc.client.states.append({"entity_id": "binary_sensor.sofa_occupancy", "state": "off", "attributes": {"device_class": "occupancy"}})
+    svc.scan()
+    assert "binary_sensor.sofa_occupancy" not in svc.snap.entities

@@ -188,6 +188,52 @@ class HAClient:
         finally:
             ws.close()
 
+    def stream_bluetooth(self, on_adverts, stop, on_connected=None, on_scanners=None, idle_seconds: float = 30) -> None:  # noqa: ANN001, C901
+        """Subscribe to HA's Bluetooth advertisements (and scanner names) until stop is set.
+
+        Raises HAError("not supported") when this Home Assistant has no advertisement subscription.
+        """
+        ws = _SimpleWebSocket(self._ws_url(), self.timeout)
+        try:
+            if ws.recv_json().get("type") != "auth_required":
+                raise HAError("Unexpected WebSocket greeting")
+            ws.send_json({"type": "auth", "access_token": self._token})
+            if ws.recv_json().get("type") != "auth_ok":
+                raise HAError("WebSocket authentication failed")
+            ws.send_json({"id": 1, "type": "bluetooth/subscribe_advertisements"})
+            ws.send_json({"id": 2, "type": "bluetooth/subscribe_scanner_details"})
+            ws.sock.settimeout(idle_seconds)
+            next_id, ok = 3, False
+            while not stop.is_set():
+                try:
+                    msg = ws.recv_json()
+                except TimeoutError:
+                    ws.send_json({"id": next_id, "type": "ping"})
+                    next_id += 1
+                    continue
+                mid = msg.get("id")
+                if msg.get("type") == "result":
+                    if mid == 1 and not msg.get("success"):
+                        raise HAError("not supported")
+                    if mid == 1 and not ok:
+                        ok = True
+                        if on_connected:
+                            on_connected()
+                    continue
+                ev = msg.get("event") if msg.get("type") == "event" else None
+                if not isinstance(ev, dict):
+                    continue
+                if mid == 1:
+                    adds = ev.get("add") or []
+                    if isinstance(adds, list):
+                        on_adverts(adds)
+                elif mid == 2 and on_scanners:
+                    rows = ev.get("add") or ev.get("scanners") or []
+                    if isinstance(rows, list):
+                        on_scanners({str(r.get("source", "")): str(r.get("name", "")) for r in rows if isinstance(r, dict) and r.get("source")})
+        finally:
+            ws.close()
+
     def _ws_url(self) -> str:
         u = urllib.parse.urlparse(self.base_url)
         path = "/core/websocket" if os.environ.get("SUPERVISOR_TOKEN") and not os.environ.get("HA_URL") else "/api/websocket"

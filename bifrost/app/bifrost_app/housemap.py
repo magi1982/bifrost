@@ -23,6 +23,7 @@ MAX_MARKS = 120
 MAX_DEVICES = 240
 MARK_KINDS = ("door", "window")
 MAX_HULL = 40
+MAX_ZONES = 30
 MAX_LAYERS = 4  # floor plan pictures per floor
 OUTSIDE_NAME = re.compile(r"^[\w äöüÄÖÜéèàçÉÈÀß.,'()&/+-]{1,40}$")
 DEVICE_KINDS = ("scanner", "sensor", "ble")
@@ -60,8 +61,8 @@ def validate_map(body: object, floor_areas: dict[str, list[str]]) -> tuple[str, 
     w, h = _num(body.get("w", DEFAULT_W), MIN_SIZE, MAX_SIZE, "floor width"), _num(body.get("h", DEFAULT_H), MIN_SIZE, MAX_SIZE, "floor height")
     rooms_in, stairs_in = body.get("rooms") or [], body.get("stairs") or []
     marks_in, devs_in = body.get("marks") or [], body.get("devices") or []
-    hull_in, layers_in = body.get("hull") or [], body.get("layers") or []
-    if not all(isinstance(x, list) for x in (rooms_in, stairs_in, marks_in, devs_in, hull_in, layers_in)):
+    hull_in, layers_in, zones_in = body.get("hull") or [], body.get("layers") or [], body.get("zones") or []
+    if not all(isinstance(x, list) for x in (rooms_in, stairs_in, marks_in, devs_in, hull_in, layers_in, zones_in)):
         raise ValueError("rooms, stairs, marks, devices, hull and layers must be lists")
     all_areas = {a for v in floor_areas.values() for a in v}
     rooms: list[dict] = []
@@ -90,6 +91,17 @@ def validate_map(body: object, floor_areas: dict[str, list[str]]) -> tuple[str, 
     if len(hull_in) > MAX_HULL:
         raise ValueError(f"at most {MAX_HULL} hull rectangles")
     hull = [_rect(x, w, h) for x in hull_in]
+    if len(zones_in) > MAX_ZONES:
+        raise ValueError(f"at most {MAX_ZONES} zones")
+    zones, znames = [], set()
+    for z in zones_in:
+        if not isinstance(z, dict) or not isinstance(z.get("name"), str) or not OUTSIDE_NAME.match(z["name"]) or z["name"] in znames:
+            raise ValueError("zone: unique name (letters, digits, max. 40)")
+        rects = z.get("rects")
+        if not isinstance(rects, list) or not 1 <= len(rects) <= 8:
+            raise ValueError("zone: 1–8 rectangles")
+        znames.add(z["name"])
+        zones.append({"name": z["name"], "rects": [_rect(x, w, h) for x in rects]})
     if len(layers_in) > MAX_LAYERS:
         raise ValueError(f"at most {MAX_LAYERS} floor plan pictures")
     layers, nums = [], set()
@@ -131,7 +143,7 @@ def validate_map(body: object, floor_areas: dict[str, list[str]]) -> tuple[str, 
             raise ValueError("invalid or duplicate device id")
         ids.add(did)
         devices.append({"id": did, "kind": d["kind"], "x": _num(d.get("x"), 0, w, "x"), "y": _num(d.get("y"), 0, h, "y")})
-    return floor, {"w": w, "h": h, "rooms": rooms, "stairs": stairs, "marks": marks, "devices": devices, "hull": hull, "layers": layers}
+    return floor, {"w": w, "h": h, "rooms": rooms, "stairs": stairs, "marks": marks, "devices": devices, "hull": hull, "layers": layers, "zones": zones}
 
 
 def from_cells(cells: dict[str, str], cols: int = 36, rows: int = 24) -> dict:
@@ -153,7 +165,7 @@ def from_cells(cells: dict[str, str], cols: int = 36, rows: int = 24) -> dict:
                 for i in range(x, x2 + 1):
                     left.pop(f"{i},{j}", None)
             by_area.setdefault(a, []).append([x * CELL_M, y * CELL_M, (x2 - x + 1) * CELL_M, (y2 - y + 1) * CELL_M])
-    return {"w": cols * CELL_M, "h": rows * CELL_M, "rooms": [{"area": a, "rects": r} for a, r in by_area.items()], "stairs": [], "marks": [], "devices": [], "hull": [], "layers": []}
+    return {"w": cols * CELL_M, "h": rows * CELL_M, "rooms": [{"area": a, "rects": r} for a, r in by_area.items()], "stairs": [], "marks": [], "devices": [], "hull": [], "layers": [], "zones": []}
 
 
 def room_at(m: dict, x: float, y: float) -> str | None:
@@ -189,7 +201,8 @@ def scanner_candidates(devices: list[dict], entity_platforms: dict[str, set[str]
         if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", did):
             continue
         name = d.get("name_by_user") or d.get("name") or did
-        out.append({"id": f"dev:{did}", "name": name, "model": d.get("model") or "", "manufacturer": d.get("manufacturer") or "", "area": areas.get(d.get("area_id") or "")})
+        macs = [str(c[1]) for c in d.get("connections") or [] if isinstance(c, (list, tuple)) and len(c) == 2 and c[0] in ("mac", "bluetooth")]
+        out.append({"id": f"dev:{did}", "name": name, "model": d.get("model") or "", "manufacturer": d.get("manufacturer") or "", "area": areas.get(d.get("area_id") or ""), "macs": macs})
     return sorted(out, key=lambda x: (x["area"] or "~", x["name"]))
 
 
@@ -204,6 +217,7 @@ def clean(m: dict, areas: list[str]) -> dict:
         "devices": m.get("devices", []),
         "hull": m.get("hull", []),
         "layers": m.get("layers", []),
+        "zones": m.get("zones", []),
     }
 
 

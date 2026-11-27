@@ -191,9 +191,13 @@ def test_guest_validation(body):
 
 
 def test_floorplan_query_is_validated():
-    httpd, _svc, base = _server(dev=True)
+    httpd, svc, base = _server(dev=True)
     try:
         code = _req(base + "/api/floorplan?floor=../../etc")[0]
         assert code == 400
+        svc.brain = type("B", (), {"floorplan_bytes": staticmethod(lambda k: (b"\x89PNG\r\n\x1a\nxx", "image/png") if k == "eg" else None)})()
+        with urllib.request.urlopen(base + "/api/floorplan?floor=eg&v=1", timeout=5) as r:  # noqa: S310
+            assert r.headers["Cache-Control"].startswith("private, max-age=") and r.headers["Content-Type"] == "image/png"
+        assert _req(base + "/api/status")[2]["Cache-Control"] == "no-store"
     finally:
         httpd.shutdown()

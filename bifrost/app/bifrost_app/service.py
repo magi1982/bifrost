@@ -15,6 +15,7 @@ from . import __version__, calwords, guard, i18n
 from . import house as _house
 from . import housemap as _housemap
 from .balance import signal as _signal
+from .blehub import BleHub, mac_match
 from .brain import Brain
 from .categories import CATEGORIES, STATUS_IGNORED, STATUS_INCLUDED, derive_role
 from .classifier import Classification, EntityInfo, classify
@@ -156,6 +157,9 @@ class BifrostService:
         self.scanners: list[dict] = []
         self.out = Outlet(client, store, int(options.get("update_interval", 30)), __version__)
         self._last_ok: datetime | None = None
+        self.ble = BleHub(store)
+        self._ble_rows: list[dict] = []
+        self._ble_zones: list[dict] = []
         self.source_types: dict[str, str | None] = {}
         self._states: dict[str, dict] = {}
         self.snap = Snapshot()
@@ -197,7 +201,9 @@ class BifrostService:
 
         regs = {e["entity_id"]: e for e in reg["entities"]}
         for eid in sorted(set(states) | set(regs)):
-            if eid.startswith("sensor.bifrost_") or eid.startswith("binary_sensor.bifrost_"):
+            re0 = regs.get(eid, {})
+            own_mqtt = re0.get("platform") == "mqtt" and str(re0.get("unique_id") or "").startswith("bifrost_")
+            if own_mqtt or eid.startswith("sensor.bifrost_") or eid.startswith("binary_sensor.bifrost_"):
                 continue  # never classify our own output
             st, re_ = states.get(eid, {}), regs.get(eid, {})
             attrs = st.get("attributes", {})
@@ -411,6 +417,10 @@ class BifrostService:
             self.publish(d)
             self.publish_extra(d, signals, now)
             self.publish_pattern_entities(now)
+        try:
+            self._ble_tick(states)
+        except Exception:  # noqa: BLE001 – Bluetooth is a bonus, never break the decision
+            LOG.exception("Bluetooth evaluation failed")
         self.out.ok()
         self._last_ok = datetime.now(UTC)
         return d
@@ -887,6 +897,7 @@ class BifrostService:
                 "calendar_names": [names.get(e, e) for e in p.calendars],
                 "irks": [k["label"] for k in irks if k.get("owner") == p.id],
                 "unlocks": stats.get(p.id, 0),
+                "moves": self.ble.moves.get(p.name, []),
             })  # fmt: skip
         return {
             "people": out,
@@ -1009,10 +1020,14 @@ class BifrostService:
                 "key": key,
                 "cells": cells,
                 "saved": bool(saved),
-                "plan": bool(self.brain.floorplan_bytes(key)),
+                "plan": self.brain.has_floorplan(key),
                 "map": hmap,
                 "map_saved": bool(stored),
-                "plans": [{"n": n, "key": _housemap.layer_key(key, n)} for n in range(_housemap.MAX_LAYERS) if self.brain.floorplan_bytes(_housemap.layer_key(key, n))],
+                "plans": [
+                    {"n": n, "key": _housemap.layer_key(key, n), "v": self.brain.floorplan_version(_housemap.layer_key(key, n))}
+                    for n in range(_housemap.MAX_LAYERS)
+                    if self.brain.has_floorplan(_housemap.layer_key(key, n))
+                ],
             }
         lane = self._lane(now, ents)
         room_src = {p.id: [e for e in p.sources if is_room_source(e, self.brain.meta.get(e))] for p in self.brain.people.all()}
@@ -1040,6 +1055,9 @@ class BifrostService:
             "names": names,
             "people_inside_min": (self.extra or {}).get("people_inside_min", 0),
             "placeable": self._placeable(ents),
+            "ble": [r for r in self._ble_rows if r["pos"] and not r["hidden"]],
+            "ble_moves": self.ble.moves,
+            "zones_state": self._ble_zones,
         }
 
     LANE_KINDS = ("on", "auto", "access", "home", "away", "block", "event")
@@ -1086,7 +1104,12 @@ class BifrostService:
             for eid, e in sorted(ents.items())
             if e.status == STATUS_INCLUDED and e.category in ("motion", "openings", "access") and eid.split(".", 1)[0] in ("binary_sensor", "lock", "event", "sensor", "cover")
         ]
-        return {"scanners": scanners, "sensors": sensors[:200], "ble": []}
+        placed_src = set()
+        for c in scanners:
+            placed_src.update(s for s in self.ble.tracker.sources if mac_match(s, c.get("macs") or []))
+        extra = [{"id": f"ble:{s}", "name": v.get("name") or s, "model": "Bluetooth", "area": None} for s, v in sorted(self.ble.tracker.sources.items()) if s not in placed_src]
+        ble = [{"id": f"ble:{r['address']}", "name": r["label"] + ("≈" if r["guess"] else ""), "model": r["short"], "area": r["room"]} for r in self._ble_rows if r["fixed"]]
+        return {"scanners": scanners + extra, "sensors": sensors[:200], "ble": ble[:200]}
 
     def set_map(self, body: object) -> dict:
         floor, m = _housemap.validate_map(body, self._floor_areas())
@@ -1329,6 +1352,88 @@ class BifrostService:
         with self._stream_lock:
             self.stream["connected"] = False
 
+    # --- Bluetooth nearby (0.11c) ------------------------------------------------------------
+    def _maps(self) -> dict[str, dict]:
+        out = {}
+        for floor, areas in self._floor_areas().items():
+            stored = self.store.get_obj("map", _house.floor_key(floor))
+            if stored:
+                out[floor] = _clean_map(stored, areas)
+        return out
+
+    def _person_of(self) -> dict[str, str]:
+        return {eid: p.name for p in self.brain.people.all() for eid in p.sources}
+
+    def _ble_tick(self, states: dict) -> None:
+        if not self.ble.settings.get("on", True):
+            self._ble_rows = []
+            return
+        maps = self._maps()
+        with self._lock:
+            cands = list(self.scanners)
+        rows = self.ble.positions(maps, cands, states, self._person_of())
+        self._ble_rows = rows
+        irk_trackers = {i["entity_id"] for i in self.ble.irk_addresses(states).values()}
+        people = [p for p in self.brain.people.all() if irk_trackers & set(p.sources)]  # only people with an IRK phone get a location
+        res = self.ble.evaluate(rows, maps, people)
+        self._ble_zones = res["zones"]
+        common = {"attribution": "Bifrost"}
+        for z in res["zones"]:
+            self.out.set_state(
+                f"binary_sensor.bifrost_zone_{z['slug']}",
+                "on" if z["on"] else "off",
+                {**common, "friendly_name": f"Bifrost zone {z['name']}", "device_class": "occupancy", "people": z["people"], "floor": z["floor"]},
+            )
+        for name, loc in res["people"].items():
+            self.out.set_state(f"sensor.bifrost_{loc['slug']}_location", loc["where"], {**common, "friendly_name": f"Bifrost {name} location", "icon": "mdi:map-marker-account", "floor": loc["floor"]})
+        self.ble.persist(keep={v["id"][4:] for m in maps.values() for v in m.get("devices", []) if v["id"].startswith("ble:")})
+
+    def _ble_loop(self) -> None:
+        backoff = 5
+        while not self._stop.is_set():
+            if not self.ble.settings.get("on", True):
+                self._stop.wait(30)
+                continue
+            try:
+                self.client.stream_bluetooth(self.ble.tracker.ingest, self._stop, on_connected=self._ble_connected, on_scanners=self.ble.tracker.set_source_names)
+                backoff = 5
+            except Exception as err:  # noqa: BLE001 – reconnect on any problem
+                msg = str(err)[:200]
+                self.ble.status.update(connected=False, error=msg, supported=False if msg == "not supported" else self.ble.status.get("supported"))
+                wait = 3600 if msg == "not supported" else backoff
+                LOG.warning("Bluetooth stream: %s – retry in %d s", msg, wait)
+                self._stop.wait(wait)
+                backoff = min(backoff * 2, 300)
+        self.ble.status["connected"] = False
+
+    def _ble_connected(self) -> None:
+        self.ble.status.update(connected=True, supported=True, error=None, since=datetime.now(UTC).isoformat(timespec="seconds"))
+
+    def start_ble(self) -> None:
+        if self.options.get("bluetooth", True) and hasattr(self.client, "stream_bluetooth"):
+            threading.Thread(target=self._ble_loop, name="bifrost-ble", daemon=True).start()
+
+    def bluetooth_view(self) -> dict:
+        with self._lock:
+            cands = list(self.scanners)
+        return self.ble.view(self._ble_rows, self.ble.scanner_positions(self._maps(), cands))
+
+    def set_bluetooth(self, body: object) -> dict:
+        if not isinstance(body, dict):
+            raise ValueError("invalid body")
+        return self.ble.set_settings(body)
+
+    def calib_view(self) -> dict:
+        return self.ble.cal_view(self._maps(), getattr(self, "_states", {}))
+
+    def calib_start(self, body: object) -> dict:
+        if not isinstance(body, dict):
+            raise ValueError("invalid body")
+        return self.ble.cal_start(body, self._maps(), getattr(self, "_states", {}))
+
+    def calib_delete(self, body: object) -> dict:
+        return self.ble.cal_delete(body.get("index") if isinstance(body, dict) else None)
+
     def start_stream(self) -> threading.Thread | None:
         if not self.options.get("event_stream", True) or not hasattr(self.client, "stream_state_changes"):
             return None
@@ -1375,6 +1480,7 @@ class BifrostService:
         last_scan_day = None
         stream_started = False
         self.start_outlet()
+        self.start_ble()
         threading.Thread(target=self._watchdog, args=(interval,), name="bifrost-watchdog", daemon=True).start()
         while not self._stop.is_set():
             try:
