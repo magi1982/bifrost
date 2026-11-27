@@ -13,11 +13,14 @@ from datetime import UTC, datetime, timedelta
 from . import __version__
 from . import calendars as cal
 from . import patterns as pat
+from .balance import signal as _signal
+from .brain import Brain
 from .categories import CATEGORIES, STATUS_IGNORED, STATUS_INCLUDED, STATUS_SUGGESTED
 from .classifier import Classification, EntityInfo, classify
 from .engine import ARRIVING, AWAY, HOME, Decision, Settings, Signal, decide, parse_time
 from .ha_client import HAClient, HAError
 from .learning import Learner, is_unreliable, trust_score
+from .people import public as person_public
 from .preprocess import DuplicateDetector, EdgeFilter
 from .store import Store
 
@@ -84,6 +87,8 @@ class BifrostService:
         self.duplicates = DuplicateDetector()
         self.stream = {"connected": False, "events": 0, "since": None, "error": None}
         self._stream_lock = threading.Lock()
+        self.brain = Brain(store, options)
+        self.extra: dict = {}
 
     # --- scanning --------------------------------------------------------------
     def scan(self) -> None:
@@ -130,6 +135,13 @@ class BifrostService:
         with self._lock:
             self.snap.entities = result
             self.snap.scanned_at = datetime.now(UTC)
+        self.brain.set_meta(
+            {
+                eid: {"name": e.info.name, "category": e.category, "device_class": e.info.device_class, "area": e.info.area, "integration": e.info.integration, "role": e.role}
+                for eid, e in result.items()
+                if e.status == STATUS_INCLUDED
+            }
+        )
         LOG.info("Scan finished: %d entities, %d used", len(result), sum(1 for e in result.values() if e.status == STATUS_INCLUDED))
 
     def request_scan(self) -> None:
@@ -159,6 +171,13 @@ class BifrostService:
             self._add_context(d, states, now)
         except Exception:  # noqa: BLE001 – context is optional
             LOG.exception("Pattern/calendar context failed")
+        try:
+            d, self.extra = self.brain.tick(d, states, now, self.settings.guest_mode)
+        except Exception:  # noqa: BLE001 – fall back to the plain rule decision
+            LOG.exception("Guard/recognition step failed")
+            self.extra = {}
+        if not self.store.get_value("first_decision"):
+            self.store.set_value("first_decision", now.isoformat())
         try:
             self.learner.observe(signals, d, now, record_events=not self.stream["connected"])
         except Exception:  # noqa: BLE001 – learning must never stop detection
@@ -288,6 +307,38 @@ class BifrostService:
                     "icon": "mdi:account-multiple",
                 },
             )
+            ex = self.extra or {}
+            sus = ex.get("suspicion")
+            self.client.set_state(
+                "binary_sensor.bifrost_suspicious_entry",
+                "on" if sus and int(self.options.get("suspicious_entry_level", 1)) >= 2 else "off",
+                {**common, "friendly_name": "Bifrost suspicious entry", "device_class": "safety", "icon": "mdi:shield-alert", "door": (sus or {}).get("door")},
+            )
+            q = ex.get("questions") or {}
+            self.client.set_state(
+                "sensor.bifrost_open_questions",
+                str(q.get("question", 0) + q.get("suggestion", 0)),
+                {**common, "friendly_name": "Bifrost open questions", "icon": "mdi:help-circle-outline", "questions": q.get("question", 0), "suggestions": q.get("suggestion", 0)},
+            )
+            self.client.set_state(
+                "sensor.bifrost_unknown_people",
+                str(ex.get("unknown_min", 0)),
+                {**common, "friendly_name": "Bifrost unknown people (at least)", "icon": "mdi:account-question"},
+            )
+            for row in (ex.get("ledger") or {}).get("people", []):
+                if self.options.get("person_entities", True):
+                    self.client.set_state(
+                        f"sensor.bifrost_person_{row['id']}",
+                        row["state"],
+                        {**common, "friendly_name": f"Bifrost {row['name']}", "icon": "mdi:account", "reason": row["reason"], "strength": row.get("strength")},
+                    )
+            bal = self.brain.balance_view(now, d.data_health, self._departures(now))
+            guard_ok = all(c["ok"] for c in ex.get("checks", []))
+            self.client.set_state(
+                "binary_sensor.bifrost_empty_confirmed",
+                "on" if _signal(bal["signal_option"], bal["gate"]["passed"], d.state, d.confidence, guard_ok) else "off",
+                {**common, "friendly_name": "Bifrost house empty confirmed", "icon": "mdi:shield-home", "gate_passed": bal["gate"]["passed"], "option": bal["signal_option"]},
+            )
             for s in signals:
                 if s.entity_id.startswith("person.") and s.available:
                     obj = re.sub(r"[^a-z0-9_]", "_", s.entity_id.split(".", 1)[1])[:60]
@@ -332,6 +383,23 @@ class BifrostService:
             LOG.info("Pattern mining: %d patterns", len(found))
         except Exception:  # noqa: BLE001
             LOG.exception("Pattern mining failed")
+        cal_entries: dict[str, list[dict]] = {}
+        if self.options.get("learn_calendars", True):
+            try:
+                start, end = cal.window(now, days=56)
+                with self._lock:
+                    cids = [e.info.entity_id for e in self.snap.entities.values() if e.info.domain == "calendar" and e.status == STATUS_INCLUDED]
+                for cid in cids:
+                    cal_entries[cid] = self.client.get_calendar(cid, start.isoformat(), end.isoformat())
+            except Exception:  # noqa: BLE001
+                LOG.exception("Reading calendars failed")
+        try:
+            with self._lock:
+                current = {k: e.state for k, e in self.snap.entities.items()}
+            res = self.brain.learn(now, cal_entries, self.duplicates.candidates(), current)
+            LOG.info("Recognition learned: %s", res)
+        except Exception:  # noqa: BLE001
+            LOG.exception("Recognition learning failed")
         if not self.options.get("learn_calendars", True):
             return
         try:
@@ -522,6 +590,9 @@ class BifrostService:
             "history": self.store.history(24),
             "guest_mode": self.settings.guest_mode,
             "stream": self.stream_view(),
+            "guard": {k: (self.extra or {}).get(k) for k in ("checks", "suspicion", "unknown_min", "people_inside_min", "in_progress", "learning", "questions")},
+            "ledger": (self.extra or {}).get("ledger"),
+            "capability": self.brain.detector.model.get("capability", {}),
         }
 
     def entities_view(self) -> dict:
@@ -549,6 +620,61 @@ class BifrostService:
             "categories": CATEGORIES,
             "entities": ents,
         }
+
+    # --- 0.4–1.0 views and actions --------------------------------------------------
+    def _departures(self, now: datetime) -> int:
+        dec = self.store.decisions_since(now - timedelta(days=60))
+        return sum(1 for g, _ in pat.outcomes_from_decisions(dec, lambda v: parse_time(v, now)) if g == "departure")
+
+    def people_view(self) -> dict:
+        led = (self.extra or {}).get("ledger") or {}
+        rows = {r["id"]: r for r in led.get("people", [])}
+        with self._lock:
+            trackers = sorted(
+                ({"entity_id": k, "name": e.info.name or k, "integration": e.info.integration} for k, e in self.snap.entities.items() if k.startswith(("device_tracker.", "person."))),
+                key=lambda x: x["name"].lower(),
+            )
+            calendars = sorted(({"entity_id": k, "name": e.info.name or k} for k, e in self.snap.entities.items() if k.startswith("calendar.")), key=lambda x: x["name"].lower())
+        return {
+            "people": [{**person_public(p), "now": rows.get(p.id)} for p in self.brain.people.all()],
+            "unknown_min": led.get("unknown_min", 0),
+            "trackers": trackers,
+            "calendars": calendars,
+            "timing": {k: v for k, v in self.brain.timing.items() if not k.startswith("_")},
+        }
+
+    def save_person(self, body: dict) -> dict:
+        p = self.brain.people.save(body)
+        return person_public(p)
+
+    def delete_person(self, pid: str) -> dict:
+        return {"deleted": self.brain.people.delete(pid)}
+
+    def house_view(self) -> dict:
+        return {**self.brain.house_view(self._names()), "people_inside_min": (self.extra or {}).get("people_inside_min", 0)}
+
+    def recognition_view(self) -> dict:
+        return {**self.brain.recognition_view(self._names()), "in_progress": (self.extra or {}).get("in_progress", []), "names": self._names()}
+
+    def deviations_view(self) -> dict:
+        return {"items": self.brain.inbox.deviations(), "names": self._names()}
+
+    def questions_view(self) -> dict:
+        return {"items": [q for q in self.brain.inbox.all() if q["status"] in ("open", "waiting")][:60], "done": [q for q in self.brain.inbox.all() if q["status"] == "answered"][:30], "names": self._names()}
+
+    def answer(self, qid: str, answer: str, label: str | None) -> dict:
+        return self.brain.answer(qid, answer, label, datetime.now(UTC), self.store.set_override)
+
+    def correct(self, actual: str) -> dict:
+        with self._lock:
+            said = self.snap.decision.state if self.snap.decision else "unknown"
+        return self.brain.correct(said, actual, datetime.now(UTC))
+
+    def balance_view(self) -> dict:
+        now = datetime.now(UTC)
+        with self._lock:
+            health = self.snap.decision.data_health if self.snap.decision else 0
+        return self.brain.balance_view(now, health, self._departures(now))
 
     # --- live event stream (0.4) -------------------------------------------------
     def _included(self) -> dict[str, ScannedEntity]:
@@ -582,6 +708,12 @@ class BifrostService:
                 self.stream["events"] += 1
         for e in edges:
             self.store.add_event(e.ts, entity_id, ent.info.name or entity_id, ent.category or "", ent.role or "", e.state, kind=e.kind)
+            if not self.store.get_value("first_edge"):
+                self.store.set_value("first_edge", e.ts.isoformat())
+            try:
+                self.brain.on_edge({"ts": e.ts, "entity_id": entity_id, "kind": e.kind, "state": e.state})
+            except Exception:  # noqa: BLE001 – recognition must never break the stream
+                LOG.exception("Brain could not process an edge")
 
     def _stream_loop(self) -> None:
         backoff = 5
