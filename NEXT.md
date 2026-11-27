@@ -70,6 +70,15 @@ In parallel the guard watches entries: an entry nothing explains becomes a hint 
 - Release gate: 30 days shadow mode, ≥ 20 departures, 0 wrong "empty", data health ≥ 90 %.
 - Signal "house empty confirmed" and "suspicion" as entities ✅ (off by default); ⏳ wiring to the alarm system in Loxone. **Never disarm.**
 
+
+### Idea · Learning progress (requested 27.11.)
+- Card "Learning progress" at the top of Pattern recognition: learning since, events collected (today/total), last and next learning run, button "Learn now".
+- "Almost there": candidates below the thresholds with progress bars – routines (seen x of 5, precision), entrances (openings with direction x of 5), neighbours (count, walking time), people timing (weekdays learned), calendar words (x of 5).
+- "Newly detected": patterns that just passed, with date; badge "New" for 7 days in the lists.
+- Simple / Technical: Technical shows thresholds and tokens/entity ids.
+- Optional entity `sensor.bifrost_learning` (done / in progress).
+- Needs: routines.mine and blocks.learn keep candidates instead of discarding them; first-seen date per pattern.
+
 ## 6 · Details
 
 ### 6.1 Data and pre-processing
