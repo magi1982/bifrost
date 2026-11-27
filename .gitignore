@@ -10,3 +10,4 @@ __pycache__/
 floorplans/
 scan-results/
 .env
+CLAUDE.local.md

@@ -79,6 +79,20 @@ In parallel the guard watches entries: an entry nothing explains becomes a hint 
 - Optional entity `sensor.bifrost_learning` (done / in progress).
 - Needs: routines.mine and blocks.learn keep candidates instead of discarding them; first-seen date per pattern.
 
+
+### Idea · Any home, not just ours (review 27.11.)
+What homes typically have, and where Bifrost still has gaps:
+- **Smart locks** (Nuki, Yale, August, Loxone): who unlocked is often an *attribute* (`changed_by`, user) or an event, not the state. The access system must read attributes and `event.*` entities.
+- **Apartments**: one entrance, no outside sensor, a shared staircase. Direction must work with door + inside motion only (motion before = leaving, after = arriving); staircase motion is outside.
+- **Camera person detection** (Frigate, UniFi Protect, Reolink): often a *count* (`sensor.*_person_count`) – treat count > 0 like motion instead of dropping numbers.
+- **Room presence** (mmWave zones like Aqara FP2, Bermuda/ESPresense BLE): area or zone sensors per person – use as person source with room.
+- **Router-only phones** (UniFi, Fritz!Box, without app): flap when iPhones sleep – longer hold time per integration, warn about random MAC addresses.
+- **Pets**: pet-immune vs. normal motion; a household setting "we have pets" that lowers trust in floor-level motion at night.
+- **Shift work, home office, long holidays, holiday homes**: unknown-reset after 12 h and "away" thresholds per household; holiday mode from calendar.
+- **Shared flats / roommates**: several households under one roof – "empty" per household is out of scope; say so in the docs.
+- **Minimal homes** (only phones + a few lights): Bifrost must stay useful with phones and power spikes alone and say clearly what it cannot know.
+- Onboarding: ask once "house or apartment? pets? alarm system? access system?" and tune defaults and suggestions.
+
 ## 6 · Details
 
 ### 6.1 Data and pre-processing

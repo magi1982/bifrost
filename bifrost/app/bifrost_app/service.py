@@ -22,6 +22,7 @@ from .engine import ARRIVING, AWAY, HOME, Decision, Settings, Signal, decide, pa
 from .ha_client import HAClient, HAError
 from .learning import Learner, is_unreliable, trust_score
 from .live import AUTOMATION, SCHEDULED, LiveBoard, NumericEvents, OriginLearner, classify_origin
+from .optimize import suggestions as opt_suggestions
 from .people import public as person_public
 from .preprocess import DuplicateDetector, Edge, EdgeFilter
 from .store import Store
@@ -643,6 +644,31 @@ class BifrostService:
             "ledger": (self.extra or {}).get("ledger"),
             "capability": self.brain.detector.model.get("capability", {}),
         }
+
+    def optimizations_view(self) -> dict:
+        """Where category or role of a signal differs from what works best – one suggestion per entity."""
+        with self._lock:
+            ents = [{**e.to_dict(), "guess_category": e.guess.category} for e in self.snap.entities.values()]
+        model = self.brain.detector.model or {}
+        try:
+            dismissed = set(json.loads(self.store.get_value("opt_dismissed") or "[]"))
+        except ValueError:
+            dismissed = set()
+        items = opt_suggestions(ents, model.get("roles", {}), model.get("doctor", []), dismissed)
+        return {"items": items, "dismissed": len(dismissed)}
+
+    def dismiss_optimization(self, entity_id: str, key: str) -> dict:
+        try:
+            cur = set(json.loads(self.store.get_value("opt_dismissed") or "[]"))
+        except ValueError:
+            cur = set()
+        cur.add(f"{entity_id}|{key}")
+        self.store.set_value("opt_dismissed", json.dumps(sorted(cur)[-500:]))
+        return {"dismissed": len(cur)}
+
+    def reset_optimizations(self) -> dict:
+        self.store.set_value("opt_dismissed", "[]")
+        return {"dismissed": 0}
 
     def entities_view(self) -> dict:
         with self._lock:

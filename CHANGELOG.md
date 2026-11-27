@@ -2,6 +2,14 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.4.2] – 2026-11-27
+
+### Added
+- **Setup → Optimisations** – Bifrost checks every scanned signal against what works best and suggests one change per entity, each applied or hidden on its own (no “apply all”): doors to the outside → Trigger, windows → Evidence, floor-length windows and sliding doors to garden or terrace → Trigger if people walk through them, motion sensors switched off → on, guest and sleep modes → Blocker, robots → Noise, alarm → Truth, calendars → Context, signals disabled in Home Assistant or found by the sensor doctor → off. Once Bifrost has learned how a door is used (entrance or only opened from inside), that wins over the name.
+
+### Fixed
+- Door contacts that Home Assistant lists with the device class “window” (very common) were never treated as doors when learning entrances. The name now wins: “front door”, “Haustüre”, “Garagentor”, sliding doors and floor-length windows to the garden or terrace are learned as possible entrances; the scanner suggests them as Trigger right away.
+
 ## [0.4.1] – 2026-11-27
 
 ### Changed
