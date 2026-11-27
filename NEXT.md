@@ -44,6 +44,9 @@ One pattern engine, used on several levels – higher levels use the events of l
 4. **Everyday patterns** (Muninn): habits built from levels 2–3, therefore shorter and more robust ("entry via garage" is one step instead of four raw ones).
 - **What is "normal":** every level keeps its own statistics from history (counts, time spans). Skuld and Verdandi read the same events and keep their own statistics (arrival times, durations); no expert needs another expert's opinion as input.
 - Safety rules (last out, family balance) use only levels 2–3, never habits.
+- **Patterns consist of facts only, never of opinions:** steps may be raw signals, house building blocks or person events; expert outputs (e.g. "85 % empty") are never steps – avoids circular learning.
+- **Drill-down UI:** a sub-pattern inside a pattern is a clickable card (level, count, preview of its steps); opening it shows its own chain; a breadcrumb leads back.
+- **Asymmetry:** a recognised entry (level 2) sets "not empty" immediately via the gate – no vote needed. A 99 % departure pattern is only a loud Muninn vote inside the capped habit group; "empty" still needs the family balance and the last-out rule.
 
 ### Must-have: calendar learning 2.0 (Mímir · calendar)
 - Learn **every frequently used word** (≥5 occurrences) in all chosen calendars – not only "word → house empty".
