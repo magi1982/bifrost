@@ -50,6 +50,15 @@ One pattern engine, used on several levels – higher levels use the events of l
 - **Collapsible sub-patterns:** inside a pattern every sub-pattern can be expanded/collapsed inline (nested), "expand all / collapse all", and "Open ↗" jumps into the sub-pattern's own page with breadcrumb.
 - **Asymmetry:** a recognised entry (level 2) sets "not empty" immediately via the gate – no vote needed. A 99 % departure pattern is only a loud Muninn vote inside the capped habit group; "empty" still needs the family balance and the last-out rule.
 
+### Keeping patterns few and clean
+- **Value test:** a pattern is only kept if it predicts better than its parts (lift / information gain), on top of ≥5 observations and ≥85 % precision.
+- **Maximal and merged:** sub-chains that only ever occur inside a longer one are dropped; near-duplicates are merged into one pattern with OR/optional steps.
+- **Helpers stay hidden:** a lower-level pattern that is used by only one parent and is not useful on its own is inlined, not listed. Shared building blocks show "used in N patterns".
+- **Budget and ageing:** a maximum number of active patterns per type and person, ranked by usefulness; patterns not seen for weeks fade to the archive.
+- **No double counting:** when several patterns for the same question match at the same time, Muninn uses only the most specific fully matched one (longest chain, best calibrated precision) – not the sum. Lower levels never compete with higher ones; they are parts.
+- **Contradictions** (e.g. "arriving" and "leaving" at once) lower the confidence and lead to Unknown; facts from the gate (entry detected) always win.
+- **Whole-day routines (later):** daily logic may contain other daily logic (e.g. "normal weekday" = getting up + leaving + coming home + going to sleep); no pattern may contain itself.
+
 ### Entry guard (suspicious entries) – idea
 - **Every entry must be explained:** known phone/BLE arriving, NFC disarm at the keypad, somebody was already inside (inside motion before), a learned pattern (e.g. regular visitor), or guest mode. Otherwise: unexplained entry.
 - **Door profiles learned by Yggdrasil (no names needed):** per door/window how often it is used as entry from outside, as exit, or only opened from inside (ventilation, garden), by time of day. The entity name and HA device class are only a first hint; the role comes from behaviour and is shown as a suggestion ("door X is almost only opened from inside – garden door?").
