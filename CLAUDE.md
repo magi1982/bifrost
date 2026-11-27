@@ -10,6 +10,7 @@ Bifrost is a local Home Assistant app (stdlib-only Python, served via Ingress) t
 - Ask before every push or release. Bump `bifrost/config.yaml` and `bifrost_app/__init__.py`, add a `CHANGELOG.md` entry and copy it to `bifrost/CHANGELOG.md` (a test checks this).
 - UI: Home Assistant look, light and dark, German or English (never mixed; every text via `t()` or the `i18n.py` table), states capitalised. Check every UI change in a browser: light, dark, 390 px phone width; no text overflow; every button works.
 - Mockups and design proposals are delivered as HTML files.
+- **Colours (maintainer's taste):** neon palette `--n-*` (cyan, magenta, lime, violet, orange, blue, teal) with glow in dark mode and saturated, not washed-out tones in light mode – no grey or pastel-only surfaces for maps, charts and chains. Every mockup, screenshot and UI change uses these colours. House map icons: family = phone icon with the name below, Bluetooth gateways (Shelly …) = blue Bluetooth logo, advertising Bluetooth devices = white circles.
 
 ## Commands
 ```bash
