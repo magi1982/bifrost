@@ -16,7 +16,7 @@ from . import calendars as cal
 from . import patterns as pat
 from .balance import signal as _signal
 from .brain import Brain
-from .categories import CATEGORIES, STATUS_IGNORED, STATUS_INCLUDED, STATUS_SUGGESTED
+from .categories import CATEGORIES, STATUS_IGNORED, STATUS_INCLUDED
 from .classifier import Classification, EntityInfo, classify
 from .engine import ARRIVING, AWAY, HOME, Decision, Settings, Signal, decide, parse_time
 from .ha_client import HAClient, HAError
@@ -67,6 +67,14 @@ class Snapshot:
     decision: Decision | None = None
     decided_at: datetime | None = None
     error: str | None = None
+
+
+def _is_number(v: str | None) -> bool:
+    try:
+        float(v or "x")
+    except ValueError:
+        return False
+    return True
 
 
 class BifrostService:
@@ -531,14 +539,6 @@ class BifrostService:
         self.settings.guest_mode = on
         return {"guest_mode": on}
 
-    def accept_suggestions(self, category: str) -> dict:
-        """Switch on every suggested entity of one category."""
-        with self._lock:
-            ids = [e.info.entity_id for e in self.snap.entities.values() if e.status == STATUS_SUGGESTED and e.category == category]
-        for eid in ids:
-            self.update_entity(eid, STATUS_INCLUDED, None, None)
-        return {"accepted": len(ids)}
-
     def timeline_view(self, hours: int = 24) -> dict:
         now = datetime.now(UTC)
         since = now - timedelta(hours=hours)
@@ -684,9 +684,17 @@ class BifrostService:
                 key=lambda x: x["name"].lower(),
             )
             calendars = sorted(({"entity_id": k, "name": e.info.name or k} for k, e in self.snap.entities.items() if k.startswith("calendar.")), key=lambda x: x["name"].lower())
+            access_candidates = sorted(
+                ({"entity_id": k, "name": e.info.name or k} for k, e in self.snap.entities.items() if k.startswith(("sensor.", "input_text.", "text.", "event.", "lock.")) and not _is_number(e.state)),
+                key=lambda x: x["name"].lower(),
+            )
         return {
             "people": [{**person_public(p), "now": rows.get(p.id)} for p in self.brain.people.all()],
             "unknown_min": led.get("unknown_min", 0),
+            "shared_access": self.brain.people.shared_access(),
+            "access_entities": self.brain.people.access_entities(),
+            "access_seen": self.store.distinct_states(self.brain.people.access_entities(), datetime.now(UTC) - timedelta(days=60)),
+            "access_candidates": access_candidates,
             "trackers": trackers,
             "calendars": calendars,
             "timing": {k: v for k, v in self.brain.timing.items() if not k.startswith("_")},
@@ -695,6 +703,16 @@ class BifrostService:
     def save_person(self, body: dict) -> dict:
         p = self.brain.people.save(body)
         return person_public(p)
+
+    def set_access_entities(self, ids: object) -> dict:
+        """Entities that report who unlocked (keypad, NFC, fingerprint). They are switched on as security signals."""
+        out = self.brain.people.set_access_entities(ids)
+        for eid in out:
+            try:
+                self.update_entity(eid, STATUS_INCLUDED, "security", "Evidence")
+            except KeyError:
+                raise ValueError(f"unknown entity {eid}") from None
+        return {"access_entities": out}
 
     def delete_person(self, pid: str) -> dict:
         return {"deleted": self.brain.people.delete(pid)}

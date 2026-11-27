@@ -2,6 +2,18 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.4.1] – 2026-11-27
+
+### Changed
+- **People** – phones, trackers and calendars are picked from a dropdown and shown as chips, instead of a long list of all entities.
+- **Access system instead of “NFC at the keypad”** – optional and generic (keypad code, NFC, fingerprint). Pick the entity that reports who unlocked; Bifrost lists the users it has seen and you assign them to a person in a dropdown – no typing. A user can belong to only one person. Matching is by whole word.
+- **Shared household code** – a code the whole family uses can be marked as shared: it explains an entry (“somebody from the household”) without being assigned to a person.
+- **Setup** – new guide “Which role for what?” with the meaning of every role and a recommendation per signal type. The **Signals** tab is gone (it showed the same as Setup), and so is the “Use all suggestions” button.
+
+### Fixed
+- In Setup some switches jumped back after the German translation: the role dropdown sent the translated name. Dropdowns now always send the internal value; switching on a signal without a category asks for one first.
+- Category names in Setup dropdowns were still English.
+
 ## [0.4.0] – 2026-11-27
 
 ### Added

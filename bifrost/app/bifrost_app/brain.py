@@ -20,7 +20,7 @@ from . import routines as rt
 from .engine import AWAY, Decision, parse_time
 from .location import Fingerprints, validate_floorplan
 from .patterns import outcomes_from_decisions
-from .people import STRENGTH_BY_INTEGRATION, WEAK, PeopleStore, ledger
+from .people import STRENGTH_BY_INTEGRATION, WEAK, PeopleStore, access_match, ledger
 from .questions import Inbox
 
 LOG = logging.getLogger(__name__)
@@ -80,11 +80,16 @@ class Brain:
             owner = self._tracker_owner().get(eid)
             if owner and kind == "home":
                 self.identity.append({"ts": _p(edge["ts"]), "who": owner[1], "pid": owner[0], "kind": "home", "strength": self.strength(eid)})
-            # NFC users at the alarm keypad (Loxone read-only, later): a change event whose value is a known NFC user
-            if kind == "change" and m.get("category") == "security":
+            # access systems (keypad, NFC, fingerprint): a change whose value names a known user
+            access = self.people.access_entities()
+            if kind == "change" and (eid in access if access else m.get("category") == "security"):
+                reported = edge.get("state") or ""
                 for p in self.people.all():
-                    if p.nfc_user and p.nfc_user.lower() in (edge.get("state") or "").lower():
+                    if access_match(p.nfc_user, reported):
                         self.identity.append({"ts": _p(edge["ts"]), "who": p.name, "pid": p.id, "kind": "nfc", "strength": "strong"})
+                for shared in self.people.shared_access():
+                    if access_match(shared, reported):  # household code: somebody from the family, not a specific person
+                        self.identity.append({"ts": _p(edge["ts"]), "who": "household", "pid": None, "kind": "nfc", "strength": "strong"})
 
     # --- every minute ---------------------------------------------------------------------
     def tick(self, d: Decision, states: dict[str, dict], now: datetime, guest_mode: bool) -> tuple[Decision, dict]:

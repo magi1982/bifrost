@@ -50,7 +50,7 @@ Bifrost listens live to every used sensor (exact time and order, short door open
 | **Guard** | *May the house be empty?* | Fixed safety rules: after an entry the house stays “not empty” for 15 minutes; “empty” needs every person away, no unknown people inside, the last one out detected and healthy data. A door opened from outside while everybody is away or asleep, with no explanation, is a **suspicious entry**. |
 | **Result** | *What does Home Assistant get?* | The decision, the reasons and the entities below. |
 
-**People live only in Bifrost** – no Home Assistant users are needed. For each person you pick phones/trackers and calendars and optionally enter the NFC user and the iPhone IRK (stored locally, never shown again). Children without phones are welcome: Bifrost then counts entries it cannot explain as “unknown – at least N”.
+**People live only in Bifrost** – no Home Assistant users are needed. For each person you pick phones/trackers and calendars and optionally the user in your access system (keypad, NFC, fingerprint – picked from the users Bifrost has seen) and the iPhone IRK (stored locally, never shown again). A code the whole family shares can be marked as shared instead of belonging to one person. Children without phones are welcome: Bifrost then counts entries it cannot explain as “unknown – at least N”.
 
 **Questions instead of guessing.** When Bifrost is unsure it asks – at most 3 questions and 5 suggestions a day, safety first. You answer *Yes / No / Maybe / Don't know* and can name the reason (“animals”, “cleaner”). Answers become known exceptions; “don't know” is asked again later.
 
@@ -75,8 +75,7 @@ New entities: `binary_sensor.bifrost_suspicious_entry`, `binary_sensor.bifrost_e
 | **Timeline** | Every change of a used signal and every decision of the last 24 hours |
 | **Dashboard** | The last 14 days, average confidence, "Is learning helping?", sensor trust |
 | **Balance** | Key figures and the release gate for the alarm signal |
-| **Signals** | Used signals by category, "Use all suggestions" |
-| **Setup** | Scanner and sensor configurator for all entities, filters by area and integration |
+| **Setup** | Language, guide “Which role for what?”, scanner and sensor configurator for all entities, filters by area and integration |
 
 ### Installation
 1. In Home Assistant open **Settings → Apps → App store → ⋮ → Repositories**.
@@ -136,7 +135,7 @@ Bifrost hört live auf jeden genutzten Sensor (genaue Uhrzeit und Reihenfolge, a
 | **Wächter** | *Darf das Haus leer sein?* | Feste Sicherheitsregeln: Nach einem Eintritt bleibt das Haus 15 Minuten „nicht leer“; „leer“ braucht alle Personen weg, keine Unbekannten im Haus, erkannten letzten Rausgehenden und gesunde Daten. Eine Tür, die von aussen geöffnet wird, während alle weg sind oder schlafen, ohne Erklärung, ist ein **verdächtiger Eintritt**. |
 | **Ergebnis** | *Was bekommt Home Assistant?* | Die Entscheidung, die Gründe und die Entitäten unten. |
 
-**Personen gibt es nur in Bifrost** – du musst in Home Assistant keine Benutzer anlegen. Pro Person wählst du Handys/Tracker und Kalender und trägst optional den NFC-Benutzer und das iPhone-IRK ein (lokal gespeichert, nie wieder angezeigt). Kinder ohne Handy gehören dazu: Bifrost zählt Eintritte, die es nicht erklären kann, als „Unbekannte – mindestens N“.
+**Personen gibt es nur in Bifrost** – du musst in Home Assistant keine Benutzer anlegen. Pro Person wählst du Handys/Tracker und Kalender und wählst optional den Benutzer im Zugangssystem (Code, NFC, Fingerabdruck – aus den Benutzern, die Bifrost gesehen hat) und das iPhone-IRK (lokal gespeichert, nie wieder angezeigt). Einen Code, den die ganze Familie nutzt, markierst du als gemeinsam statt ihn einer Person zuzuordnen. Kinder ohne Handy gehören dazu: Bifrost zählt Eintritte, die es nicht erklären kann, als „Unbekannte – mindestens N“.
 
 **Fragen statt raten.** Wenn Bifrost unsicher ist, fragt es – höchstens 3 Fragen und 5 Vorschläge am Tag, Sicherheit zuerst. Du antwortest *Ja / Nein / Vielleicht / Weiss nicht* und kannst den Grund benennen („Ratten“, „Putzfrau“). Antworten werden zu bekannten Ausnahmen; „Weiss nicht“ wird später nochmals gefragt.
 
@@ -161,8 +160,7 @@ Neue Entitäten: `binary_sensor.bifrost_suspicious_entry`, `binary_sensor.bifros
 | **Verlauf** | Jede Änderung eines genutzten Signals und jede Entscheidung der letzten 24 Stunden |
 | **Dashboard** | Die letzten 14 Tage, durchschnittliche Sicherheit, „Hilft das Lernen?“, Vertrauen pro Sensor |
 | **Bilanz** | Kennzahlen und die Freigabe für das Alarm-Signal |
-| **Signals** | Genutzte Signale nach Kategorie, „Alle Vorschläge übernehmen“ |
-| **Setup** | Scanner und Sensor-Konfigurator für alle Entitäten, Filter nach Bereich und Integration |
+| **Setup** | Sprache, Anleitung „Welche Rolle wofür?“, Scanner und Sensor-Konfigurator für alle Entitäten, Filter nach Bereich und Integration |
 
 Neue Entitäten ab 0.2: `sensor.bifrost_expected_return` (übliche Rückkehrzeit an diesem Wochentag), `binary_sensor.bifrost_anomaly` (Aktivität, obwohl alle Handys weg sind), `binary_sensor.bifrost_guest_mode` und `sensor.bifrost_person_*` (zu Hause / weg pro Person).
 

@@ -60,12 +60,6 @@ def validate_guest(body: object) -> bool:
     return body["on"]
 
 
-def validate_bulk(body: object) -> str:
-    if not isinstance(body, dict) or not isinstance(body.get("category"), str) or not is_valid_category(body["category"]):
-        raise ValueError("invalid category")
-    return body["category"]
-
-
 PATTERN_ID_RE = re.compile(r"^[0-9a-f]{10}$")
 
 
@@ -98,6 +92,8 @@ VIEWS = {
 ACTIONS = {
     "/api/person": lambda svc, b: svc.save_person(b if isinstance(b, dict) else {}),
     "/api/person/delete": lambda svc, b: svc.delete_person(_str(b, "id", 40)),
+    "/api/access_entities": lambda svc, b: svc.set_access_entities(b.get("entities")),
+    "/api/shared_access": lambda svc, b: {"shared_access": svc.brain.people.set_shared_access(b.get("names"))},
     "/api/answer": lambda svc, b: svc.answer(_str(b, "id", 40), _str(b, "answer", 10), b.get("label") if isinstance(b.get("label"), str) else None),
     "/api/correct": lambda svc, b: svc.correct(_str(b, "actual", 10)),
     "/api/exception/delete": lambda svc, b: {"deleted": svc.brain.inbox.remove_exception(_str(b, "sensor", 255))},
@@ -234,11 +230,6 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
             if route == "/api/guest":
                 try:
                     return self._send(HTTPStatus.OK, service.set_guest_mode(validate_guest(body)))
-                except ValueError as err:
-                    return self._send(HTTPStatus.BAD_REQUEST, {"error": str(err)})
-            if route == "/api/bulk":
-                try:
-                    return self._send(HTTPStatus.OK, service.accept_suggestions(validate_bulk(body)))
                 except ValueError as err:
                     return self._send(HTTPStatus.BAD_REQUEST, {"error": str(err)})
             if route in ACTIONS:

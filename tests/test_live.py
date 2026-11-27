@@ -106,3 +106,13 @@ def test_live_view_on_demo_household(tmp_path):
     assert v["kpis"]["last"]["entity_id"] == "binary_sensor.motion_hallway"
     # timer-switched light never counts as a person
     assert "light.garden" in svc.live.automated(timedelta(hours=24), datetime.now(UTC))
+
+
+def test_shared_household_code_explains_an_entry(tmp_path):
+    from demo import build
+
+    svc = build(str(tmp_path / "demo.db"))
+    svc.brain.people.set_shared_access(["Family code"])
+    t = datetime.now(UTC)
+    svc.brain.on_edge({"ts": t, "entity_id": "sensor.front_door_last_user", "kind": "change", "state": "Family code"})
+    assert any(i["who"] == "household" and i["strength"] == "strong" for i in svc.brain.identity)

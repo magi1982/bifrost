@@ -12,6 +12,7 @@ Secrets: an IRK is stored locally only and never returned by the API (only a mas
 
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
 from dataclasses import asdict, dataclass, field
@@ -136,11 +137,73 @@ class PeopleStore:
             raise ValueError("a person with this id exists")
         if existing is None and len(self.all()) >= 30:
             raise ValueError("at most 30 people")
+        if p.nfc_user:
+            if any(o.id != p.id and o.nfc_user.lower() == p.nfc_user.lower() for o in self.all()):
+                raise ValueError("access user already belongs to another person")
+            if p.nfc_user.lower() in (x.lower() for x in self.shared_access()):
+                raise ValueError("access user is a shared household code")
         self.store.put_obj(KIND, p.id, asdict(p))
         return p
 
     def delete(self, pid: str) -> bool:
         return self.store.del_obj(KIND, pid)
+
+    # --- access system: entities that report who unlocked ---
+    def access_entities(self) -> list[str]:
+        try:
+            v = json.loads(self.store.get_value("access_entities") or "[]")
+        except ValueError:
+            return []
+        return [x for x in v if isinstance(x, str)] if isinstance(v, list) else []
+
+    def set_access_entities(self, ids: object) -> list[str]:
+        out = validate_access_entities(ids)
+        self.store.set_value("access_entities", json.dumps(out))
+        return out
+
+    # --- shared access: a code or tag the whole household uses, assigned to nobody ---
+    def shared_access(self) -> list[str]:
+        try:
+            v = json.loads(self.store.get_value("shared_access") or "[]")
+        except ValueError:
+            return []
+        return [x for x in v if isinstance(x, str)] if isinstance(v, list) else []
+
+    def set_shared_access(self, names: object) -> list[str]:
+        if not isinstance(names, list) or len(names) > 10:
+            raise ValueError("names: list with at most 10 entries")
+        out: list[str] = []
+        for n in names:
+            if not isinstance(n, str) or not NFC_RE.match(n.strip()):
+                raise ValueError("names: letters, digits, space, . _ - (max 40)")
+            if any(p.nfc_user.lower() == n.strip().lower() for p in self.all()):
+                raise ValueError("names: already belongs to a person")
+            if n.strip() not in out:
+                out.append(n.strip())
+        self.store.set_value("shared_access", json.dumps(out))
+        return out
+
+
+ACCESS_DOMAINS = ("sensor.", "input_text.", "text.", "event.", "lock.", "alarm_control_panel.", "binary_sensor.")
+
+
+def validate_access_entities(ids: object) -> list[str]:
+    if not isinstance(ids, list) or len(ids) > 5:
+        raise ValueError("entities: list with at most 5 entries")
+    out: list[str] = []
+    for e in ids:
+        if not isinstance(e, str) or not ENTITY_RE.match(e) or not e.startswith(ACCESS_DOMAINS):
+            raise ValueError("entities: invalid entity id")
+        if e not in out:
+            out.append(e)
+    return out
+
+
+def access_match(name: str, reported: str | None) -> bool:
+    """True when the access system reported this user (whole word, case-insensitive)."""
+    if not name or not reported:
+        return False
+    return re.search(r"(?<![\w])" + re.escape(name.lower()) + r"(?![\w])", reported.lower()) is not None
 
 
 def _src_state(state: str | None) -> str:

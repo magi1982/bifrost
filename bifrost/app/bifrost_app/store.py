@@ -163,6 +163,18 @@ class Store:
             ).fetchall()
         return [{"ts": r[0], "entity_id": r[1], "name": r[2], "category": r[3], "role": r[4], "state": r[5], "kind": r[6]} for r in rows]
 
+    def distinct_states(self, entity_ids: list[str], since: datetime, limit: int = 30) -> list[str]:
+        """Distinct recent values of some entities, newest first (e.g. users reported by an access system)."""
+        if not entity_ids:
+            return []
+        marks = ",".join("?" * len(entity_ids))
+        with self._lock:
+            rows = self._db.execute(
+                f"SELECT state, MAX(ts) AS t FROM events WHERE entity_id IN ({marks}) AND ts >= ? GROUP BY state ORDER BY t DESC LIMIT ?",  # noqa: S608  # nosec B608 – only placeholders
+                (*entity_ids, since.astimezone(UTC).isoformat(), int(limit)),
+            ).fetchall()
+        return [r[0] for r in rows if r[0] and r[0].lower() not in ("unknown", "unavailable", "none", "")]
+
     # --- learned trust per signal -------------------------------------------
     def add_trust(self, entity_id: str, agree: int, disagree: int) -> None:
         now = datetime.now(UTC).isoformat()

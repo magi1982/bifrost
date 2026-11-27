@@ -21,7 +21,6 @@ TABS = [
     "dev",
     "questions",
     "calendars",
-    "signals",
     "timeline",
     "dashboard",
     "balance",
