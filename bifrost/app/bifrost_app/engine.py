@@ -81,7 +81,7 @@ def _ago(m: float) -> str:
     return f"{int(m)} min" if m < 120 else f"{m / 60:.1f} h"
 
 
-def decide(signals: list[Signal], settings: Settings, now: datetime, unreliable: set[str] | None = None) -> Decision:  # noqa: C901
+def decide(signals: list[Signal], settings: Settings, now: datetime, unreliable: set[str] | None = None, automated: set[str] | None = None) -> Decision:  # noqa: C901
     """Combine all included signals into one explainable decision.
 
     ``unreliable`` are entity ids that learning found to fire while the house was empty;
@@ -123,6 +123,11 @@ def decide(signals: list[Signal], settings: Settings, now: datetime, unreliable:
         # learned: these sensors fire while nobody is home (pets, robots, drafts) – they are not activity
         skipped = [s.name for s in activity if s.entity_id in unreliable and s.active]
         activity = [s for s in activity if s.entity_id not in unreliable]
+    by_machine: list[str] = []
+    if automated:
+        # switched by an automation or a learned timer – not a person
+        by_machine = [s.name for s in activity if s.entity_id in automated and s.active]
+        activity = [s for s in activity if s.entity_id not in automated]
     # Every state change of an activity signal counts – a motion sensor that just switched off saw someone a moment ago
     last_act = max((s.last_changed for s in activity), default=None)
     active_now = [s for s in activity if s.active and s.category in ("motion", "manual", "media")]
@@ -158,6 +163,8 @@ def decide(signals: list[Signal], settings: Settings, now: datetime, unreliable:
     reasons = [f"All {len(away)} tracked phones/people are away (last left {_ago(mins_since_left)} ago)", f"No activity for {_ago(mins_since_act)}"]
     if health < 90:
         reasons.append(f"Only {health}% of signals are available – confidence limited")
+    if by_machine:
+        reasons.append(f"Not counted: {', '.join(by_machine[:2])} – switched by an automation or timer")
     if skipped:
         reasons.append(f"Ignored {', '.join(skipped[:2])} – learned to fire when nobody is home")
     return Decision(AWAY, round(min(99, conf) * cap), reasons, health, [], last_act, ignored_unreliable=skipped)

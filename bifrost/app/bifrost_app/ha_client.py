@@ -18,6 +18,8 @@ import urllib.request
 from datetime import UTC, datetime
 from typing import Any
 
+from .live import origin_of
+
 LOG = logging.getLogger(__name__)
 MAX_FRAME = 64 * 1024 * 1024  # registries of large installations are a few MB
 
@@ -64,6 +66,9 @@ class HAClient:
         ctype = resp.headers.get("Content-Type", "")
         return json.loads(raw) if "json" in ctype else raw.decode()
 
+    def get_config(self) -> dict:
+        return self._request("GET", "config")
+
     def get_states(self) -> list[dict]:
         return self._request("GET", "states")
 
@@ -91,12 +96,20 @@ class HAClient:
                 raise HAError("WebSocket authentication failed")
             out: dict[str, list[dict]] = {}
             for i, (key, cmd) in enumerate(
-                (("entities", "config/entity_registry/list"), ("devices", "config/device_registry/list"), ("areas", "config/area_registry/list")),
+                (
+                    ("entities", "config/entity_registry/list"),
+                    ("devices", "config/device_registry/list"),
+                    ("areas", "config/area_registry/list"),
+                    ("floors", "config/floor_registry/list"),
+                ),
                 start=1,
             ):
                 ws.send_json({"id": i, "type": cmd})
                 msg = ws.recv_json()
                 if not msg.get("success"):
+                    if key == "floors":  # floors exist since HA 2024.4 – optional
+                        out[key] = []
+                        continue
                     raise HAError(f"{cmd} failed")
                 out[key] = msg.get("result") or []
             return out
@@ -133,7 +146,7 @@ class HAClient:
                     continue
                 change = parse_state_changed(msg)
                 if change:
-                    on_change(*change)
+                    on_change(*change, origin=origin_of(msg))
         finally:
             ws.close()
 

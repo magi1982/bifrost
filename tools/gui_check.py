@@ -47,6 +47,24 @@ OVERFLOW_JS = """() => {
 }"""
 
 
+ENGLISH_JS = r"""() => {
+  const words = 'the|is|are|and|with|not|of|for|from|only|never|when|while|Home|Away|Asleep|Leaving|Arriving|Used|Saved'
+    + '|Search|Last|Activity|entries|Entities|Learning|Patterns|Shadow|Guest|confidence|Why';
+  const rx = new RegExp('\\b(' + words + ')\\b');
+  const out = [];
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  let n;
+  while ((n = w.nextNode())) {
+    const p = n.parentElement;
+    if (!p || p.closest('script,style,.tech,.eid,code') || getComputedStyle(p).display === 'none') continue;
+    const t = n.nodeValue.trim().replace(/Home[- ]Assistant/g, '');
+    if (t.length < 3 || /^[a-z_]+\.[a-z0-9_]+/.test(t)) continue;
+    if (rx.test(t)) out.push(t.slice(0, 80));
+  }
+  return out;
+}"""
+
+
 def run() -> int:
     problems = []
     with sync_playwright() as p:
@@ -84,6 +102,14 @@ def run() -> int:
                     if pg.evaluate("() => document.querySelector('#tabs button.active')?.dataset.v") != tab:
                         pg.click(f'#tabs button[data-v="{tab}"]')
                         pg.wait_for_timeout(300)
+            if scheme == "light" and w > 600:
+                leftovers = []
+                for tab in TABS:
+                    pg.click(f'#tabs button[data-v="{tab}"]')
+                    pg.wait_for_timeout(500)
+                    leftovers += [f"{tab}: {x}" for x in pg.evaluate(ENGLISH_JS)]
+                if leftovers:
+                    problems.append({"where": "english-in-german", "texts": sorted(set(leftovers))[:60]})
             if errs:
                 problems.append({"where": f"js-{scheme}-{w}", "errors": errs[:5]})
             ctx.close()

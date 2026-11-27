@@ -177,6 +177,28 @@ input[type=search]{width:100%;margin-bottom:10px}
 .prow>.grow{flex:1 1 220px;min-width:0}
 .prow>.bs{margin-left:auto}}
 
+
+.seg{display:inline-flex;gap:0;border-radius:16px;overflow:hidden;border:1px solid var(--div);flex:none}
+.seg .ch{border:0;border-radius:0;margin:0}
+.mpath{border:1px solid var(--div);border-radius:12px;padding:10px 12px;margin-top:10px}
+.mpath h3{margin:0 0 8px;font-size:14px;font-weight:500;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.mchain{display:flex;flex-wrap:wrap;align-items:center;gap:6px 4px}
+.mchip{display:inline-flex;align-items:center;gap:6px;border:2px solid var(--c);border-radius:16px;padding:2px 10px 2px 2px;max-width:100%;overflow-wrap:anywhere;background:var(--card)}
+.mchip .d{width:22px;height:22px;border-radius:50%;background:var(--c);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+.mchip .d .ic{width:14px;height:14px}
+.mchip.door{border-radius:8px}.mchip.door .d{border-radius:5px}
+.mchip.dash{border-style:dashed}
+.marr{color:var(--sec);font-size:12px;white-space:nowrap;padding:0 2px}
+:root{--zin:rgba(67,160,71,.07);--zout:rgba(239,108,0,.07);--wall:#b0b0b0}
+[data-theme=dark]{--zin:rgba(102,187,106,.08);--zout:rgba(255,167,38,.08);--wall:#555}
+
+.areas{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.areas .card{margin:0}
+.area.live{box-shadow:0 0 0 2px var(--ac)!important}
+.check>.grow{min-width:0}
+.check.muted{opacity:.6}
+.dot .ic.s,.ic.s{width:14px;height:14px}
+.tech{overflow-wrap:anywhere;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--sec);line-height:1.5}
 </style>
 </head>
 <body>
@@ -273,7 +295,7 @@ function viewPatterns(){
     var icon={departure:"🚪",arrival:"🏠",bedtime:"🌙"}[p.outcome]||"◎";
     h+='<div class="cy"><div class="hd">'+ring(p.precision)+'<div class="grow"><div class="pid">PATTERN #'+p.id.slice(0,6).toUpperCase()+'</div><div class="ttl">'+icon+' '+esc(p.outcome_label)+' · '+n+'-step chain</div></div><span class="st '+p.status+'">'+(lbl[p.status]||p.status)+'</span><label class="switch"><input type="checkbox" class="patSw" data-id="'+p.id+'" '+(p.status==="enabled"?"checked":"")+'><span></span></label></div>';
     h+='<div class="metrics"><div class="m"><span>Seen</span><b>'+p.support+'×</b></div><div class="m"><span>Accuracy</span><b>'+p.precision+'%</b></div><div class="m"><span>Chain length</span><b>~'+total+' min</b></div><div class="m"><span>Lead time</span><b>~'+p.lead+' min</b></div></div>';
-    h+='<div class="chain">';
+    h+='<div class="mchain">';
     p.steps.forEach(function(st,i){var c=catOfEntity(st.entity_id);if(i)h+='<div class="link">▼ +'+st.gap_before+' min</div>';
       h+='<div class="node'+(p.status==="enabled"&&i<p.progress?' hit':'')+'" data-n="'+(i+1)+'"><span class="t">T−'+tminus[i]+' min</span><div class="n">'+c.icon+' '+esc(st.name)+'</div><div class="a">'+stepLabel(st)+' · '+esc(st.entity_id)+'</div></div>';});
     h+='<div class="link">▼ +'+p.lead+' min</div><div class="node out" data-n=""><span class="t">T 0</span><div class="n">'+icon+' '+esc(p.outcome_label)+'</div><div class="a">result Bifrost expects</div></div></div>';
@@ -370,7 +392,7 @@ document.querySelectorAll("#tabs button").forEach(function(b){b.onclick=function
   if(S.view==="calendars")api("api/calendars").then(function(d){S.cals=d;render();}).catch(function(){});};});
 var modes=["auto","light","dark"],mi=0;
 function theme(){var m=modes[mi],dark=m==="dark"||(m==="auto"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.setAttribute("data-theme",dark?"dark":"light");document.getElementById("themeBtn").textContent="Theme: "+m;}
-document.getElementById("themeBtn").onclick=function(){mi=(mi+1)%3;theme();};
+document.getElementById("themeBtn").onclick=function(){mi=(mi+1)%3;theme();if(window.trDom)trDom(document.getElementById("themeBtn").parentNode);};
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change",theme);
 theme();load();setInterval(function(){if(S.view==="status")api("api/status").then(function(s){S.status=s;render();}).catch(function(){});},30000);
 </script>
@@ -382,45 +404,45 @@ var TX={
  de:{status:"Status",people:"Personen",house:"Haus",recog:"Mustererkennung",dev:"Abweichungen",questions:"Fragen",calendars:"Kalender",signals:"Signale",timeline:"Verlauf",dashboard:"Dashboard",balance:"Bilanz",setup:"Setup",
   add_person:"Person hinzufügen",edit:"Bearbeiten",del:"Löschen",save:"Speichern",cancel:"Abbrechen",name:"Name",kind:"Art",household:"Haushalt",visitor:"Regelmässiger Besuch",may_alone:"Darf allein daheim sein",
   trackers:"Handys / Tracker",calendars_l:"Kalender",nfc:"NFC-Benutzer am Code Touch",irk:"iPhone-IRK (Bluetooth)",irk_hint:"32 Zeichen. Leer lassen = gespeicherten Schlüssel behalten. Wird nie angezeigt.",
-  home:"daheim",away:"weg",unclear:"unklar",unknown_people:"Unbekannte im Haus",unknown_hint:"Eintritte, die nichts erklärt – mindestens so viele Personen sind unbekannt.",no_people:"Noch keine Personen. Lege alle an, die hier wohnen – auch Kinder ohne Handy.",
+  home:"Daheim",away:"Weg",unclear:"Unklar",unknown_people:"Unbekannte im Haus",unknown_hint:"Eintritte, die nichts erklärt – mindestens so viele Personen sind unbekannt.",no_people:"Noch keine Personen. Lege alle an, die hier wohnen – auch Kinder ohne Handy.",
   no_source:"keine Quelle",typical_arrival:"Meist daheim um",search:"Suchen …",nothing:"Nichts gefunden.",
   may_empty:"Darf das Haus leer sein?",chk_entry:"Kein frischer Eintritt",chk_people:"Alle Personen verbucht",chk_unknown:"Keine Unbekannten im Haus",chk_last_out:"Letzter raus erkannt",chk_data:"Genug Daten",
   wrong:"Stimmt nicht",wrong_q:"Was stimmt wirklich?",thanks:"Danke – wird als Lernfall gespeichert",learning:"Lernphase",learning_hint:"Bifrost lernt dein Haus kennen. In dieser Zeit gelten nur die Sicherheitsregeln.",
   l_days:"Tage Daten",l_entrances:"Eingänge mit Richtung",l_people:"Personen mit Quelle",l_neighbours:"Nachbar-Melder",suspicion:"Verdächtiger Eintritt",suspicion_hint:"Tür von aussen geöffnet und nichts erklärt es.",in_progress:"Läuft gerade",
-  capability:"Was dein Haus kann",map:"Hauskarte",map_hint:"Gelernt aus der Reihenfolge der Melder – ohne Grundriss. Grün: Nachbarn, blau: Eingang.",entrances:"Eingänge",inside:"innen",outside:"aussen",direction:"Richtung",
-  role_entrance:"Eingang",role_inside_only:"nur von innen",role_unknown:"unklar",doctor:"Sensor-Doktor",exceptions:"Bekannte Ausnahmen",floorplan:"Grundriss (optional)",upload:"Bild hochladen",remove:"Entfernen",
-  dead:"löst nie aus",chatty:"löst sehr oft aus",never_home:"nie daheim",gaps:"oft nicht verfügbar",missing:"Fehlt noch",ok_all:"Alles da",
+  capability:"Was dein Haus kann",map:"Hauskarte",map_hint:"Gelernt aus der Reihenfolge der Melder – ohne Grundriss. Antippen hebt einen Melder hervor.",entrances:"Eingänge",inside:"Innen",outside:"Aussen",direction:"Richtung",
+  role_entrance:"Eingang",role_inside_only:"Nur von innen",role_unknown:"Unklar",doctor:"Sensor-Doktor",exceptions:"Bekannte Ausnahmen",floorplan:"Grundriss (optional)",upload:"Bild hochladen",remove:"Entfernen",
+  dead:"Löst nie aus",chatty:"Löst sehr oft aus",never_home:"Nie daheim",gaps:"Oft nicht verfügbar",missing:"Fehlt noch",ok_all:"Alles da",
   m_door_contacts:"Türkontakte",m_inside_motion_near_doors:"Melder innen bei den Türen",m_outside_motion:"Melder aussen",m_people:"Personen",m_people_sources:"Quellen für alle Personen",
   blocks:"Bausteine",persons:"Personen",routines:"Abläufe",type:"Typ",goal:"Ziel",all:"Alle",arriving:"Heimkommen",leaving:"Weggehen",sleep:"Schlafen",house_g:"Haus",
-  seen:"gesehen",not_seen:"noch nicht gesehen",step:"Schritt",steps:"Schritte",sensors:"Sensoren",subs:"Unter-Muster",open_:"Öffnen",expand_all:"Alle aufklappen",collapse_all:"Alle zuklappen",back:"Mustererkennung",
-  THEN:"DANN",AND:"UND · Reihenfolge egal",OR:"ODER · einer davon",COMP:"BEGLEITER · irgendwann im Zeitfenster",NOT:"NICHT",optional:"optional",typical:"meist",when:"Wann",
+  seen:"gesehen",not_seen:"Noch nicht gesehen",step:"Schritt",steps:"Schritte",sensors:"Sensoren",subs:"Unter-Muster",open_:"Öffnen",expand_all:"Alle aufklappen",collapse_all:"Alle zuklappen",back:"Mustererkennung",
+  THEN:"DANN",AND:"UND · Reihenfolge egal",OR:"ODER · einer davon",COMP:"BEGLEITER · irgendwann im Zeitfenster",NOT:"NICHT",optional:"Optional",typical:"meist",when:"Wann",
   no_patterns:"Noch keine Muster. Bifrost braucht ein paar Tage Daten – und Türkontakte mit Meldern innen und aussen.",learn_now:"Jetzt lernen",
-  d_expected_missing:"Erwartet, aber fehlt",d_unexplained:"Unerklärt",d_rare:"Selten",d_contradiction:"Widerspruch",open:"offen",explained:"erklärt",no_dev:"Keine Abweichungen – alles passt zu den gelernten Mustern.",
+  d_expected_missing:"Erwartet, aber fehlt",d_unexplained:"Unerklärt",d_rare:"Selten",d_contradiction:"Widerspruch",open:"Offen",explained:"Erklärt",no_dev:"Keine Abweichungen – alles passt zu den gelernten Mustern.",
   qs:"Fragen",sugg:"Vorschläge",done:"Beantwortet",yes:"Ja",no:"Nein",maybe:"Vielleicht",dontknow:"Weiss nicht",label_opt:"Name (optional), z. B. „Ratten“",no_q:"Keine offenen Fragen.",
   q_suspicious_entry:"Warst du das?",q_duplicate:"Doppelter Sensor?",q_door_role:"Gartentür?",q_disturbance:"Tier oder Störung?",q_sensor_problem:"Sensor-Problem",q_deviation:"Abweichung",
   kpi_wrong:"Falsch „leer“ (30 Tage)",kpi_empty:"Erkannte leere Zeit",kpi_sus:"Verdachte",kpi_fsus:"davon Fehlalarm",gate:"Freigabe für das Alarm-Signal",gate_hint:"Erst wenn alles grün ist UND du die Option einschaltest, meldet Bifrost „Haus leer bestätigt“. Unscharf schaltet Bifrost nie.",
-  g_shadow_days:"Tage im Schattenmodus",g_departures:"Erkannte Abfahrten",g_wrong_empty:"Falsch „leer“",g_health:"Datengesundheit",signal_on:"Option eingeschaltet",signal_off:"Option aus (ab Werk)",need:"nötig"},
+  g_shadow_days:"Tage im Schattenmodus",g_departures:"Erkannte Abfahrten",g_wrong_empty:"Falsch „leer“",g_health:"Datengesundheit",signal_on:"Option eingeschaltet",signal_off:"Option aus (ab Werk)",need:"nötig",simple:"Einfach",technical:"Technisch",paths:"Wege",more_rooms:"Weitere Melder innen",unassigned:"Nicht zugeordnet",no_dir_hint:"Kein Melder in der Nähe – Bifrost sieht nicht, ob jemand rein oder raus geht. Ein Melder innen bei der Tür würde das lösen.",opened:"geöffnet",dir_ok:"Richtung erkannt",dir_no:"Richtung unbekannt",continue_as:"weiter wie",house_in:"Im Haus",house_live:"Haus · live",house_live_hint:"Bereiche und Stockwerke aus Home Assistant. Was gerade auslöst, leuchtet auf.",people_home:"Personen daheim",active_now:"Gerade aktiv",last_activity:"Letzte Aktivität",last_path:"Letzter Weg",fits:"passt zu",areas:"Bereiche",no_areas:"Noch keine Bereiche. Weise deine Sensoren in Home Assistant Bereichen zu.",gaps:"Lücken",links:"Gelernte Verbindungen",active:"Aktiv",quiet:"Ruhig",no_signal:"Kein Signal",no_signal_hint:"Bifrost sieht hier nichts. Ein Bewegungsmelder würde den Bereich sichtbar machen.",o_person:"Von Hand",o_app:"Per App",o_automation:"Automation – zählt nicht",o_scheduled:"Zeitplan erkannt – zählt nicht",o_noise:"Störquelle – zählt nicht",ev_humidity_jump:"Feuchte springt – Dusche?",ev_co2_rise:"CO₂ steigt – jemand im Raum",ev_power_spike:"Strom-Spitze – Gerät gestartet",ev_water_flow:"Wasser läuft",gap_door_no_direction:"Kein Melder in der Nähe – Richtung unbekannt",gap_area_without_signal:"Bereich ohne Signal",gap_signal_without_area:"Signal ohne Bereich – in Home Assistant einem Bereich zuweisen",gap_doctor_dead:"Löst nie aus",gap_doctor_chatty:"Löst sehr oft aus",gap_doctor_never_home:"Nie daheim",gap_doctor_gaps:"Oft nicht verfügbar",language:"Sprache",lang_hint:"Gilt für die ganze App und die Texte in den Bifrost-Entitäten. Beim ersten Start übernimmt Bifrost die Sprache von Home Assistant.",lang_de:"Deutsch",lang_en:"English"},
  en:{status:"Status",people:"People",house:"House",recog:"Pattern recognition",dev:"Deviations",questions:"Questions",calendars:"Calendars",signals:"Signals",timeline:"Timeline",dashboard:"Dashboard",balance:"Balance",setup:"Setup",
   add_person:"Add person",edit:"Edit",del:"Delete",save:"Save",cancel:"Cancel",name:"Name",kind:"Kind",household:"Household",visitor:"Regular visitor",may_alone:"May be home alone",
   trackers:"Phones / trackers",calendars_l:"Calendars",nfc:"NFC user at the keypad",irk:"iPhone IRK (Bluetooth)",irk_hint:"32 characters. Leave empty to keep the stored key. Never shown.",
-  home:"home",away:"away",unclear:"unclear",unknown_people:"Unknown people inside",unknown_hint:"Entries nothing explains – at least this many people are unknown.",no_people:"No people yet. Add everybody who lives here – children without phones too.",
+  home:"Home",away:"Away",unclear:"Unclear",unknown_people:"Unknown people inside",unknown_hint:"Entries nothing explains – at least this many people are unknown.",no_people:"No people yet. Add everybody who lives here – children without phones too.",
   no_source:"no source",typical_arrival:"Usually home at",search:"Search …",nothing:"Nothing found.",
   may_empty:"May the house be empty?",chk_entry:"No fresh entry",chk_people:"Everybody accounted for",chk_unknown:"No unknown people inside",chk_last_out:"Last one out detected",chk_data:"Enough data",
   wrong:"That's wrong",wrong_q:"What is really true?",thanks:"Thanks – stored as a label",learning:"Learning phase",learning_hint:"Bifrost is getting to know your home. Meanwhile only the safety rules apply.",
   l_days:"days of data",l_entrances:"entrances with direction",l_people:"people with a source",l_neighbours:"neighbouring sensors",suspicion:"Suspicious entry",suspicion_hint:"A door was opened from outside and nothing explains it.",in_progress:"In progress",
-  capability:"What your home can do",map:"House map",map_hint:"Learned from the order of sensors – no floor plan needed. Green: neighbours, blue: entrance.",entrances:"Entrances",inside:"inside",outside:"outside",direction:"Direction",
-  role_entrance:"entrance",role_inside_only:"inside only",role_unknown:"unclear",doctor:"Sensor doctor",exceptions:"Known exceptions",floorplan:"Floor plan (optional)",upload:"Upload picture",remove:"Remove",
-  dead:"never fires",chatty:"fires very often",never_home:"never home",gaps:"often unavailable",missing:"Missing",ok_all:"Everything there",
+  capability:"What your home can do",map:"House map",map_hint:"Learned from the order of sensors – no floor plan needed. Tap a sensor to highlight it.",entrances:"Entrances",inside:"Inside",outside:"Outside",direction:"Direction",
+  role_entrance:"Entrance",role_inside_only:"Inside only",role_unknown:"Unclear",doctor:"Sensor doctor",exceptions:"Known exceptions",floorplan:"Floor plan (optional)",upload:"Upload picture",remove:"Remove",
+  dead:"Never fires",chatty:"Fires very often",never_home:"Never home",gaps:"Often unavailable",missing:"Missing",ok_all:"Everything there",
   m_door_contacts:"door contacts",m_inside_motion_near_doors:"inside motion near doors",m_outside_motion:"outside motion",m_people:"people",m_people_sources:"sources for every person",
   blocks:"Blocks",persons:"People",routines:"Routines",type:"Type",goal:"Goal",all:"All",arriving:"Arriving",leaving:"Leaving",sleep:"Going to sleep",house_g:"House",
-  seen:"seen",not_seen:"not seen yet",step:"step",steps:"steps",sensors:"sensors",subs:"sub-patterns",open_:"Open",expand_all:"Expand all",collapse_all:"Collapse all",back:"Pattern recognition",
-  THEN:"THEN",AND:"AND · any order",OR:"OR · one of",COMP:"COMPANION · any time in the window",NOT:"NOT",optional:"optional",typical:"typically",when:"When",
+  seen:"seen",not_seen:"Not seen yet",step:"step",steps:"steps",sensors:"sensors",subs:"sub-patterns",open_:"Open",expand_all:"Expand all",collapse_all:"Collapse all",back:"Pattern recognition",
+  THEN:"THEN",AND:"AND · any order",OR:"OR · one of",COMP:"COMPANION · any time in the window",NOT:"NOT",optional:"Optional",typical:"typically",when:"When",
   no_patterns:"No patterns yet. Bifrost needs a few days of data – and door contacts with motion sensors inside and outside.",learn_now:"Learn now",
-  d_expected_missing:"Expected but missing",d_unexplained:"Unexplained",d_rare:"Rare",d_contradiction:"Contradiction",open:"open",explained:"explained",no_dev:"No deviations – everything fits the learned patterns.",
+  d_expected_missing:"Expected but missing",d_unexplained:"Unexplained",d_rare:"Rare",d_contradiction:"Contradiction",open:"Open",explained:"Explained",no_dev:"No deviations – everything fits the learned patterns.",
   qs:"Questions",sugg:"Suggestions",done:"Answered",yes:"Yes",no:"No",maybe:"Maybe",dontknow:"Don't know",label_opt:"Name (optional), e.g. “animals”",no_q:"No open questions.",
   q_suspicious_entry:"Was that you?",q_duplicate:"Duplicate sensor?",q_door_role:"Garden door?",q_disturbance:"Animal or disturbance?",q_sensor_problem:"Sensor problem",q_deviation:"Deviation",
   kpi_wrong:"Wrong “empty” (30 days)",kpi_empty:"Empty time detected",kpi_sus:"Suspicions",kpi_fsus:"false alarms",gate:"Release for the alarm signal",gate_hint:"Only when everything is green AND you switch the option on does Bifrost report “house empty confirmed”. Bifrost never disarms.",
-  g_shadow_days:"days in shadow mode",g_departures:"detected departures",g_wrong_empty:"wrong “empty”",g_health:"data health",signal_on:"Option on",signal_off:"Option off (default)",need:"needed"}};
+  g_shadow_days:"days in shadow mode",g_departures:"detected departures",g_wrong_empty:"wrong “empty”",g_health:"data health",signal_on:"Option on",signal_off:"Option off (default)",need:"needed",simple:"Simple",technical:"Technical",paths:"Paths",more_rooms:"Other inside sensors",unassigned:"Not assigned",no_dir_hint:"No sensor nearby – Bifrost cannot see whether someone goes in or out. A motion sensor inside next to the door would fix that.",opened:"opened",dir_ok:"direction detected",dir_no:"direction unknown",continue_as:"continues like",house_in:"Inside",house_live:"House · live",house_live_hint:"Areas and floors from Home Assistant. What fires right now lights up.",people_home:"People home",active_now:"Active now",last_activity:"Last activity",last_path:"Last path",fits:"fits",areas:"Areas",no_areas:"No areas yet. Assign your sensors to areas in Home Assistant.",gaps:"Gaps",links:"Learned connections",active:"Active",quiet:"Quiet",no_signal:"No signal",no_signal_hint:"Bifrost sees nothing here. A motion sensor would make this area visible.",o_person:"By hand",o_app:"Via app",o_automation:"Automation – not counted",o_scheduled:"Timer detected – not counted",o_noise:"Noise source – not counted",ev_humidity_jump:"Humidity jumps – shower?",ev_co2_rise:"CO₂ rising – someone in the room",ev_power_spike:"Power spike – appliance started",ev_water_flow:"Water running",gap_door_no_direction:"No sensor nearby – direction unknown",gap_area_without_signal:"Area without a signal",gap_signal_without_area:"Signal without an area – assign one in Home Assistant",gap_doctor_dead:"Never fires",gap_doctor_chatty:"Fires very often",gap_doctor_never_home:"Never home",gap_doctor_gaps:"Often unavailable",language:"Language",lang_hint:"Applies to the whole app and to the texts in the Bifrost entities. On first start Bifrost uses the Home Assistant language.",lang_de:"Deutsch",lang_en:"English"}};
 function t(k){return (TX[LANG]&&TX[LANG][k])||TX.en[k]||k;}
 var ICON={
  home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
@@ -447,7 +469,13 @@ var ICON={
  dev:'<path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/>',
  shield:'<path d="M12 3l8 3v6c0 4.8-3.4 8-8 9-4.6-1-8-4.2-8-9V6z"/>',
  open:'<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
- upload:'<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>'};
+ upload:'<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>',
+ note:'<path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>',
+ drop:'<path d="M12 3c3.5 4.5 6 7.8 6 11a6 6 0 0 1-12 0c0-3.2 2.5-6.5 6-11z"/>',
+ bolt:'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+ car:'<path d="M4 16V11l2.5-5h11L20 11v5H4z"/><circle cx="7.5" cy="16.5" r="1.8"/><circle cx="16.5" cy="16.5" r="1.8"/><path d="M4 11h16"/>',
+ moon:'<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+ wifi:'<path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r=".8"/>'};
 function ic(n,cls){return '<svg class="ic'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" aria-hidden="true">'+(ICON[n]||"")+'</svg>';}
 function btn(label,attrs,cls,icon){return '<button type="button" class="b'+(cls?' '+cls:'')+'" '+(attrs||"")+'>'+(icon?ic(icon):"")+'<span>'+esc(label)+'</span></button>';}
 function pill(text,c,fill){return '<span class="pill'+(fill?' f':'')+'" style="--c:'+(c||"var(--sec)")+'">'+esc(text)+'</span>';}
@@ -466,7 +494,7 @@ viewStatus=function(){
   var base=_viewStatus();
   var add="";
   if(g.checks&&g.checks.length){
-    add+='<div class="card"><h2>'+t("may_empty")+'</h2><div class="hint">'+ic("shield")+' Heimdall</div>'+g.checks.filter(function(c){return c.active!==false;}).map(function(c){return '<div class="check"><span class="dot" style="--c:'+(c.ok?"var(--in)":"var(--err)")+'">'+(c.ok?"✓":"!")+'</span><div class="grow"><div>'+t("chk_"+c.id)+'</div>'+(c.detail!=null&&!c.ok?'<div class="meta">'+esc(c.detail)+'</div>':"")+'</div></div>';}).join("")+'</div>';
+    add+='<div class="card"><h2>'+t("may_empty")+'</h2><div class="hint">'+ic("shield")+' Heimdall</div>'+g.checks.filter(function(c){return c.active!==false;}).map(function(c){return '<div class="check"><span class="dot" style="--c:'+(c.ok?"var(--in)":"var(--err)")+'">'+(c.ok?"✓":"!")+'</span><div class="grow"><div>'+t("chk_"+c.id)+'</div>'+(c.detail!=null&&!c.ok?'<div class="meta">'+esc(typeof c.detail==="string"?c.detail.split(", ").map(function(x){return nm(x,S.ents&&S.ents.names);}).join(", "):c.detail)+'</div>':"")+'</div></div>';}).join("")+'</div>';
   }
   var led=st.ledger;
   if(led&&led.people&&led.people.length){
@@ -521,35 +549,70 @@ function bindPeople(){
 }
 
 /* ---------- House ---------- */
-function houseMap(d){
-  var nodes=d.map.nodes||[],links=d.map.links||[];if(!nodes.length)return '<div class="empty2">'+t("no_patterns")+'</div>';
-  var col={outside:[],between:[],inside:[],unknown:[]};nodes.forEach(function(n){(col[n.side]||col.unknown).push(n);});
-  var X={outside:70,between:250,inside:470,unknown:650},pos={},H=Math.max(160,40+46*Math.max(col.outside.length,col.between.length,col.inside.length,col.unknown.length));
-  Object.keys(col).forEach(function(k){col[k].forEach(function(n,i){pos[n.id]=[X[k],30+i*46];});});
-  var s='<svg class="map" viewBox="0 0 760 '+H+'" role="img" aria-label="'+t("map")+'">';
-  ["outside","between","inside","unknown"].forEach(function(k){if(col[k].length)s+='<text class="s" x="'+X[k]+'" y="14" text-anchor="middle">'+(k==="between"?t("entrances"):k==="unknown"?"?":t(k))+'</text>';});
-  links.forEach(function(l){var a=pos[l.a],b=pos[l.b];if(a&&b)s+='<line class="'+(l.kind==="walk"?"lk":"ld")+'" x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'"/>';});
-  nodes.forEach(function(n){var p=pos[n.id],c=n.type==="door"?"var(--then)":n.side==="outside"?"var(--out)":n.side==="inside"?"var(--in)":"var(--unc)";var label=nm(n.id,d.names);if(label.length>22)label=label.slice(0,21)+"…";
-    s+='<g><rect x="'+(p[0]-62)+'" y="'+(p[1]-15)+'" width="124" height="30" rx="9" fill="var(--card)" stroke="'+c+'" stroke-width="2"/><text x="'+p[0]+'" y="'+(p[1]+4)+'" text-anchor="middle">'+esc(label)+'</text></g>';});
-  return s+'</svg>';
-}
+function modeSwitch(key,on){return '<span class="seg" role="group">'+'<button type="button" class="ch'+(!on?" on":"")+'" data-mode="'+key+'" data-on="0">'+t("simple")+'</button><button type="button" class="ch'+(on?" on":"")+'" data-mode="'+key+'" data-on="1">'+t("technical")+'</button></span>';}
+function bindMode(key,set){document.querySelectorAll('[data-mode="'+key+'"]').forEach(function(b){b.onclick=function(){set(b.dataset.on==="1");render();};});}
+var CATI={motion:"motion",openings:"door",manual:"bulb",media:"note",climate:"drop",energy:"bolt",vehicles:"car",modes:"moon",security:"shield",network:"wifi",devices:"phone",calendar:"cal"};
+function ago(ts){if(!ts)return "–";var s=Math.max(0,Math.round((Date.now()-Date.parse(ts))/1000));
+  if(LANG==="de")return s<60?"vor "+s+" s":s<3600?"vor "+Math.round(s/60)+" Min.":s<86400?"vor "+Math.round(s/3600)+" h":"vor "+Math.round(s/86400)+" T.";
+  return s<60?s+" s ago":s<3600?Math.round(s/60)+" min ago":s<86400?Math.round(s/3600)+" h ago":Math.round(s/86400)+" d ago";}
+function chip(label,kind,icon,dash){var c=kind==="out"?"var(--out)":kind==="door"?"var(--then)":kind==="unk"?"var(--unc)":"var(--in)";
+  return '<span class="mchip'+(kind==="door"?" door":"")+(dash?" dash":"")+'" style="--c:'+c+'"><span class="d">'+ic(icon||(kind==="door"?"door":"motion"))+'</span><span>'+esc(label)+'</span></span>';}
+function arrow(txt){return '<span class="marr">→'+(txt?' '+esc(txt)+' →':'')+'</span>';}
+function sigKind(x){return x.category==="openings"?"door":x.side==="outside"?"out":"in";}
+function originText(x){if(x.noise)return t("o_noise");if(x.event)return t("ev_"+x.event);return x.origin&&x.origin!=="sensor"?t("o_"+x.origin):"";}
+function sigRow(x,d){var on=x.active,col=on?"var(--ac)":x.noise?"var(--unc)":"var(--unc)",o=originText(x),tr=x.trend;
+  var nb=(x.neighbours||[]).map(function(n){return "→ "+nm(n.entity_id,d.names)+(n.typical!=null?" "+Math.round(n.typical)+" s":"")+(n.count?" · "+n.count+"×":"");}).join(" · ");
+  return '<div class="check'+(on?" live":"")+(x.noise?" muted":"")+'"><span class="dot" style="--c:'+col+'">'+ic(CATI[x.category]||"motion","s")+'</span><div class="grow"><div>'+esc(x.name)+(tr?' <span class="meta">· '+esc(tr.value)+(tr.dir==="up"?" ↗":tr.dir==="down"?" ↘":" →")+'</span>':"")+'</div>'+
+   (o?'<div class="meta">'+esc(o)+'</div>':"")+'<div class="tech">'+esc(x.entity_id)+' · '+esc(x.state||"")+(x.origin?' · '+esc(x.origin):"")+'</div>'+(nb?'<div class="tech">'+esc(nb)+'</div>':"")+'</div><span class="meta">'+ago(x.ts)+'</span></div>';}
+function areaCard(a,d){var sig=a.signals||[],last=sig.filter(function(x){return !x.noise;})[0];
+  var outside=sig.length&&sig.every(function(x){return x.side==="outside";}),col=outside?"var(--out)":"var(--in)";
+  var icon=sig.some(function(x){return x.category==="openings";})?"door":"home";
+  var st=!sig.length?pill(t("no_signal"),"var(--warn)"):a.active?pill(t("active")+" · "+ago(a.last),col,true):pill(t("quiet")+" · "+ago(last?last.ts:a.last),"var(--sec)");
+  var h='<div class="card area'+(a.active?" live":"")+'" style="--ac:'+col+'"><div class="prow"><div class="av" style="--c:'+(a.active?col:"var(--unc)")+'">'+ic(icon)+'</div><div class="grow"><h3>'+esc(a.name)+'</h3><div class="chips">'+st+'</div></div></div>';
+  h+=sig.map(function(x){return sigRow(x,d);}).join("");
+  if(!sig.length)h+='<div class="meta" style="margin-top:8px">'+t("no_signal_hint")+'</div>';
+  return h+'</div>';}
+function gapRow(g,d){var head=g.area?esc(g.area):esc(nm(g.entity_id,d.names)),txt=t("gap_"+g.kind);
+  return '<div class="check"><span class="dot" style="--c:var(--warn)">!</span><div class="grow"><div>'+head+'</div><div class="meta">'+esc(txt)+'</div>'+(g.entity_id?'<div class="tech">'+esc(g.entity_id)+'</div>':"")+'</div></div>';}
 function viewHouse(){
-  var d=V4.house;if(!d)return '<div class="empty2">…</div>';
-  var c=d.capability||{},miss=c.missing||[];
-  var h='<div class="card"><h2>'+t("capability")+'</h2><div class="kpis" style="margin:8px 0">'+[["doors_with_direction",ic("door")+" "+t("direction")],["inside_sensors",ic("motion")+" "+t("inside")],["outside_sensors",ic("motion")+" "+t("outside")],["people_with_source",ic("person")+" "+t("people")]].map(function(k){return '<div class="kpi"><div class="l">'+k[1]+'</div><div class="v">'+(c[k[0]]==null?"–":c[k[0]])+(k[0]==="doors_with_direction"&&c.doors!=null?" / "+c.doors:k[0]==="people_with_source"&&c.people!=null?" / "+c.people:"")+'</div></div>';}).join("")+'</div>'+
-   (miss.length?'<div class="meta">'+t("missing")+': '+miss.map(function(m){return pill(t("m_"+m),"var(--warn)");}).join(" ")+'</div>':'<div class="meta">'+pill(t("ok_all"),"var(--in)")+'</div>')+'</div>';
-  h+='<div class="card"><h2>'+ic("map")+' '+t("map")+'</h2><div class="hint">'+t("map_hint")+'</div>'+(d.has_floorplan?'<img src="api/floorplan" alt="'+t("floorplan")+'" style="max-width:100%;border-radius:10px;margin-bottom:8px;opacity:.85">':"")+'<div style="overflow-x:auto">'+houseMap(d)+'</div>'+
-   '<div class="bs" style="margin-top:10px"><label class="b sm">'+ic("upload")+'<span>'+t("floorplan")+'</span><input id="fpFile" type="file" accept="image/png,image/jpeg" style="display:none"></label></div></div>';
-  h+='<div class="sec">'+t("entrances")+'</div><div class="list2">'+(d.entrances||[]).map(function(e){var r=(d.roles||{})[e.door]||{};
-    return '<div class="card" style="margin:0"><div class="prow"><div class="av" style="--c:var(--then)">'+ic("door")+'</div><div class="grow"><h3>'+esc(nm(e.door,d.names))+'</h3><div class="chips">'+pill(t("role_"+(r.role||"unknown")),r.role==="entrance"?"var(--in)":"var(--sec)")+pill(t("direction")+": "+(e.direction?"✓":"–"),e.direction?"var(--in)":"var(--warn)")+'</div><div class="meta" style="margin-top:6px">'+t("outside")+': '+esc(e.outside?nm(e.outside,d.names):"–")+'<br>'+t("inside")+': '+esc(e.inside?nm(e.inside,d.names):"–")+'<br>'+(r.entry!=null?ic("home")+" "+r.entry+" · "+ic("routine")+" "+r.exit+" · "+t("role_inside_only")+" "+r.inside_only:"")+'</div></div></div></div>';}).join("")+'</div>';
-  if((d.doctor||[]).length)h+='<div class="sec">'+t("doctor")+'</div><div class="card">'+d.doctor.map(function(p){return '<div class="check"><span class="dot" style="--c:var(--warn)">!</span><div class="grow"><div>'+esc(nm(p.entity_id,d.names))+' · '+t(p.problem)+'</div><div class="meta">'+esc(p.detail)+'</div></div></div>';}).join("")+'</div>';
-  h+='<div class="sec">'+t("exceptions")+'</div><div class="card">'+((d.exceptions||[]).length?d.exceptions.map(function(x){return '<div class="check"><span class="dot" style="--c:var(--blk)">✓</span><div class="grow"><div>'+esc(x.label)+'</div><div class="meta">'+esc(nm(x.sensor,d.names))+'</div></div>'+btn(t("remove"),'data-exdel="'+esc(x.sensor)+'"','sm no','trash')+'</div>';}).join(""):'<div class="meta">–</div>')+'</div>';
-  return h;
+  var d=V4.house;if(!d||!d.floors)return '<div class="empty2">…</div>';var k=d.kpis||{},TECH=V4.mapTech;
+  var lastTxt=k.last?(k.last.area||nm(k.last.entity_id,d.names))+" · "+ago(k.last.ts):"–";
+  var h='<div class="'+(TECH?"tech-on":"")+'"><div class="card"><div class="prow"><div class="grow"><h2>'+ic("home")+' '+t("house_live")+'</h2><div class="hint">'+t("house_live_hint")+'</div></div>'+modeSwitch("map",TECH)+'</div>'+
+   '<div class="kpis" style="margin:10px 0 0">'+
+   '<div class="kpi" style="border-left:4px solid var(--in)"><div class="l">'+ic("people")+' '+t("people_home")+'</div><div class="v">'+(k.people_home||0)+(d.unknown_min?" +"+d.unknown_min:"")+'</div></div>'+
+   '<div class="kpi" style="border-left:4px solid var(--then)"><div class="l">'+ic("motion")+' '+t("active_now")+'</div><div class="v">'+(k.active_areas||0)+'</div></div>'+
+   '<div class="kpi" style="border-left:4px solid var(--per)"><div class="l">'+ic("routine")+' '+t("last_activity")+'</div><div class="v" style="font-size:16px;overflow-wrap:anywhere">'+esc(lastTxt)+'</div></div>'+
+   '<div class="kpi" style="border-left:4px solid var(--sec)"><div class="l">'+ic("shield")+' '+t("g_health")+'</div><div class="v">'+(k.health==null?"–":k.health+" %")+'</div></div></div>'+
+   ((d.people||[]).length?'<div class="chips" style="margin-top:8px">'+d.people.map(function(p){return pill(p.name+" · "+t(p.state),SC[p.state]);}).join("")+'</div>':"")+'</div>';
+  var path=d.last_path||[];
+  if(path.length){var ip=(d.in_progress||[])[0];
+    h+='<div class="card"><h3>'+ic("routine")+' '+t("last_path")+'</h3><div class="mchain" style="margin-top:8px">'+path.map(function(p,i){var gap=i?Math.round((Date.parse(p.ts)-Date.parse(path[i-1].ts))/1000):null;
+      return (i?arrow(gap+" s"):"")+chip(nm(p.entity_id,d.names),p.category==="openings"?"door":(d.sides&&d.sides[p.entity_id]&&d.sides[p.entity_id].side==="outside")?"out":"in",CATI[p.category]);}).join("")+'</div>'+
+      '<div class="meta" style="margin-top:6px">'+ago(path[path.length-1].ts)+(ip?' · '+t("fits")+' „'+goalName(ip.goal==="departure"?"leaving":ip.goal==="arrival"?"arriving":"sleep")+'“ · '+Math.round(ip.progress*100)+' %':"")+'</div>'+
+      '<div class="tech" style="margin-top:4px">'+path.map(function(p){return new Date(p.ts).toLocaleTimeString()+" "+esc(p.entity_id)+" "+esc(p.state)+(p.origin&&p.origin!=="sensor"?" ("+esc(p.origin)+")":"");}).join(" → ")+'</div></div>';}
+  d.floors.forEach(function(f){h+='<div class="sec">'+esc(f.name||t("areas"))+'</div><div class="areas">'+f.areas.map(function(a){return areaCard(a,d);}).join("")+'</div>';});
+  if(!d.floors.length)h+='<div class="card empty2">'+t("no_areas")+'</div>';
+  var gaps=(d.gaps||[]).concat((d.doctor||[]).map(function(p){return {kind:"doctor_"+p.problem,entity_id:p.entity_id};}));
+  h+='<div class="sec">'+t("gaps")+' · '+gaps.length+'</div><div class="card">'+(gaps.length?gaps.map(function(g){return gapRow(g,d);}).join(""):'<div class="meta">'+t("ok_all")+'</div>')+'</div>';
+  if(TECH){
+    h+='<div class="sec">'+t("links")+'</div><div class="card">'+((d.links||[]).length?d.links.slice().sort(function(a,b){return (b.count||0)-(a.count||0);}).map(function(l){
+      return '<div class="check"><span class="dot" style="--c:var(--in)">↔</span><div class="grow"><div class="mchain">'+chip(nm(l.a,d.names),"in")+arrow(Math.round(l.typical)+" s")+chip(nm(l.b,d.names),"in")+'</div><div class="tech">'+esc((l.a_area||"?")+" ↔ "+(l.b_area||"?")+" · "+l.count+"×")+'</div></div></div>';}).join(""):'<div class="meta">–</div>')+'</div>';
+    var c=d.capability||{},miss=c.missing||[];
+    h+='<div class="sec">'+t("capability")+'</div><div class="card">'+(miss.length?'<div class="meta">'+t("missing")+': '+miss.map(function(m){return pill(t("m_"+m),"var(--warn)");}).join(" ")+'</div>':'<div class="meta">'+pill(t("ok_all"),"var(--in)")+'</div>')+
+      '<div class="list2" style="margin-top:10px">'+(d.entrances||[]).map(function(e){var r=(d.roles||{})[e.door]||{};return '<div class="check"><span class="dot" style="--c:'+(e.direction?"var(--then)":"var(--warn)")+'">'+ic("door","s")+'</span><div class="grow"><div>'+esc(nm(e.door,d.names))+'</div><div class="meta">'+t("role_"+(r.role||"unknown"))+' · '+t("direction")+': '+(e.direction?"✓":"–")+'</div><div class="tech">'+esc(t("outside")+": "+(e.outside?nm(e.outside,d.names):"–")+" · "+t("inside")+": "+(e.inside?nm(e.inside,d.names):"–"))+'</div></div></div>';}).join("")+'</div></div>';
+    h+='<div class="sec">'+t("exceptions")+'</div><div class="card">'+((d.exceptions||[]).length?d.exceptions.map(function(x){return '<div class="check"><span class="dot" style="--c:var(--blk)">✓</span><div class="grow"><div>'+esc(x.label)+'</div><div class="meta">'+esc(nm(x.sensor,d.names))+'</div></div>'+btn(t("remove"),'data-exdel="'+esc(x.sensor)+'"','sm no','trash')+'</div>';}).join(""):'<div class="meta">–</div>')+'</div>';
+    h+='<div class="sec">'+t("floorplan")+'</div><div class="card">'+(d.has_floorplan?'<img src="api/floorplan" alt="'+t("floorplan")+'" style="max-width:100%;border-radius:10px;margin-bottom:8px">':"")+'<label class="b sm">'+ic("upload")+'<span>'+t("upload")+'</span><input id="fpFile" type="file" accept="image/png,image/jpeg" style="display:none"></label></div>';
+  }
+  return h+'</div>';
 }
 function bindHouse(){
-  document.querySelectorAll("[data-exdel]").forEach(function(b){b.onclick=function(){api("api/exception/delete",{sensor:b.dataset.exdel}).then(function(){return api("api/house");}).then(function(d){V4.house=d;render();});};});
-  var f=document.getElementById("fpFile");if(f)f.onchange=function(){var file=f.files[0];if(!file)return;if(file.size>2*1024*1024){toast("max 2 MB",true);return;}var r=new FileReader();r.onload=function(){var b64=String(r.result).split(",")[1];api("api/floorplan",{image:b64}).then(function(){return api("api/house");}).then(function(d){V4.house=d;render();toast("✓");}).catch(function(e){toast("✗ "+e.message,true);});};r.readAsDataURL(file);};
+  bindMode("map",function(on){V4.mapTech=on;});
+  document.querySelectorAll("[data-exdel]").forEach(function(b){b.onclick=function(){api("api/exception/delete",{sensor:b.dataset.exdel}).then(function(){return api("api/live");}).then(function(d){V4.house=d;render();});};});
+  var f=document.getElementById("fpFile");if(f)f.onchange=function(){var file=f.files[0];if(!file)return;if(file.size>2*1024*1024){toast("max 2 MB",true);return;}var r=new FileReader();r.onload=function(){var b64=String(r.result).split(",")[1];api("api/floorplan",{image:b64}).then(function(){return api("api/live");}).then(function(d){V4.house=d;render();toast("✓");}).catch(function(e){toast("✗ "+e.message,true);});};r.readAsDataURL(file);};
 }
+var LIVE_T=null;
+function livePoll(on){if(LIVE_T){clearInterval(LIVE_T);LIVE_T=null;}if(!on)return;LIVE_T=setInterval(function(){if(S.view!=="house"){livePoll(false);return;}
+  var ae=document.activeElement;if(ae&&ae.tagName==="INPUT")return;api("api/live").then(function(d){if(S.view==="house"){V4.house=d;render();}}).catch(function(){});},5000);}
 
 /* ---------- Pattern recognition ---------- */
 var TYPEC={block:"var(--blk)",person:"var(--per)",routine:"var(--rou)"},TYPEI={block:"block",person:"person",routine:"routine"};
@@ -598,7 +661,7 @@ function recogDetail(){var id=V4.path[V4.path.length-1],p=V4.byId[id];if(!p){V4.
   var head='<div class="card" style="border:2px solid '+TYPEC[p.type]+'"><div class="chips">'+pill(t(p.type==="block"?"blocks":p.type==="person"?"persons":"routines"),TYPEC[p.type],true)+pill(goalName(p.goal))+pill(p.who==="house"?t("house_g"):p.who||"")+'</div><h2 style="margin-top:6px">'+esc(title(p))+'</h2><div class="kpis" style="margin:8px 0 0">'+
    '<div class="kpi"><div class="l">'+t("seen")+'</div><div class="v">'+(p.seen?p.seen+"×":"–")+'</div></div>'+(p.precision?'<div class="kpi"><div class="l">%</div><div class="v">'+Math.round(p.precision*100)+'</div></div>':"")+(c.time?'<div class="kpi"><div class="l">'+t("when")+'</div><div class="v" style="font-size:16px">'+esc((c.weekdays||[]).join(" ")+" "+c.time.from+"–"+c.time.to)+'</div></div>':"")+'</div><div class="meta" style="margin-top:8px">'+esc(counts(p))+'</div>'+
    (c.calendar?'<div class="chips">'+c.calendar.map(function(w){return pill("📅 "+w.word,"var(--opt)");}).join("")+'</div>':"")+'</div>';
-  return cr+head+'<div class="bs" style="margin-bottom:8px">'+btn(t("expand_all"),'data-all="1"','sm')+btn(t("collapse_all"),'data-all="0"','sm')+'<label class="ch'+(V4.tech?" on":"")+'"><input id="techSw" type="checkbox" style="display:none"'+(V4.tech?" checked":"")+'>Tech</label></div><div class="card'+(V4.tech?" tech-on":"")+'">'+steps(p,id,1)+'</div>';}
+  return cr+head+'<div class="bs" style="margin-bottom:8px">'+btn(t("expand_all"),'data-all="1"','sm')+btn(t("collapse_all"),'data-all="0"','sm')+modeSwitch("tech",V4.tech)+'</div><div class="card'+(V4.tech?" tech-on":"")+'">'+steps(p,id,1)+'</div>';}
 function expandAll(p,base,on,depth){(p.steps||[]).forEach(function(s,i){var key=base+"/"+i;if(s.ref){V4.openS[key]=on;if(on&&depth<4&&V4.byId[s.ref])expandAll(V4.byId[s.ref],key,on,depth+1);}(s.items||[]).forEach(function(x,j){if(x.ref){var k=key+"."+j;V4.openS[k]=on;if(on&&depth<4&&V4.byId[x.ref])expandAll(V4.byId[x.ref],k,on,depth+1);}});});}
 function bindRecog(){
   var q=document.getElementById("rq");if(q)q.oninput=function(){V4.flt.q=q.value;var pos=q.selectionStart;render();var n=document.getElementById("rq");n.focus();n.setSelectionRange(pos,pos);};
@@ -609,7 +672,7 @@ function bindRecog(){
   document.querySelectorAll("[data-back]").forEach(function(b){b.onclick=function(){V4.path=V4.path.slice(0,+b.dataset.back+1);V4.openS={};render();};});
   document.querySelectorAll("[data-home]").forEach(function(b){b.onclick=function(){V4.path=[];render();};});
   document.querySelectorAll("[data-all]").forEach(function(b){b.onclick=function(){var id=V4.path[V4.path.length-1];expandAll(V4.byId[id],id,b.dataset.all==="1",1);render();};});
-  var ts=document.getElementById("techSw");if(ts)ts.onchange=function(){V4.tech=ts.checked;render();};
+  bindMode("tech",function(on){V4.tech=on;});
   var l=document.getElementById("learn2");if(l)l.onclick=function(){l.disabled=true;api("api/learn",{}).then(function(){return api("api/recognition");}).then(function(d){V4.recog=d;render();});};
 }
 
@@ -652,12 +715,12 @@ function viewBalance(){var d=V4.bal;if(!d)return '<div class="empty2">…</div>'
 
 /* ---------- Tabs & dispatch ---------- */
 var TABS=[["status","home"],["people","people"],["house","map"],["recog","routine"],["dev","dev"],["questions","q"],["calendars","cal"],["signals","motion"],["timeline","routine"],["dashboard","scale"],["balance","shield"],["setup","edit"]];
-var LOADERS={people:"api/people",house:"api/house",recog:"api/recognition",dev:"api/deviations",questions:"api/questions",balance:"api/balance",dashboard:"api/dashboard",timeline:"api/timeline",calendars:"api/calendars"};
+var LOADERS={people:"api/people",house:"api/live",recog:"api/recognition",dev:"api/deviations",questions:"api/questions",balance:"api/balance",dashboard:"api/dashboard",timeline:"api/timeline",calendars:"api/calendars"};
 var KEYS={people:"people",house:"house",recog:"recog",dev:"dev",questions:"qs",balance:"bal"};
 function renderTabs(){var nav=document.getElementById("tabs"),q=S.status&&S.status.guard&&S.status.guard.questions;var nq=q?(q.question||0)+(q.suggestion||0):0;
   nav.innerHTML=TABS.map(function(x){return '<button type="button" data-v="'+x[0]+'"'+(S.view===x[0]?' class="active"':'')+'>'+t(x[0])+(x[0]==="questions"&&nq?'<span class="badge">'+nq+'</span>':"")+'</button>';}).join("");
   nav.querySelectorAll("button").forEach(function(b){b.onclick=function(){go(b.dataset.v);};});}
-function go(v){S.view=v;V4.path=[];render();var u=LOADERS[v];if(u)api(u).then(function(d){if(KEYS[v])V4[KEYS[v]]=d;else if(v==="dashboard")S.dash=d;else if(v==="timeline")S.tl=d;else if(v==="calendars")S.cals=d;render();}).catch(function(){});}
+function go(v){S.view=v;V4.path=[];livePoll(v==="house");render();var u=LOADERS[v];if(u)api(u).then(function(d){if(KEYS[v])V4[KEYS[v]]=d;else if(v==="dashboard")S.dash=d;else if(v==="timeline")S.tl=d;else if(v==="calendars")S.cals=d;render();}).catch(function(){});}
 var _render=render;
 render=function(){
   renderTabs();
@@ -671,6 +734,30 @@ function bindStatus(){if(S.view!=="status")return;
   document.querySelectorAll("[data-go]").forEach(function(b){b.onclick=function(){go(b.dataset.go);};});
   var w=document.getElementById("wrongBtn");if(w)w.onclick=function(){V4.wrongOpen=true;render();};
   document.querySelectorAll("[data-wrong]").forEach(function(b){b.onclick=function(){api("api/correct",{actual:b.dataset.wrong}).then(function(){V4.wrongOpen=false;toast(t("thanks"));render();}).catch(function(e){toast("✗ "+e.message,true);});};});}
+
+/* ---------- Language: setting from Bifrost, translation of older views ---------- */
+var DEX={},DET=[];
+function setDict(de){DEX={};Object.keys(de||{}).forEach(function(k){DEX[k.trim()]=de[k].trim();});DET=Object.keys(DEX).filter(function(k){return k.indexOf("{}")>=0;}).sort(function(a,b){return b.length-a.length;}).map(function(k){return [new RegExp("^"+k.replace(/[.*+?^$()|[\]\\]/g,"\\$&").replace(/\{\}/g,"(.+?)")+"$"),DEX[k]];});}
+function trText(x){if(LANG!=="de"||!x)return x;var m=x.match(/^(\s*)([\s\S]*?)(\s*)$/),core=m[2];if(!core)return x;
+  if(DEX.hasOwnProperty(core))return m[1]+DEX[core]+m[3];
+  for(var i=0;i<DET.length;i++){var r=core.match(DET[i][0]);if(r){var out=DET[i][1];for(var j=1;j<r.length;j++)out=out.replace("{}",DEX.hasOwnProperty(r[j])?DEX[r[j]]:r[j]);return m[1]+out+m[3];}}
+  return x;}
+function trDom(root){if(LANG!=="de")return;var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:function(n){var p=n.parentNode&&n.parentNode.nodeName;return p==="SCRIPT"||p==="STYLE"?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT;}});
+  var n;while((n=w.nextNode())){var v=trText(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v;}
+  root.querySelectorAll("[placeholder],[title],[aria-label]").forEach(function(e){["placeholder","title","aria-label"].forEach(function(a){var v=e.getAttribute(a);if(v){var t2=trText(v);if(t2!==v)e.setAttribute(a,t2);}});});}
+var _toast=toast;toast=function(msg,err){_toast(trText(String(msg)),err);};
+function langCard(){return '<div class="card"><div class="prow"><div class="grow"><h2>'+t("language")+'</h2><div class="meta">'+t("lang_hint")+'</div></div><div class="bs">'+
+  [["de",t("lang_de")],["en",t("lang_en")]].map(function(o){return '<button type="button" class="ch'+(LANG===o[0]?" on":"")+'" data-lang="'+o[0]+'">'+esc(o[1])+'</button>';}).join("")+'</div></div></div>';}
+function applyLang(l){LANG=l==="de"?"de":"en";document.documentElement.lang=LANG;}
+var _render2=render;
+render=function(){_render2();var m=document.getElementById("main");
+  if(S.view==="setup"&&!document.getElementById("langCard")){m.insertAdjacentHTML("afterbegin",'<div id="langCard">'+langCard()+'</div>');
+    m.querySelectorAll("[data-lang]").forEach(function(b){b.onclick=function(){var l=b.dataset.lang;api("api/language",{language:l}).then(function(){applyLang(l);render();toast(t("language")+" ✓");}).catch(function(e){toast("✗ "+e.message,true);});};});}
+  trDom(document.querySelector("header")||document.body);trDom(m);trDom(document.getElementById("tabs"));};
+load=function(){
+  Promise.all([api("api/i18n"),api("api/status"),api("api/entities")]).then(function(r){setDict(r[0].de);applyLang(r[1].language||r[0].language);S.status=r[1];S.ents=r[2];document.getElementById("ver").textContent="v"+r[1].version;render();})
+   .catch(function(){document.getElementById("main").innerHTML='<div class="card banner err">'+esc(trText("Could not reach Bifrost. Is the app running?"))+'</div>';});};
+load();
 document.documentElement.lang=LANG;
 
 </script>

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import statistics
@@ -10,7 +11,7 @@ from collections import Counter
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 
-from . import __version__
+from . import __version__, i18n
 from . import calendars as cal
 from . import patterns as pat
 from .balance import signal as _signal
@@ -20,8 +21,9 @@ from .classifier import Classification, EntityInfo, classify
 from .engine import ARRIVING, AWAY, HOME, Decision, Settings, Signal, decide, parse_time
 from .ha_client import HAClient, HAError
 from .learning import Learner, is_unreliable, trust_score
+from .live import AUTOMATION, SCHEDULED, LiveBoard, NumericEvents, OriginLearner, classify_origin
 from .people import public as person_public
-from .preprocess import DuplicateDetector, EdgeFilter
+from .preprocess import DuplicateDetector, Edge, EdgeFilter
 from .store import Store
 
 LOG = logging.getLogger(__name__)
@@ -78,6 +80,16 @@ class BifrostService:
         )
         self.learner = Learner(store)
         self._last_learn: datetime | None = None
+        self.language = self._initial_language()
+        self.live = LiveBoard()
+        self.numeric = NumericEvents()
+        self.origins = OriginLearner()
+        try:
+            self.origins.load(json.loads(store.get_value("origins") or "{}"))
+        except ValueError:
+            LOG.warning("Stored origin data unreadable – starting fresh")
+        self.floors: dict[str, dict] = {}
+        self._states: dict[str, dict] = {}
         self.snap = Snapshot()
         self._lock = threading.Lock()
         self._scan_requested = threading.Event()
@@ -98,8 +110,14 @@ class BifrostService:
             reg = self.client.registries()
         except HAError as err:
             LOG.warning("Registries not available (%s) – using states only", err)
-            reg = {"entities": [], "devices": [], "areas": []}
+            reg = {"entities": [], "devices": [], "areas": [], "floors": []}
         areas = {a["area_id"]: a.get("name") for a in reg["areas"]}
+        floors = {f["floor_id"]: f for f in reg.get("floors") or [] if f.get("floor_id")}
+        area_floor: dict[str, dict] = {}
+        for a in reg["areas"]:
+            f = floors.get(a.get("floor_id") or "")
+            if a.get("name"):
+                area_floor[a["name"]] = {"floor": f.get("name") if f else None, "level": f.get("level") if f else None, "icon": a.get("icon")}
         devices = {d["id"]: d for d in reg["devices"]}
         overrides = self.store.get_overrides()
         result: dict[str, ScannedEntity] = {}
@@ -135,6 +153,7 @@ class BifrostService:
         with self._lock:
             self.snap.entities = result
             self.snap.scanned_at = datetime.now(UTC)
+            self.floors = area_floor
         self.brain.set_meta(
             {
                 eid: {"name": e.info.name, "category": e.category, "device_class": e.info.device_class, "area": e.info.area, "integration": e.info.integration, "role": e.role}
@@ -151,6 +170,7 @@ class BifrostService:
     def evaluate(self) -> Decision:
         now = datetime.now(UTC)
         states = {s["entity_id"]: s for s in self.client.get_states()}
+        self._states = states
         signals: list[Signal] = []
         with self._lock:
             ents = list(self.snap.entities.values())
@@ -166,7 +186,8 @@ class BifrostService:
             signals.append(Signal(e.info.entity_id, e.info.name or e.info.entity_id, e.category, e.role, st["state"][:255], parse_time(st.get("last_changed"), now)))
         trust = self.store.get_trust()
         unreliable = {eid for eid, c in trust.items() if is_unreliable(c)}
-        d = decide(signals, self.settings, now, unreliable)
+        automated = self.live.automated(timedelta(hours=24), now)
+        d = decide(signals, self.settings, now, unreliable, automated)
         try:
             self._add_context(d, states, now)
         except Exception:  # noqa: BLE001 – context is optional
@@ -206,7 +227,7 @@ class BifrostService:
                     "icon": "mdi:home-account",
                     "label": STATE_LABEL.get(d.state, d.state),
                     "confidence": d.confidence,
-                    "reasons": d.reasons,
+                    "reasons": [self.tr(r) for r in d.reasons],
                     "people_home": d.people_home,
                     "data_health": d.data_health,
                 },
@@ -234,7 +255,7 @@ class BifrostService:
             )
             self.client.set_state(
                 "sensor.bifrost_reason",
-                (d.reasons[0] if d.reasons else "")[:250],
+                self.tr(d.reasons[0] if d.reasons else "")[:250],
                 {
                     **common,
                     "friendly_name": "Bifrost reason",
@@ -478,6 +499,33 @@ class BifrostService:
             used = [e.info.entity_id for e in self.snap.entities.values() if e.info.domain == "calendar" and e.status == STATUS_INCLUDED]
         return {"calendars": out, "used": used, "enabled": bool(self.options.get("learn_calendars", True)), "min_obs": cal.MIN_OBS}
 
+    def _initial_language(self) -> str:
+        """Stored choice, otherwise the Home Assistant language on first start."""
+        stored = self.store.get_value("language")
+        if stored in i18n.LANGUAGES:
+            return stored
+        try:
+            cfg = self.client.get_config()
+            lang = i18n.normalize(cfg.get("language") if isinstance(cfg, dict) else None)
+        except Exception as err:  # noqa: BLE001
+            LOG.info("Home Assistant language not available (%s) – using English", err)
+            lang = "en"
+        self.store.set_value("language", lang)
+        return lang
+
+    def set_language(self, lang: str) -> dict:
+        if lang not in i18n.LANGUAGES:
+            raise ValueError("language must be de or en")
+        self.store.set_value("language", lang)
+        self.language = lang
+        return {"language": lang}
+
+    def i18n_view(self) -> dict:
+        return {"language": self.language, "de": i18n.DE}
+
+    def tr(self, text: str) -> str:
+        return i18n.tr(text, self.language)
+
     def set_guest_mode(self, on: bool) -> dict:
         self.store.set_value("guest_mode", "on" if on else "off")
         self.settings.guest_mode = on
@@ -583,6 +631,7 @@ class BifrostService:
             d, at, err = self.snap.decision, self.snap.decided_at, self.snap.error
         return {
             "version": __version__,
+            "language": self.language,
             "shadow_mode": bool(self.options.get("shadow_mode", True)),
             "decided_at": at.isoformat() if at else None,
             "error": err,
@@ -653,6 +702,89 @@ class BifrostService:
     def house_view(self) -> dict:
         return {**self.brain.house_view(self._names()), "people_inside_min": (self.extra or {}).get("people_inside_min", 0)}
 
+    def live_view(self) -> dict:
+        """The house right now: floors and areas from Home Assistant, every used signal with its last change."""
+        now = datetime.now(UTC)
+        names = self._names()
+        house = self.brain.house_view(names)
+        trust = self.store.get_trust()
+        unreliable = {eid for eid, c in trust.items() if is_unreliable(c)}
+        with self._lock:
+            ents = {k: e for k, e in self.snap.entities.items() if e.status == STATUS_INCLUDED}
+            floors_of = dict(self.floors)
+        with self._stream_lock:
+            last = dict(self.live.last)
+            path = self.live.last_path(now)
+        walk = [x for x in house["map"].get("links", []) if x.get("kind") == "walk"]
+        neigh: dict[str, list[dict]] = {}
+        for x in walk:
+            neigh.setdefault(x["a"], []).append({"entity_id": x["b"], "typical": x.get("typical"), "count": x.get("count")})
+            neigh.setdefault(x["b"], []).append({"entity_id": x["a"], "typical": x.get("typical"), "count": x.get("count")})
+        sides = house.get("sides", {})
+        areas: dict[str | None, list[dict]] = {}
+        for eid, e in ents.items():
+            if e.category in ("calendar", "devices") or eid.startswith(("calendar.", "person.", "device_tracker.", "zone.", "weather.")):
+                continue  # not in a room: shown under People
+            lv = last.get(eid)
+            st = self._states.get(eid) or {}
+            ts = lv.ts if lv else parse_time(st.get("last_changed"), now) if st.get("last_changed") else None
+            noise = e.role == "Noise" or eid in unreliable
+            sig = {
+                "entity_id": eid, "name": e.info.name or eid, "category": e.category, "role": e.role,
+                "icon": (CATEGORIES.get(e.category or "") or {}).get("icon", ""),
+                "state": (lv.state if lv else st.get("state") or e.state or "")[:64],
+                "ts": ts.isoformat() if ts else None, "origin": lv.origin if lv else None, "event": lv.event if lv else "",
+                "trend": self.numeric.trend(eid), "noise": noise,
+                "side": (sides.get(eid) or {}).get("side"),
+                "neighbours": sorted(neigh.get(eid, []), key=lambda n: -(n.get("count") or 0))[:3],
+            }  # fmt: skip
+            sig["active"] = bool(ts and (now - ts).total_seconds() < 60 and not noise and sig["origin"] not in (AUTOMATION, SCHEDULED))
+            areas.setdefault(e.info.area, []).append(sig)
+        floors: dict[str | None, dict] = {}
+        for area, sigs in areas.items():
+            if area is None:
+                continue
+            fl = floors_of.get(area) or {}
+            f = floors.setdefault(fl.get("floor"), {"name": fl.get("floor"), "level": fl.get("level"), "areas": []})
+            sigs.sort(key=lambda x: x["ts"] or "", reverse=True)
+            f["areas"].append({"name": area, "icon": fl.get("icon"), "signals": sigs, "active": any(x["active"] for x in sigs), "last": sigs[0]["ts"] if sigs else None})
+        for f in floors.values():
+            f["areas"].sort(key=lambda a: (not a["active"], a["name"].lower()))
+        empty_areas = sorted(a for a in floors_of if a not in areas)
+        for a in empty_areas:
+            fl = floors_of[a]
+            floors.setdefault(fl.get("floor"), {"name": fl.get("floor"), "level": fl.get("level"), "areas": []})["areas"].append(
+                {"name": a, "icon": fl.get("icon"), "signals": [], "active": False, "last": None}
+            )
+        floor_list = sorted(floors.values(), key=lambda f: (f["level"] is None, f["level"] if isinstance(f["level"], int) else 0, f["name"] or ""))
+        all_sigs = [x for v in areas.values() for x in v]
+        latest = max((x for x in all_sigs if x["origin"] and not x["noise"] and x["origin"] not in (AUTOMATION, SCHEDULED)), key=lambda x: x["ts"], default=None)
+        area_of = {x["entity_id"]: a for a, v in areas.items() for x in v}
+        gaps = [{"kind": "door_no_direction", "entity_id": en["door"]} for en in house.get("entrances", []) if not en.get("direction")]
+        gaps += [{"kind": "area_without_signal", "area": a} for a in empty_areas]
+        gaps += [{"kind": "signal_without_area", "entity_id": x["entity_id"]} for x in areas.get(None, [])]
+        led = (self.extra or {}).get("ledger") or {}
+        return {
+            **house,
+            "now": now.isoformat(),
+            "floors": floor_list,
+            "unassigned": areas.get(None, []),
+            "gaps": gaps,
+            "people": [{"name": r.get("name"), "state": r.get("state")} for r in led.get("people", [])],
+            "unknown_min": led.get("unknown_min", 0),
+            "kpis": {
+                "people_home": sum(1 for r in led.get("people", []) if r.get("state") == "home"),
+                "active_areas": sum(1 for f in floor_list for a in f["areas"] if a["active"]),
+                "last": {"entity_id": latest["entity_id"], "area": area_of.get(latest["entity_id"]), "ts": latest["ts"]} if latest else None,
+                "health": self.snap.decision.data_health if self.snap.decision else None,
+            },
+            "last_path": [{**p, "ts": p["ts"].isoformat(), "area": area_of.get(p["entity_id"]), "category": (ents.get(p["entity_id"]) and ents[p["entity_id"]].category) or ""} for p in path],
+            "in_progress": (self.extra or {}).get("in_progress", []),
+            "links": [{**x, "a_area": area_of.get(x["a"]), "b_area": area_of.get(x["b"])} for x in walk],
+            "names": names,
+            "people_inside_min": (self.extra or {}).get("people_inside_min", 0),
+        }
+
     def recognition_view(self) -> dict:
         return {**self.brain.recognition_view(self._names()), "in_progress": (self.extra or {}).get("in_progress", []), "names": self._names()}
 
@@ -701,21 +833,34 @@ class BifrostService:
             self.stream.update(connected=True, since=now.isoformat(), error=None)
         LOG.info("Live event stream connected")
 
-    def on_state_changed(self, entity_id: str, state: str | None, ts: datetime) -> None:
+    def on_state_changed(self, entity_id: str, state: str | None, ts: datetime, origin: str = "device") -> None:
         ent = self._included().get(entity_id)
         if ent is None:
             return
+        cat = ent.category or ""
         with self._stream_lock:
             edges = self.edges.feed(entity_id, state, ts)
+            event = self.numeric.feed(entity_id, state, ts, ent.info.device_class, ent.info.unit)
             for e in edges:
                 self.duplicates.feed(e)
                 self.stream["events"] += 1
+            scheduled = False
+            if origin == "device" and any(e.kind == "on" for e in edges) and cat in ("manual", "media", "energy", "modes"):
+                scheduled = self.origins.scheduled(entity_id, ts)
+                self.origins.record(entity_id, ts)
+                self.store.set_value("origins", json.dumps(self.origins.dump()))
+            how = classify_origin(origin, cat, scheduled)
+            if edges or event:
+                self.live.note(entity_id, ts, (state or "")[:64], how, event or "")
+        if event:
+            edges = [*edges, Edge(ts, entity_id, "event", event)]
         for e in edges:
-            self.store.add_event(e.ts, entity_id, ent.info.name or entity_id, ent.category or "", ent.role or "", e.state, kind=e.kind)
+            kind = "auto" if how in (AUTOMATION, SCHEDULED) and e.kind in ("on", "off") else e.kind
+            self.store.add_event(e.ts, entity_id, ent.info.name or entity_id, cat, ent.role or "", e.state, kind=kind)
             if not self.store.get_value("first_edge"):
                 self.store.set_value("first_edge", e.ts.isoformat())
             try:
-                self.brain.on_edge({"ts": e.ts, "entity_id": entity_id, "kind": e.kind, "state": e.state})
+                self.brain.on_edge({"ts": e.ts, "entity_id": entity_id, "kind": kind, "state": e.state})
             except Exception:  # noqa: BLE001 – recognition must never break the stream
                 LOG.exception("Brain could not process an edge")
 

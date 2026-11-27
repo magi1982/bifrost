@@ -17,6 +17,26 @@ from bifrost_app.store import Store  # noqa: E402
 from sim import META, household  # noqa: E402
 
 PLATFORM = {"device_tracker.phone_a": "mobile_app", "device_tracker.phone_b": "unifi"}
+FLOOR_OF = {
+    "Outside": "outside",
+    "Driveway": "outside",
+    "Entrance": "ground",
+    "Garage": "ground",
+    "Hallway": "ground",
+    "Cloakroom": "ground",
+    "Living": "ground",
+    "Kitchen": "ground",
+    "Upstairs": "upper",
+    "Bathroom": "upper",
+    "Attic": "upper",
+}
+EXTRA = [
+    ("light.kitchen", "Kitchen light", "off", {}),
+    ("light.garden", "Garden light", "off", {}),
+    ("sensor.bath_humidity", "Bathroom humidity", "55", {"device_class": "humidity", "unit_of_measurement": "%"}),
+    ("vacuum.robot", "Robot vacuum", "docked", {}),
+]
+EXTRA_AREA = {"light.kitchen": "Kitchen", "light.garden": "Driveway", "sensor.bath_humidity": "Bathroom", "vacuum.robot": "Living"}
 
 
 class DemoClient:
@@ -30,16 +50,24 @@ class DemoClient:
         ]  # fmt: skip
         self.states.append({"entity_id": "calendar.family", "state": "off", "last_changed": now.isoformat(), "attributes": {"friendly_name": "Family calendar"}})
         self.states.append({"entity_id": "input_boolean.night_mode", "state": "off", "last_changed": now.isoformat(), "attributes": {"friendly_name": "Night mode"}})
+        for eid, name, st, attrs in EXTRA:
+            self.states.append({"entity_id": eid, "state": st, "last_changed": (now - timedelta(hours=2)).isoformat(), "attributes": {"friendly_name": name, **attrs}})
+
+    def get_config(self):
+        return {"language": "de"}
 
     def get_states(self):
         return self.states
 
     def registries(self):
-        areas = sorted({m["area"] for m in META.values() if m.get("area")})
+        areas = sorted({m["area"] for m in META.values() if m.get("area")} | set(EXTRA_AREA.values()) | {"Bathroom"})
+        ents = [{"entity_id": eid, "platform": PLATFORM.get(eid, "zha"), "area_id": (m.get("area") or "").lower() or None} for eid, m in META.items()]
+        ents += [{"entity_id": eid, "platform": "zha", "area_id": EXTRA_AREA[eid].lower()} for eid, *_ in EXTRA]
         return {
-            "entities": [{"entity_id": eid, "platform": PLATFORM.get(eid, "zha"), "area_id": (m.get("area") or "").lower() or None} for eid, m in META.items()],
+            "entities": ents,
             "devices": [],
-            "areas": [{"area_id": a.lower(), "name": a} for a in areas],
+            "areas": [{"area_id": a.lower(), "name": a, "floor_id": FLOOR_OF.get(a)} for a in areas],
+            "floors": [{"floor_id": "outside", "name": "Outside", "level": -1}, {"floor_id": "ground", "name": "Ground floor", "level": 0}, {"floor_id": "upper", "name": "Upper floor", "level": 1}],
         }
 
     def get_calendar(self, eid, start, end):
@@ -65,8 +93,12 @@ def build(path: str) -> BifrostService:
     svc = BifrostService(client, store, {"shadow_mode": True, "publish_entities": True, "suspicious_entry_level": 2})
     svc.scan()
     for eid, e in svc.snap.entities.items():
-        if eid in META or eid == "calendar.family":
+        if eid in META or eid == "calendar.family" or eid in EXTRA_AREA:
             e.status = "included"
+        if eid == "sensor.bath_humidity":
+            e.category, e.role = "climate", "Evidence"
+        if eid == "vacuum.robot":
+            e.category, e.role = "vehicles", "Noise"
     svc.scan_meta = None
     svc.brain.set_meta({eid: {**META[eid], "integration": PLATFORM.get(eid, "zha")} for eid in META})
     for ev in sim.events:
@@ -91,4 +123,19 @@ def build(path: str) -> BifrostService:
     svc.brain.inbox.add_exception("binary_sensor.motion_dead", "Animals")
     svc.brain.inbox.deviation("expected_missing", "school_morning", {"goal": "departure", "window": {"from": "07:00", "to": "07:50"}}, now - timedelta(days=1))
     svc.brain.correct("away", "home", now - timedelta(days=3))
+    # a few live changes: someone came home through the garage, a timer switched the garden light, a shower
+    svc._seed_edges()
+    live = [
+        ("light.garden", "on", 600, "automation"),
+        ("sensor.bath_humidity", "56", 300, "device"),
+        ("sensor.bath_humidity", "67", 240, "device"),
+        ("vacuum.robot", "cleaning", 200, "device"),
+        ("binary_sensor.motion_outside_garage", "on", 40, "device"),
+        ("binary_sensor.garage_door", "on", 25, "device"),
+        ("binary_sensor.motion_cloakroom", "on", 20, "device"),
+        ("light.kitchen", "on", 14, "device"),
+        ("binary_sensor.motion_hallway", "on", 9, "device"),
+    ]
+    for eid, st, ago, origin in live:
+        svc.on_state_changed(eid, st, now - timedelta(seconds=ago), origin=origin)
     return svc
