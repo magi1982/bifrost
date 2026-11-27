@@ -22,6 +22,10 @@ configuration:
     name: Learn from calendars
     description: >-
       Bifrost compares calendar entries with its own decisions to learn which entries mean nobody is home. Full titles are never stored – only single keywords and counts, locally.
+  event_stream:
+    name: Live events
+    description: >-
+      Bifrost listens live when a used sensor changes and stores the exact time. This keeps the order (e.g. outside motion → door → inside motion) and short door openings are not missed. Switch off only if there are problems – Bifrost then reads at the interval as before.
   log_level:
     name: Log level
     description: Amount of detail in the app log.

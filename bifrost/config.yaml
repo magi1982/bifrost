@@ -20,6 +20,7 @@ options:
   publish_entities: true
   use_learning: true
   learn_calendars: true
+  event_stream: true
   log_level: info
 schema:
   update_interval: int(10,600)
@@ -29,4 +30,5 @@ schema:
   publish_entities: bool
   use_learning: bool
   learn_calendars: bool
+  event_stream: bool
   log_level: list(debug|info|warning|error)

@@ -57,12 +57,13 @@ class Learner:
         self._tracker_ok: dict[str, list[int]] = {}  # [agree, disagree] samples within the period
         self._period: _Period | None = None
 
-    def observe(self, signals: list[Signal], d: Decision, now: datetime) -> None:
+    def observe(self, signals: list[Signal], d: Decision, now: datetime, record_events: bool = True) -> None:
         # 1. record state changes as events (timeline + learning input)
         for s in signals:
             prev = self._last.get(s.entity_id)
             if prev is not None and prev != s.state:
-                self.store.add_event(now, s.entity_id, s.name, s.category, s.role, s.state)
+                if record_events:  # with the live stream (0.4) events are recorded there, exactly timed
+                    self.store.add_event(now, s.entity_id, s.name, s.category, s.role, s.state)
                 if s.category in ACTIVITY_CATEGORIES and s.active:
                     self._fired[s.entity_id] = self._fired.get(s.entity_id, 0) + 1
             self._last[s.entity_id] = s.state

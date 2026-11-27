@@ -22,6 +22,10 @@ configuration:
     name: Aus Kalendern lernen
     description: >-
       Bifrost vergleicht Kalendereinträge mit seinen eigenen Entscheidungen und lernt, welche Einträge bedeuten, dass niemand zu Hause ist. Ganze Titel werden nie gespeichert – nur einzelne Stichwörter und Zähler, lokal.
+  event_stream:
+    name: Live-Ereignisse
+    description: >-
+      Bifrost hört live mit, wenn sich ein genutzter Sensor ändert, und speichert die genaue Uhrzeit. So bleibt die Reihenfolge erhalten (z. B. Bewegung aussen → Tür → Bewegung innen) und auch kurze Türöffnungen gehen nicht verloren. Ausschalten nur bei Problemen – dann liest Bifrost wie bisher im Intervall.
   log_level:
     name: Protokoll-Stufe
     description: Wie ausführlich das App-Protokoll ist.
