@@ -52,6 +52,13 @@ CREATE TABLE IF NOT EXISTS calendar_stats (
     data        TEXT NOT NULL,
     updated     TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS objects (
+    kind    TEXT NOT NULL,
+    id      TEXT NOT NULL,
+    data    TEXT NOT NULL,
+    updated TEXT NOT NULL,
+    PRIMARY KEY (kind, id)
+);
 CREATE TABLE IF NOT EXISTS app_state (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -110,6 +117,36 @@ class Store:
         with self._lock:
             rows = self._db.execute("SELECT ts, state, confidence FROM decisions WHERE ts >= ? ORDER BY ts", (since.isoformat(),)).fetchall()
         return [{"ts": r[0], "state": r[1], "confidence": r[2]} for r in rows]
+
+    # --- generic objects (0.4: people, questions, deviations, labels, learned blocks) ---
+    def put_obj(self, kind: str, oid: str, data: dict) -> None:
+        now = datetime.now(UTC).isoformat()
+        with self._lock, self._db:
+            self._db.execute(
+                "INSERT INTO objects(kind, id, data, updated) VALUES (?,?,?,?) "
+                "ON CONFLICT(kind, id) DO UPDATE SET data=excluded.data, updated=excluded.updated",
+                (kind, oid, json.dumps(data, ensure_ascii=False), now),
+            )
+
+    def get_obj(self, kind: str, oid: str) -> dict | None:
+        with self._lock:
+            row = self._db.execute("SELECT data FROM objects WHERE kind=? AND id=?", (kind, oid)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def list_objs(self, kind: str) -> list[dict]:
+        with self._lock:
+            rows = self._db.execute("SELECT data FROM objects WHERE kind=? ORDER BY id", (kind,)).fetchall()
+        return [json.loads(r[0]) for r in rows]
+
+    def del_obj(self, kind: str, oid: str) -> bool:
+        with self._lock, self._db:
+            cur = self._db.execute("DELETE FROM objects WHERE kind=? AND id=?", (kind, oid))
+        return cur.rowcount > 0
+
+    def del_kind(self, kind: str) -> int:
+        with self._lock, self._db:
+            cur = self._db.execute("DELETE FROM objects WHERE kind=?", (kind,))
+        return cur.rowcount
 
     # --- signal events (state changes of used signals) ----------------------
     def add_event(self, ts: datetime, entity_id: str, name: str, category: str, role: str, state: str, kind: str = "") -> None:
