@@ -71,6 +71,49 @@ In parallel the guard watches entries: an entry nothing explains becomes a hint 
 - Signal "house empty confirmed" and "suspicion" as entities ✅ (off by default); ⏳ wiring to the alarm system in Loxone. **Never disarm.**
 
 
+### Next version · Recognised patterns as HA entities (requested 27.11.)
+Goal: every pattern Bifrost recognises (blocks, people, routines) can be published as its own Home Assistant entity, so owners can use it in their own automations (e.g. "departure in progress" → turn off the heating early, "entry via garage" → light in the hallway).
+
+**Setup**
+- New section "Patterns as entities" in Setup: one row per recognised pattern with a switch "Create entity" (default **off**), the entity id that will be used, and the current state.
+- Same switch on each pattern card in Pattern recognition (shortcut, same setting).
+- Global option `pattern_entities` (on/off) in the app config; off removes all pattern entities.
+- Only confirmed patterns can be published (not "suggested" / "not voting yet").
+
+**Entities per pattern type**
+- 🔁 Routine → `binary_sensor.bifrost_<slug>`: `on` while the chain is complete (within its window), attributes `progress` (e.g. 3/5), `goal`, `who`, `precision`, `last_seen`, `expected_next` (from timing).
+- 🔁 Routine, optional second entity → `sensor.bifrost_<slug>_progress` in % for "arriving soon / leaving soon" automations.
+- 🧱 Block entry/exit per door → `binary_sensor.bifrost_<slug>` pulses `on` for a short hold (e.g. 60 s) after a detected entry/exit, attributes `door`, `direction`, `explained`, `who` (person id only if person entities are on).
+- 👤 Person → already exists as `sensor.bifrost_person_<slug>`; the switch is shown here too, so all is in one place.
+- The existing 0.3 patterns (`binary_sensor.bifrost_pattern_<id>`) move into the same mechanism (migration: enabled → entity on).
+
+**Stable entity ids (important)**
+- Today a routine id is a hash of its tokens: a new or replaced sensor changes the id and would break the owner's automations.
+- Proposal: when the owner switches the entity on, Bifrost stores a **slug** (default from goal + door/person, editable, `[a-z0-9_]`, unique). When a pattern is re-learned, the new version keeps the slug if it is the same pattern (same goal, ≥ 80 % token overlap – the hygiene rule we already use). If the pattern disappears, the entity becomes `unavailable` with attribute `reason: pattern no longer recognised` and a hint appears in Questions; it is never silently reassigned.
+
+**Limits / decisions needed**
+- Entities created via the HA REST API (`set_state`) have no unique_id: not editable in the HA UI and gone after an HA restart until Bifrost publishes again (same as today's entities). Alternative MQTT discovery would give real entities but needs a broker and a client (not stdlib). Proposal: keep REST, document it; MQTT later as an option.
+- Safety: pattern entities are information only. They never feed `empty_confirmed` and the docs say clearly: do not use them to disarm.
+- Privacy: friendly names may contain person/door names – stay local in HA, never in logs; example data only in docs/tests.
+- Budget: max e.g. 30 pattern entities, update only on change (plus every 15 min).
+
+**Open questions for the maintainer**
+1. Do blocks (entry/exit per door) get an entity too, or only routines?
+2. Pulse (short `on`) or `event` entity style for entries/exits?
+3. Progress sensor in % – wanted, or is the attribute enough?
+
+**Tests:** slug stability on re-learning, unavailable when pattern disappears, switch off removes entity, migration of 0.3 patterns, validation of the slug input, UI check (light/dark, 390 px, DE/EN).
+
+### Idea · Safety fixes from the review (27.11.)
+Found in a code review; recommended **before** new features:
+1. Guard fail-open: if `brain.tick()` raises, the plain rule decision is used and `guard_ok = all([])` is True → must be Unknown + guard not ok.
+2. Guard state (`unknown_min`, last entry/exit, suspicion) is in memory only → persist it; after a restart Unknown – collecting for N minutes (promised in §6.3, not built).
+3. Every exit lowers `unknown_min`, also when a known person leaves → only an unexplained exit lowers it.
+4. An unmapped access value (`unknown`) counts as a **strong** explanation → weak until the owner maps it; "denied" detection by keywords is fragile.
+5. Learned "unreliable" confirms itself (ignored → Away stays stable → fires again → less trust) → labels from independent facts, and a way back.
+6. No household defined → people check passes → block `empty_confirmed` in the gate until the household is defined.
+7. Smaller: reasons translated by regex on English text (structured reasons would be safer), `service.py` god class, night = hour < 6 fixed, stale engine docstring, old screenshots `s1–s3.png` in the repo root.
+
 ### Idea · Learning progress (requested 27.11.)
 - Card "Learning progress" at the top of Pattern recognition: learning since, events collected (today/total), last and next learning run, button "Learn now".
 - "Almost there": candidates below the thresholds with progress bars – routines (seen x of 5, precision), entrances (openings with direction x of 5), neighbours (count, walking time), people timing (weekdays learned), calendar words (x of 5).
