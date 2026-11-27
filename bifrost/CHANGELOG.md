@@ -2,6 +2,12 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.10.1] – 2026-11-27
+
+### Changed
+- **“That's wrong” sits right under the state** in the result card on the Status tab. It offers only the states Bifrost did not say (e.g. *Away* and *Asleep* when it says *Home*), then optionally what fooled it.
+- States of signals (on, off, open …) are translated in the German UI.
+
 ## [0.10.0] – 2026-11-27
 
 ### Added
