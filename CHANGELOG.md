@@ -2,6 +2,16 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.10.3] – 2026-11-27
+
+### Added
+- **New sensors are never overlooked.** Entities that appear after the first scan are highlighted as **New** in Setup (filter *New*, button *Seen*, *Mark all as seen*) and announced on the Status tab.
+- **Push message to your phone** when new sensors appear: pick a notify service of Home Assistant (e.g. the Home Assistant app on your iPhone) in the new Setup card *Notifications*, with a test button. Each new sensor is announced once.
+- Setup: entities disabled in Home Assistant are hidden by default; the filter *Disabled in HA* shows them.
+
+### Fixed
+- **Energy, water and air values are no longer activity.** A power sensor that keeps changing made a room look busy (e.g. a technical room) and kept the house “not empty”. These values now only add context – as jumps they still support patterns – and never light up a room or count as somebody being there.
+
 ## [0.10.2] – 2026-11-27
 
 ### Fixed

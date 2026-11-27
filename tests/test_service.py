@@ -233,3 +233,27 @@ def test_entity_detail_shows_data_history_and_hides_secrets(tmp_path):
         svc.entity_detail("light.unknown")
     del client.get_history  # a client without history still works
     assert svc.entity_detail("binary_sensor.hall_motion")["history"] == []
+
+
+def test_new_entities_are_marked_and_announced_once(tmp_path):
+    svc, client = make(tmp_path)
+    sent = []
+    client.notify_services = lambda: ["mobile_app_phone_a"]
+    client.notify = lambda service, title, message: sent.append((service, message))
+    svc.scan()
+    assert not any(e.new for e in svc.snap.entities.values())  # the first scan only remembers
+    svc.set_notify("mobile_app_phone_a")
+    client.states.append({"entity_id": "binary_sensor.new_motion", "state": "off", "last_changed": OLD, "attributes": {"device_class": "motion", "friendly_name": "New motion"}})
+    svc.scan()
+    assert svc.snap.entities["binary_sensor.new_motion"].new and svc.entities_view()["summary"]["new"] == 1
+    assert len(sent) == 1 and "New motion" in sent[0][1]
+    svc.scan()
+    assert len(sent) == 1  # announced only once
+    assert svc.mark_seen("binary_sensor.new_motion") == {"seen": 1} and not svc.snap.entities["binary_sensor.new_motion"].new
+    import pytest
+
+    with pytest.raises(ValueError):
+        svc.set_notify("mobile_app_other")
+    with pytest.raises(ValueError):
+        svc.mark_seen("../x")
+    assert svc.test_notification() == {"sent": True}

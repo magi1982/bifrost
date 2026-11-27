@@ -94,6 +94,12 @@ class DemoClient:
     def set_state(self, eid, state, attrs):
         self.published[eid] = (state, attrs)
 
+    def notify_services(self):
+        return ["mobile_app_example_phone", "persistent_notification"]
+
+    def notify(self, service, title, message):
+        self.published[f"notify.{service}"] = (title, message)
+
     def get_history(self, eid, start, end):
         """A plausible day of example history: numbers drift, switches go on and off."""
         import math
