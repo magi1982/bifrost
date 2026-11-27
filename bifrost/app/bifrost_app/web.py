@@ -89,6 +89,7 @@ VIEWS = {
     "/api/questions": "questions_view",
     "/api/balance": "balance_view",
     "/api/catalog": "catalog_view",
+    "/api/notify": "notify_view",
     "/api/incidents": "incidents_view",
 }
 
@@ -112,6 +113,9 @@ ACTIONS = {
     "/api/layout": lambda svc, b: svc.set_layout(b),
     "/api/layout/reset": lambda svc, b: svc.reset_layout(b.get("floor")),
     "/api/pattern_entity": lambda svc, b: svc.set_pattern_entity(b),
+    "/api/entities/seen": lambda svc, b: svc.mark_seen(b.get("entity_id")),
+    "/api/notify": lambda svc, b: svc.set_notify(b.get("target")),
+    "/api/notify/test": lambda svc, b: svc.test_notification(),
 }
 
 
