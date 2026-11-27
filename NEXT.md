@@ -430,3 +430,35 @@ Every found pattern gets a plain name proposal, how often it was seen, when, and
 Limits: needs ≥ 2 weeks; at most ~20 proposals, sorted by how often and how regular; energy/water only as jumps.
 Open questions: show free patterns in the Patterns tab as their own section ("Everyday life") or mixed with the routines? Push message for "habit broke" (e.g. light left on) – yes/no, or only on the Status page?
 Tests: simulator with a weekly cleaner visit, a morning chain and a pool timer → three patterns found with the right kind; machine detection; "habit broke"; GUI check.
+
+### Next version 0.11 · Everyday life, Bluetooth nearby, house map 2.0 (27.11.) – waiting for "mach es"
+Decisions of the maintainer (27.11.): free patterns get their own section **"Alltagserkennung" (everyday life)** in the Patterns tab; the HA advertisement monitor is available; Bluetooth positions use the **house map**; the map editor gets better and lets the owner **place Shellys and advertising devices** on it.
+
+**1 · Everyday life – finding patterns cleverly (not "everything")**
+A fixed "at least 4 steps" would drop good short patterns and still keep noise. Instead Bifrost mines and then *filters by interest*:
+- *Episodes*: the event stream is cut into episodes at quiet gaps (≥ 10 min without activity). Patterns are searched inside episodes only.
+- *Facts that count as a step*: only person-made changes (origin person/app), block events, person events, energy/water jumps. Not counted: automation/timer changes, the off-edge of the same device, steps that always follow each other by physics or automation (hall motion → hall light within 2 s ≥ 95 %) – they are merged into one step.
+- *Closed patterns only*: if "A → B → C → D" is found, its parts "A → B" and "B → C → D" are not shown separately unless they also happen often on their own.
+- *Minimum*: ≥ 3 different devices in ≥ 2 rooms **or** ≥ 4 steps; seen on ≥ 5 days.
+- *Score* = how often × how regular (time/weekday spread) × lift (happens together far more often than chance) × length bonus. The top 20 are shown, the rest behind "more".
+- *Kinds*: daily routine (morning, cooking, evening), weekly rhythm (cleaner Tuesday, washing Saturday), machine (to the minute, no person → marked, never activity), broken habit (expected today but missing, or a device on much longer than usual).
+- Each pattern: name proposal, steps as a chain (THEN/AND/OPTIONAL like the routines), when, how often, precision; actions *Rename*, *Keep as entity* (`binary_sensor.bifrost_<slug>`), *Hide*. Patterns that predict a state feed the evidence scale.
+
+**2 · Bluetooth nearby** – as in the Bluetooth concept v2 above (groups, visitors, privacy, fingerprints).
+
+**3 · House map 2.0**
+- *Drawing*: rooms as rectangles by dragging (no painting cell by cell), resize/move by handles, rename and colour; doors and windows as markers on walls; *stairs* as a special room that connects two floors; an *outside* zone (garden, street, drive) around the house; copy a floor as a start for the next one; zoom/pan on the phone; undo/redo.
+- *Placing devices*: a side list (bottom sheet on the phone) with tabs **Scanners** (Shellys and other Bluetooth proxies from HA), **Bluetooth devices** (from the advertisement monitor, stationary ones first), **Sensors** (motion, doors, windows). Drag onto the map or tap device → tap position. Placed devices show an icon; unplaced ones a hint "3 Shellys not placed yet".
+- *Live layer*: Bluetooth positions as soft dots/areas, motion as glowing rooms (as today).
+
+**4 · Triangulation across floors**
+Floors damp Bluetooth strongly (a concrete slab ~10–20 dB), which helps:
+1. *Floor first*: the floor whose scanners hear the device clearly best wins (strongest scanner and the sum of the top 2 per floor). Hysteresis: a floor change needs ~30 s or a stair/motion event on the new floor.
+2. *Then the room*: fingerprint match only among the rooms of that floor; with placed scanners also a weighted centre of the strongest scanners of that floor, drawn as an area.
+3. *Stairs*: if two floors are almost equal, the device is "on the stairs / between floors" – not guessed.
+4. *Calibration*: placed stationary devices (TV, BTHome sensors) give each scanner a per-floor offset; motion in a single room gives fingerprint samples.
+Needs ≥ 1 scanner per floor (better 2–3); the floor plan heights are not needed.
+
+**Limits**: room-level accuracy; rotating phones are only placed while their address lasts (~15 min); everything stays local.
+**Open questions**: retention 14 days and Bluetooth off by default – ok? Push for named visitors? Anonymous phone count only displayed or as weak evidence? Design proposals for the map editor first (2–3 variants) or straight to building?
+**Tests**: episode cutting and merged automation steps; closed-pattern filter; scoring on a simulated month (morning chain, cleaner Tuesday, pool timer, broken habit); floor decision with hysteresis and stairs; fingerprint room match; editor: rectangles, stairs, device placement saved per floor; GUI check light/dark/390 px.
