@@ -81,6 +81,11 @@ actions:
 ### Note
 Entities created by an app through the REST API disappear after a Home Assistant restart until Bifrost publishes them again (within one update interval).
 
+### Entities via MQTT (0.12)
+With the **Mosquitto broker** installed, Bifrost publishes its entities via MQTT Discovery under the device **Bifrost** (nothing to configure). Without a broker it falls back to `/api/states`.
+- `binary_sensor.bifrost_empty_confirmed` is never left on by accident: it is written *off* on start, stop and errors; on a crash every Bifrost entity becomes *unavailable*. For an alarm system: arm only while it is **on** (unavailable counts as not empty). In the fallback mode also check the attribute `valid_until`.
+- **After the update to 0.12 – check in HA:** Settings → Devices → *Bifrost* shows all entities; old Bifrost states are removed automatically, leftovers are listed in Setup → *Bifrost entities* with a remove button; dashboards that used old entities may need the entity picked again.
+
 ## Deutsch
 
 ### Erste Schritte
@@ -139,3 +144,8 @@ Bifrost lernt nur aus dem, was im Nachhinein sicher ist – nie aus der eigenen 
 - Bei jedem Eingang einen Bewegungsmelder innen **und** aussen – dann sieht Bifrost die Richtung.
 - iPhones im Heimnetz eine **feste WLAN-Adresse** geben (Einstellungen → WLAN → (i) → Private WLAN-Adresse: Fest).
 - Roboter, Haustiere und Aussensensoren im Setup ausschalten, falls Bifrost sie nicht selbst erkennt.
+
+### Entitäten über MQTT (0.12)
+Mit dem **Mosquitto broker** veröffentlicht Bifrost seine Entitäten über MQTT Discovery unter dem Gerät **Bifrost** (nichts einzustellen). Ohne Broker schreibt es wie bisher über `/api/states`.
+- `binary_sensor.bifrost_empty_confirmed` bleibt nie versehentlich an: beim Start, Stopp und bei Fehlern wird es *aus* geschrieben; bei einem Absturz werden alle Bifrost-Entitäten *nicht verfügbar*. Für eine Alarmanlage: nur scharf schalten, solange es **an** ist (nicht verfügbar zählt als nicht leer). Im Rückfall-Modus zusätzlich das Attribut `valid_until` prüfen.
+- **Nach dem Update auf 0.12 – in HA prüfen:** Einstellungen → Geräte → *Bifrost* zeigt alle Entitäten; alte Bifrost-Zustände entfernt Bifrost selbst, Reste stehen im Setup unter *Bifrost-Entitäten* mit „Entfernen“; Dashboards mit alten Entitäten brauchen evtl. eine neue Auswahl.

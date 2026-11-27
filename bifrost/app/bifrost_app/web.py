@@ -91,6 +91,7 @@ VIEWS = {
     "/api/balance": "balance_view",
     "/api/catalog": "catalog_view",
     "/api/notify": "notify_view",
+    "/api/own_entities": "own_entities_view",
     "/api/incidents": "incidents_view",
 }
 
@@ -114,6 +115,8 @@ ACTIONS = {
     "/api/layout": lambda svc, b: svc.set_layout(b),
     "/api/layout/reset": lambda svc, b: svc.reset_layout(b.get("floor")),
     "/api/map": lambda svc, b: svc.set_map(b),
+    "/api/own_entities": lambda svc, b: svc.set_own_entity(b),
+    "/api/own_entities/remove": lambda svc, b: svc.remove_leftover(b),
     "/api/map/reset": lambda svc, b: svc.reset_map(b.get("floor")),
     "/api/pattern_entity": lambda svc, b: svc.set_pattern_entity(b),
     "/api/entities/seen": lambda svc, b: svc.mark_seen(b.get("entity_id")),
@@ -226,6 +229,8 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
             ctype = (self.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
             if ctype != "application/json" or self.headers.get(CSRF_HEADER) != "1":
                 return self._send(HTTPStatus.FORBIDDEN, {"error": "missing request header"})
+            if (self.headers.get("Sec-Fetch-Site") or "").lower() == "cross-site":
+                return self._send(HTTPStatus.FORBIDDEN, {"error": "cross-site request"})  # CSRF: defence in depth
             route = self._route()
             try:
                 raw = self._read_body(FLOORPLAN_BODY if route == "/api/floorplan" else LAYOUT_BODY if route == "/api/layout" else MAP_BODY if route == "/api/map" else MAX_BODY)

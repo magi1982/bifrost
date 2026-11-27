@@ -75,6 +75,24 @@ class HAClient:
     def set_state(self, entity_id: str, state: str, attributes: dict) -> None:
         self._request("POST", f"states/{urllib.parse.quote(entity_id)}", {"state": state, "attributes": attributes})
 
+    def delete_state(self, entity_id: str) -> None:
+        """Remove a state that was written with POST /api/states (clean-up after the switch to MQTT)."""
+        self._request("DELETE", f"states/{urllib.parse.quote(entity_id)}")
+
+    def mqtt_service(self) -> dict | None:
+        """Broker credentials from the Supervisor (services: mqtt:want) – None when there is no broker."""
+        token = os.environ.get("SUPERVISOR_TOKEN") or _read_s6_env("SUPERVISOR_TOKEN")
+        if not token:
+            return None
+        req = urllib.request.Request("http://supervisor/services/mqtt", method="GET")  # noqa: S310 – fixed internal URL
+        req.add_header("Authorization", f"Bearer {token}")
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # noqa: S310 – fixed internal URL  # nosec B310
+                data = json.loads(resp.read()).get("data") or {}
+        except Exception:  # noqa: BLE001 – no broker installed is fine
+            return None
+        return data if data.get("host") else None
+
     def get_calendar(self, entity_id: str, start: str, end: str) -> list[dict]:
         """Calendar entries between start and end (ISO). Titles are only used in memory."""
         if not entity_id.startswith("calendar.") or not entity_id.replace("_", "a").replace(".", "a").isalnum():

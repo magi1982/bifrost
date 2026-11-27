@@ -99,6 +99,13 @@ class DemoClient:
     def set_state(self, eid, state, attrs):
         self.published[eid] = (state, attrs)
 
+    def delete_state(self, eid):
+        self.published.pop(eid, None)
+        self.deleted = getattr(self, "deleted", []) + [eid]
+
+    def mqtt_service(self):
+        return None
+
     def notify_services(self):
         return ["mobile_app_example_phone", "persistent_notification"]
 
