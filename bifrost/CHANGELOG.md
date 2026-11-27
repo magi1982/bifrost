@@ -8,6 +8,7 @@ All notable changes to Bifrost are documented here. The format follows [Keep a C
 - **House map 2.0.** Rooms are drawn as rectangles in metres instead of painted cells; several rectangles of the same room join into one shape (L- or T-shaped hallways). Tools: draw room, select (move, resize with a handle), stairs, door, window (snap to the nearest wall), place device, delete, undo/redo, 0.5 m grid, floor width and depth.
 - **Place devices exactly:** Bluetooth scanners (Shelly Gen2+, ESPHome proxies – found in the HA device registry) and the motion/door sensors Bifrost uses can be put on the map; unplaced scanners are pointed out. This prepares Bluetooth positions (next stage).
 - The live map shows rooms by what happens, people in their room, stairs, doors, windows and placed scanners. Your 0.9 room layout is taken over automatically.
+- Map look: every room in its own neon colour, activity fills and glows; family members as a phone icon with their name, Bluetooth gateways as a blue Bluetooth logo, Bluetooth devices as white circles.
 - API: `/api/map`, `/api/map/reset` (validated: known floor and areas, sizes 2–80 m, at most 240 rectangles and 240 devices, ids checked).
 
 ## [0.10.3] – 2026-11-27
