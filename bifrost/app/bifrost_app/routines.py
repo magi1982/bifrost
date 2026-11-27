@@ -43,6 +43,8 @@ def token_of(e: dict) -> str | None:
         return f"{eid}:{k}"
     if k in ("block", "person"):
         return f"{k}:{e.get('state')}"
+    if k == "event":  # numeric event, e.g. humidity jump in the bathroom
+        return f"{eid}:{e.get('state')}"
     return None
 
 

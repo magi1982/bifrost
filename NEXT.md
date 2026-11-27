@@ -161,5 +161,5 @@ Retired as separate experts: Huginn, Verdandi, Skuld, Mímir, Forseti, Frigg, Yg
 
 ## 9 · Done
 - **0.2** – dashboard, timeline, per-sensor trust, faster setup, own entities.
-- **0.4** (not released) – live stream, Blocks · People · Routines, People/House/Deviations/Questions/Balance tabs, guard and suspicious entry, calendar 2.0, timing, location groundwork, release gate, one design system DE/EN.
+- **0.4** (not released) – live House tab (HA floors/areas, last path, gaps), who switched it (context + learned timers), slow values as events, language setting DE/EN, live stream, Blocks · People · Routines, People/House/Deviations/Questions/Balance tabs, guard and suspicious entry, calendar 2.0, timing, location groundwork, release gate, one design system DE/EN.
 - **0.3** (not released) – patterns as processes (≤ 5 steps, ≥ 5 observations, ≥ 85 %), drift check, calendar keywords, tabs Patterns and Calendars.

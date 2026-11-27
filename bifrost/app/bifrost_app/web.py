@@ -85,6 +85,8 @@ def _str(body: dict, key: str, maxlen: int = 80) -> str:
 
 
 VIEWS = {
+    "/api/i18n": "i18n_view",
+    "/api/live": "live_view",
     "/api/people": "people_view",
     "/api/house": "house_view",
     "/api/recognition": "recognition_view",
@@ -224,6 +226,11 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
             if route == "/api/learn":
                 service.learn_job(datetime.now(UTC))
                 return self._send(HTTPStatus.OK, {"ok": True})
+            if route == "/api/language":
+                try:
+                    return self._send(HTTPStatus.OK, service.set_language(_str(body, "language", 2)))
+                except ValueError as err:
+                    return self._send(HTTPStatus.BAD_REQUEST, {"error": str(err)})
             if route == "/api/guest":
                 try:
                     return self._send(HTTPStatus.OK, service.set_guest_mode(validate_guest(body)))

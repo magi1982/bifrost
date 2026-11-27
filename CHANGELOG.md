@@ -13,20 +13,24 @@ All notable changes to Bifrost are documented here. The format follows [Keep a C
 - **People tab** – people live only in Bifrost (no Home Assistant users). Per person: trackers, calendars, NFC user, iPhone IRK (masked, never returned), “may be home alone”. Unknown people are counted as “at least N”.
 - **Guard** – fixed safety rules for “may the house be empty?” (fresh entry, everybody accounted for, no unknown people, last one out, data health) and **suspicious entry** detection; at night a weak explanation (Bluetooth/Wi-Fi) is not enough. Option `suspicious_entry_level` (2).
 - **Deviations and Questions** – expected-but-missing, unexplained, rare and contradicting events; questions and suggestions with a daily budget (3/5), safety first, grouped, answered Yes / No / Maybe / Don't know, optional labels, expiry after 7 days, known exceptions.
-- **House tab** – capability, learned map, entrances, sensor doctor, exceptions, optional floor plan upload (PNG/JPEG, max 2 MB).
+- **House tab (live)** – floors and areas from Home Assistant as tiles; every used signal with its last change, refreshed every 5 seconds. Areas that are active right now light up. Shows the last path through the house (e.g. garage → garage door → cloakroom → hallway), people at home, and gaps (door without sensor, area without signal, signal without area, sensor doctor). Simple / Technical switch: Technical adds entity ids, states, origin, learned neighbours with walking times, entrances, exceptions and the optional floor plan (PNG/JPEG, max 2 MB).
+- **Who switched it?** – Bifrost reads the Home Assistant context of every change: by hand (device), via app (user) or by an automation (parent). Lights, blinds or media switched by an automation – or by a timer Bifrost learned (same time on 5 of the last 14 days, e.g. a Loxone timer) – no longer count as a person.
+- **Slow values as events** – humidity jump (shower), CO₂ rise, power spike above base load and water flow become events for the live view and the pattern recognition; trends are shown next to the value.
+- **Language setting** – German or English for the whole app and the texts in the Bifrost entities. On first start Bifrost uses the Home Assistant language; switch it any time in Setup.
 - **Calendar learning 2.0** – all words (≥ 5 occurrences) are learned with their effect (house empty, per person, day type, missing routines); a block list keeps sensitive words out; full titles are never stored.
 - **Timing and location** – typical arrival/departure per person and weekday; BLE fingerprint and access point place as groundwork for ESP32 scanners.
 - **Balance tab** – key figures and a release gate. `binary_sensor.bifrost_empty_confirmed` only turns on with option `alarm_signal` (off) and a green gate (30 days, ≥ 20 departures, 0 wrong “empty”, health ≥ 90 %). Bifrost never disarms.
 - **“That's wrong”** correction on the Status tab (home / away / asleep) stored as a label.
 - New entities: `binary_sensor.bifrost_suspicious_entry`, `binary_sensor.bifrost_empty_confirmed`, `sensor.bifrost_open_questions`, `sensor.bifrost_unknown_people`, `sensor.bifrost_person_<id>` (option `person_entities`).
-- One design system for the whole app (icons, buttons, chips, cards) in light and dark, German and English UI depending on the browser language.
-- `tools/demo_server.py` and `tools/gui_check.py` – demo household with example data and an automated GUI check (text overflow, squeezed columns, clickable buttons, JavaScript errors) in light, dark and phone width.
+- One design system for the whole app (icons, buttons, chips, cards, Simple / Technical switch) in light and dark.
+- `tools/demo_server.py` and `tools/gui_check.py` – demo household with example data and an automated GUI check (text overflow, squeezed columns, clickable buttons, JavaScript errors, English text left in the German UI) in light, dark and phone width.
 
 ### Changed
 - The **Patterns** tab is replaced by **Pattern recognition**.
 - Events are stored with a kind and in UTC; a generic object store holds the learned model.
 
 ### Security
+- The Home Assistant context is only read to tell person, app and automation apart; user ids are never stored.
 - New write endpoints require the `X-Bifrost-Request` header and JSON, every field is validated (length, format); the floor plan has its own 3 MB body limit and is checked for PNG/JPEG signatures. IRKs are never logged, exported or sent to the browser.
 
 ## [0.3.0] – 2026-11-26

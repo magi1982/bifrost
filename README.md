@@ -54,6 +54,10 @@ Bifrost listens live to every used sensor (exact time and order, short door open
 
 **Questions instead of guessing.** When Bifrost is unsure it asks – at most 3 questions and 5 suggestions a day, safety first. You answer *Yes / No / Maybe / Don't know* and can name the reason (“animals”, “cleaner”). Answers become known exceptions; “don't know” is asked again later.
 
+**Who switched it?** Bifrost reads the Home Assistant context of every change. A light switched by an automation – or by a timer it learned, e.g. one in Loxone – is not a person. Humidity jumps, CO₂ rises and power spikes count as events too.
+
+**Language.** German or English, set in Setup. On first start Bifrost uses the Home Assistant language.
+
 **Balance.** Bifrost keeps score: wrong “empty”, detected empty time, suspicions and false alarms. The `alarm_signal` option only takes effect once the release gate is green (30 days in shadow mode, 20 detected departures, 0 wrong “empty”, data health ≥ 90 %).
 
 New entities: `binary_sensor.bifrost_suspicious_entry`, `binary_sensor.bifrost_empty_confirmed` (only with `alarm_signal`), `sensor.bifrost_open_questions`, `sensor.bifrost_unknown_people`, `sensor.bifrost_person_<id>`.
@@ -63,7 +67,7 @@ New entities: `binary_sensor.bifrost_suspicious_entry`, `binary_sensor.bifrost_e
 |---|---|
 | **Status** | Current result, confidence, reasons, “May the house be empty?” checklist, people, suspicious entry, learning progress, “That's wrong” correction, guest mode |
 | **People** | Everybody who lives here (or visits regularly) with their sources; unknown people inside |
-| **House** | What your home can do, the learned house map, entrances with direction, sensor doctor, known exceptions, optional floor plan |
+| **House** | Live: floors and areas from Home Assistant, what fires right now, the last path through the house, gaps. *Technical* adds entity ids, who switched it (hand / app / automation / timer), learned connections, entrances, exceptions, floor plan |
 | **Pattern recognition** | Blocks · People · Routines with search and filters; open any pattern, expand its sub-patterns |
 | **Deviations** | Things that did not fit (open / explained) |
 | **Questions** | Questions and suggestions – Yes / No / Maybe / Don't know |
@@ -136,6 +140,10 @@ Bifrost hört live auf jeden genutzten Sensor (genaue Uhrzeit und Reihenfolge, a
 
 **Fragen statt raten.** Wenn Bifrost unsicher ist, fragt es – höchstens 3 Fragen und 5 Vorschläge am Tag, Sicherheit zuerst. Du antwortest *Ja / Nein / Vielleicht / Weiss nicht* und kannst den Grund benennen („Ratten“, „Putzfrau“). Antworten werden zu bekannten Ausnahmen; „Weiss nicht“ wird später nochmals gefragt.
 
+**Wer hat geschaltet?** Bifrost liest bei jeder Änderung den Home-Assistant-Context. Ein Licht, das eine Automation geschaltet hat – oder eine gelernte Zeitschaltung, z. B. in Loxone – ist keine Person. Feuchte-Sprünge, steigendes CO₂ und Strom-Spitzen zählen ebenfalls als Ereignisse.
+
+**Sprache.** Deutsch oder Englisch, einstellbar im Setup. Beim ersten Start übernimmt Bifrost die Sprache von Home Assistant.
+
 **Bilanz.** Bifrost führt Buch: falsches „leer“, erkannte leere Zeit, Verdachte und Fehlalarme. Die Option `alarm_signal` wirkt erst, wenn die Freigabe grün ist (30 Tage Schattenmodus, 20 erkannte Abfahrten, 0 falsches „leer“, Datengesundheit ≥ 90 %).
 
 Neue Entitäten: `binary_sensor.bifrost_suspicious_entry`, `binary_sensor.bifrost_empty_confirmed` (nur mit `alarm_signal`), `sensor.bifrost_open_questions`, `sensor.bifrost_unknown_people`, `sensor.bifrost_person_<id>`.
@@ -145,7 +153,7 @@ Neue Entitäten: `binary_sensor.bifrost_suspicious_entry`, `binary_sensor.bifros
 |---|---|
 | **Status** | Aktuelles Ergebnis, Sicherheit, Gründe, Checkliste „Darf das Haus leer sein?“, Personen, verdächtiger Eintritt, Lernfortschritt, „Stimmt nicht“-Korrektur, Gästemodus |
 | **Personen** | Alle, die hier wohnen (oder regelmässig kommen), mit ihren Quellen; Unbekannte im Haus |
-| **Haus** | Was dein Haus kann, gelernte Hauskarte, Eingänge mit Richtung, Sensor-Doktor, bekannte Ausnahmen, optionaler Grundriss |
+| **Haus** | Live: Stockwerke und Bereiche aus Home Assistant, was gerade auslöst, der letzte Weg durchs Haus, Lücken. *Technisch* zeigt zusätzlich Entity-IDs, wer geschaltet hat (von Hand / App / Automation / Zeitplan), gelernte Verbindungen, Eingänge, Ausnahmen, Grundriss |
 | **Mustererkennung** | Bausteine · Personen · Abläufe mit Suche und Filtern; jedes Muster öffnen, Unter-Muster auf- und zuklappen |
 | **Abweichungen** | Was nicht gepasst hat (offen / erklärt) |
 | **Fragen** | Fragen und Vorschläge – Ja / Nein / Vielleicht / Weiss nicht |
