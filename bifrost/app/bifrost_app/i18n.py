@@ -231,6 +231,8 @@ DE: dict[str, str] = {
     "Not everyone is accounted for: {}": "Nicht alle sind verbucht: {}",
     "At least {} unknown person(s) came in and were not seen leaving": "Mindestens {} unbekannte Person(en) kamen herein und gingen nicht sichtbar wieder",
     "No exit through an entrance was detected": "Kein Rausgehen durch einen Eingang erkannt",
+    "Bifrost just started – collecting data before it may say empty": "Bifrost ist eben gestartet – sammelt erst, bevor es „leer“ sagen darf",
+    "Safety check failed – Bifrost does not say empty": "Sicherheitsprüfung fehlgeschlagen – Bifrost sagt nicht „leer“",
     "Too much data is missing": "Zu viele Daten fehlen",
     # --- recognition titles & doctor ---
     "Entry via {}": "Eintritt über {}",

@@ -41,7 +41,8 @@ class Brain:
         self.people.migrate()
         self.inbox = Inbox(store)
         self.detector = blocks.Detector()
-        self.gs = guard.GuardState()
+        self.gs = guard.GuardState.from_dict(store.get_obj("guard", "state"))
+        self.started_at = datetime.now(UTC)
         self.fingerprints = Fingerprints()
         self._lock = threading.Lock()
         self.identity: deque = deque(maxlen=200)  # recent identity events for explaining entries
@@ -81,8 +82,8 @@ class Brain:
             if kind == "on" and m.get("category") == "motion" and self.detector.model.get("sides", {}).get(eid, {}).get("side") != "outside":
                 self.motion_last = _p(edge["ts"])
             owner = self._tracker_owner().get(eid)
-            if owner and kind == "home":
-                self.identity.append({"ts": _p(edge["ts"]), "who": owner[1], "pid": owner[0], "kind": "home", "strength": self.strength(eid)})
+            if owner and kind in ("home", "away"):
+                self.identity.append({"ts": _p(edge["ts"]), "who": owner[1], "pid": owner[0], "kind": kind, "strength": self.strength(eid)})
             # access systems (keypad, NFC, fingerprint, smart lock): the service already resolved who it was
             if kind == "access":
                 target = edge.get("state") or "unknown"
@@ -92,7 +93,9 @@ class Brain:
                 elif target != "ignore":
                     p = self.people.get(target) if target not in ("household", "unknown") else None
                     who = p.name if p else target
-                    self.identity.append({"ts": ts, "who": who, "pid": p.id if p else None, "kind": "nfc", "strength": "strong"})
+                    # a value nobody assigned is authorised but not yet confirmed by the owner: medium, not strong
+                    strength = "medium" if target == "unknown" else "strong"
+                    self.identity.append({"ts": ts, "who": who, "pid": p.id if p else None, "kind": "nfc", "strength": strength})
                     if p:
                         st = self.store.get_obj("stats", "access_users") or {}
                         st[p.id] = st.get(p.id, 0) + 1
@@ -104,11 +107,23 @@ class Brain:
             openings = self.detector.tick(now)
             level = int(self.options.get("suspicious_entry_level", 2))
             new_susp = []
+            ids = list(self.identity)
             for o in openings:
                 ts = _p(o["ts"])
                 night = ts.astimezone().hour < 6
                 exc = [x for x in self.inbox.exceptions() if x.get("door") == o["door"]]
-                expl = guard.explain_entry(ts, list(self.identity), guest_mode, exc, night) if o["result"] == "entry" else {}
+                if o["result"] == blocks.DOOR_USED:
+                    # quiet after the door is no proof – a phone leaving the zone confirms the exit
+                    ex = guard.explain_exit(ts, ids)
+                    if ex["explained"]:
+                        o["result"] = "exit"
+                        o["confirmed_by"] = "phone"
+                if o["result"] == "entry":
+                    expl = guard.explain_entry(ts, ids, guest_mode, exc, night)
+                elif o["result"] == "exit":
+                    expl = guard.explain_exit(ts, ids)
+                else:
+                    expl = {}
                 before = self.last_extra.get("state_before", d.state)
                 s = guard.on_opening(self.gs, o, expl, before, now, level)
                 self._store_block_event(o, expl)
@@ -122,7 +137,9 @@ class Brain:
             simple_states = {k: v.get("state") for k, v in states.items()}
             led = ledger(persons, simple_states, {t: self.strength(t) for p in persons for t in p.sources}, self.gs.unknown_min)
             can_dir = any(e.get("direction") for e in self.detector.model.get("entrances", []))
-            d2, checks = guard.apply(d, led, self.gs, now, can_dir)
+            warming = now - self.started_at < guard.STARTUP_HOLD
+            d2, checks = guard.apply(d, led, self.gs, now, can_dir, warming_up=warming)
+            self.store.put_obj("guard", "state", self.gs.to_dict())
             self._expected_missing(now)
             prog = self._in_progress(now)
             learning = self.learning_phase(now)
@@ -323,8 +340,11 @@ class Brain:
                 self.inbox.ask("disturbance", culprit, {"sensor": culprit, "count": 1}, now, priority=2)
                 learned.append(f"question:{culprit}")
         self.store.put_obj("label", f"{now.isoformat()}_{secrets.token_hex(3)}", {**lab, "learned": learned})
-        if actual != AWAY:
-            self.gs.unknown_min = max(self.gs.unknown_min, 0)
+        if not person and said == AWAY and actual != AWAY:
+            # Bifrost said "empty" but somebody was there: somebody it does not know about is inside
+            self.gs.unknown_min = max(self.gs.unknown_min, 1)
+            self.store.put_obj("guard", "state", self.gs.to_dict())
+            learned.append("guard:unknown")
         return {**lab, "learned": learned}
 
     def labels(self) -> list[dict]:
@@ -441,7 +461,8 @@ class Brain:
         sus = [q for q in self.inbox.all() if q["type"] == "suspicious_entry"]
         k = balance.kpis(self.labels(), decisions, [{"ts": q["ts"], "answer": q.get("answer")} for q in sus], now, _p)
         first = self.store.get_value("first_decision")
-        g = balance.gate(_p(first) if first else None, departures, k, health, now)
+        household = sum(1 for p in self.people.all() if p.kind == "household")
+        g = balance.gate(_p(first) if first else None, departures, k, health, now, household)
         return {"kpis": k, "gate": g, "signal_option": bool(self.options.get("alarm_signal", False))}
 
     def floorplan(self, b64: str) -> None:

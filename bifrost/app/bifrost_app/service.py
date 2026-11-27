@@ -11,7 +11,7 @@ from collections import Counter
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 
-from . import __version__, i18n
+from . import __version__, guard, i18n
 from . import calendars as cal
 from . import patterns as pat
 from .balance import signal as _signal
@@ -239,9 +239,10 @@ class BifrostService:
             LOG.exception("Pattern/calendar context failed")
         try:
             d, self.extra = self.brain.tick(d, states, now, self.settings.guest_mode)
-        except Exception:  # noqa: BLE001 – fall back to the plain rule decision
+        except Exception:  # noqa: BLE001 – the guard failed: never fall back to an unchecked "empty"
             LOG.exception("Guard/recognition step failed")
-            self.extra = {}
+            d, checks = guard.failed(d)
+            self.extra = {"checks": checks}
         if not self.store.get_value("first_decision"):
             self.store.set_value("first_decision", now.isoformat())
         try:
@@ -399,7 +400,8 @@ class BifrostService:
                         {**common, "friendly_name": f"Bifrost {row['name']}", "icon": "mdi:account", "reason": row["reason"], "strength": row.get("strength")},
                     )
             bal = self.brain.balance_view(now, d.data_health, self._departures(now))
-            guard_ok = all(c["ok"] for c in ex.get("checks", []))
+            checks = ex.get("checks") or []
+            guard_ok = bool(checks) and all(c["ok"] for c in checks)  # no checks = the guard did not run = not ok
             self.client.set_state(
                 "binary_sensor.bifrost_empty_confirmed",
                 "on" if _signal(bal["signal_option"], bal["gate"]["passed"], d.state, d.confidence, guard_ok) else "off",
