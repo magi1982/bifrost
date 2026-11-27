@@ -100,7 +100,7 @@ def decide(signals: list[Signal], settings: Settings, now: datetime, unreliable:
     # 1. Blockers: they make “empty” impossible
     blockers = [s for s in available if s.role == "Blocker" and s.active]
     if blockers:
-        sleep = [b for b in blockers if b.category == "modes" and any(k in (b.entity_id + b.name).lower() for k in ("sleep", "schlaf", "night", "nacht", "bed", "bett"))]
+        sleep = [b for b in blockers if b.category in ("mode_home", "modes") and any(k in (b.entity_id + b.name).lower() for k in ("sleep", "schlaf", "night", "nacht", "bed", "bett"))]
         state = ASLEEP if sleep else HOME
         reasons = [f"{b.name} is active" for b in blockers[:3]]
         return Decision(state, round(95 * cap), reasons, health, [], now)

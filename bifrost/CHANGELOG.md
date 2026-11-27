@@ -2,6 +2,19 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] – 2026-11-27
+
+### Changed
+- **Roles are gone.** In Setup you only choose on/off, the category and – for phones and calendars – who it belongs to. Bifrost derives by itself how a signal counts, from the category, the name and what it learned (e.g. which door is really an entrance).
+  - New categories **Mode: someone home** (guest, sleep, night – “empty” is impossible while on), **Mode: away** (holiday/away – a clue for empty) and **Access** (keypad, NFC, fingerprint, “last user”). The old “Modes” category is split into the two modes.
+  - Signals you had set to “Noise” are switched off; old roles are migrated automatically on the next scan.
+  - The guide in Setup now explains the categories (“Which category for what?”).
+  - Optimisations only suggest on/off and category.
+- **Better filters in Setup**: status and category chips with counts, floor, area, integration and kind, “No area”, “No ‘Belongs to’”, “With optimisation”, sorting and a reset button. Filters are remembered in the browser.
+
+### Fixed
+- The optimisation card closed too early, so the second suggestion appeared outside the card.
+
 ## [0.5.3] – 2026-11-27
 
 ### Changed

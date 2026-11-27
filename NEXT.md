@@ -95,18 +95,18 @@ What homes typically have, and where Bifrost still has gaps:
 
 
 ### Done in 0.5.0 · Access events as learned steps (27.11.) – except: smart-lock `event.*` user fields vary by integration, check with real devices
-- Every unlock becomes its own event and routine token: `access:<entity>:<user>` (reader + person or "household" for the shared code) – routines learn e.g. "garage gate → NFC garage Alex → cloakroom" even without entry detection.
+- Every unlock becomes its own event and routine token: `access:<entity>:<user>` (reader + person or "household" for the shared code) – routines learn e.g. "garage gate → NFC garage Person A → cloakroom" even without entry detection.
 - Match by user number as well as by name (numeric states from access entities are kept, not dropped).
 - Detect "denied / verweigert / invalid / falsch" in the reported value: never an explanation; repeated denials → suspicion / question.
 - Smart locks: read `changed_by` / user attributes and `event.*` entities (Nuki, Yale, August, Loxone).
 - Per-person count also for unlocks, shared code counted as household.
 
 
-### Idea · Remove roles completely (27.11., extends "roles mostly automatic")
+### Done in 0.6.0 · Remove roles completely (27.11., extends "roles mostly automatic")
 - Setup per signal: on/off, category, belongs to. Categories gain "Access" (was role Identity) and split "Modes" into "mode: someone home" (guest/sleep, was Blocker) and "mode: away" (holiday/away). Noise = switched off (robots auto-detected). Trigger = learned entrance or door name; Context/Truth from category.
 - Migration: Noise → off, Identity → Access, Blocker → mode: someone home. Role guide removed; optimisations check categories only.
 
-### Idea · Roles mostly automatic (27.11.)
+### Done in 0.6.0 · Roles mostly automatic (27.11.)
 Today the user picks category **and** role. Since 0.4 Bifrost learns most of what roles express:
 - Trigger ⇐ learned entrances (door roles); Noise ⇐ learned trust, origin (automation/timer); Context ⇐ category calendar/weather; Truth ⇐ alarm/lock; Identity ⇐ name/lock.
 - Only **Blocker** (guest/sleep mode) is a hard rule the user must decide.
@@ -205,3 +205,9 @@ Retired as separate experts: Huginn, Verdandi, Skuld, Mímir, Forseti, Frigg, Yg
 - **0.2** – dashboard, timeline, per-sensor trust, faster setup, own entities.
 - **0.4** (not released) – live House tab (HA floors/areas, last path, gaps), who switched it (context + learned timers), slow values as events, language setting DE/EN, live stream, Blocks · People · Routines, People/House/Deviations/Questions/Balance tabs, guard and suspicious entry, calendar 2.0, timing, location groundwork, release gate, one design system DE/EN.
 - **0.3** (not released) – patterns as processes (≤ 5 steps, ≥ 5 observations, ≥ 85 %), drift check, calendar keywords, tabs Patterns and Calendars.
+
+### Idea · Learning-progress card (27.11.)
+- Show per learner how much data it has: days of history, edges seen, calendar entries compared (needs ~6 weeks), words with ≥ 5 occurrences, patterns found and how often confirmed. So the user sees that Bifrost learns in the background even when nothing is "found" yet.
+
+### Idea · Hint when few signals are used (27.11.)
+- If manual activity (lights, buttons) is mostly only "suggested", show one optimisation: "Switch on lights and buttons – they are the best signal that someone is home." Same when motion is only available as aggregated zone sensors.
