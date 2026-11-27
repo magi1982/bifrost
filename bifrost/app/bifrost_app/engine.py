@@ -16,6 +16,7 @@ MIN_HEALTH_FOR_AWAY = 60  # below this share of available signals Bifrost refuse
 ON_STATES = {"on", "home", "playing", "open", "unlocked", "detected", "occupied"}
 OFF_STATES = {"off", "not_home", "away", "idle", "paused", "standby", "closed", "locked", "clear", "unoccupied"}
 UNAVAILABLE = {"unavailable", "unknown", "none", ""}
+ACTIVITY_CATEGORIES = ("motion", "openings", "manual", "media")
 
 
 @dataclass
@@ -73,6 +74,9 @@ class Decision:
         return self.state == AWAY
 
 
+MANUAL_FRESH_MINUTES = 5  # how long a manual change (light, blind, thermostat) counts as "activity right now"
+
+
 def _minutes(now: datetime, then: datetime) -> float:
     return max(0.0, (now - then).total_seconds() / 60)
 
@@ -117,7 +121,9 @@ def decide(signals: list[Signal], settings: Settings, now: datetime, unreliable:
         return Decision(HOME, round(92 * cap), [f"{s.name} is home" for s in home[:3]], health, [s.name for s in home], now)
 
     # 3. Recent activity of any kind (motion, manual use, doors)
-    activity = [s for s in available if s.role in ("Evidence", "Trigger") and s.category not in ("devices", "calendar")]
+    # Only what a person does counts as activity. Power, water, CO₂ or humidity values change all the time by
+    # themselves – they support patterns (as jumps, see live.NumericEvents), they are never "somebody is here".
+    activity = [s for s in available if s.role in ("Evidence", "Trigger") and s.category in ACTIVITY_CATEGORIES]
     skipped: list[str] = []
     if settings.use_learning and unreliable:
         # learned: these sensors fire while nobody is home (pets, robots, drafts) – they are not activity
@@ -130,7 +136,9 @@ def decide(signals: list[Signal], settings: Settings, now: datetime, unreliable:
         activity = [s for s in activity if s.entity_id not in automated]
     # Every state change of an activity signal counts – a motion sensor that just switched off saw someone a moment ago
     last_act = max((s.last_changed for s in activity), default=None)
-    active_now = [s for s in activity if s.active and s.category in ("motion", "manual", "media")]
+    # Motion and media say "somebody is here" while they are on. A light that is on or a blind that is open says
+    # nothing by itself – it may have been left like that hours ago. Manual use only counts right after the change.
+    active_now = [s for s in activity if s.active and (s.category in ("motion", "media") or (s.category == "manual" and _minutes(now, s.last_changed) < MANUAL_FRESH_MINUTES))]
     if active_now:
         names = ", ".join(s.name for s in active_now[:2])
         reason = [f"Activity right now: {names}"]

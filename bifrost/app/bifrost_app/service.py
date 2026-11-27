@@ -40,6 +40,7 @@ class ScannedEntity:
     role: str | None
     user_set: bool = False
     state: str | None = None
+    new: bool = False  # found by a scan after the first one and not looked at yet
 
     def to_dict(self) -> dict:
         return {
@@ -59,6 +60,7 @@ class ScannedEntity:
             "confidence": round(self.guess.confidence * 100),
             "reasons": self.guess.reasons,
             "user_set": self.user_set,
+            "new": self.new,
         }
 
 
@@ -221,6 +223,7 @@ class BifrostService:
         if legacy:
             self.store.set_value("access_entities", "[]")
         self._apply_roles(result)
+        self._mark_new(result)
         with self._lock:
             self.snap.entities = result
             self.snap.scanned_at = datetime.now(UTC)
@@ -243,6 +246,87 @@ class BifrostService:
             }
         )
         LOG.info("Scan finished: %d entities, %d used", len(result), sum(1 for e in result.values() if e.status == STATUS_INCLUDED))
+
+    NOTIFY_RE = re.compile(r"^[a-z0-9_]{1,80}$")
+
+    def _mark_new(self, result: dict[str, ScannedEntity]) -> None:
+        """Entities that appeared since the last scan are "new" until the owner has looked at them.
+
+        The very first scan only remembers everything (nothing is new then). New relevant entities are
+        announced once through the chosen notify service, so new sensors are never overlooked.
+        """
+        seen = self.store.get_obj("entities", "seen") or {}
+        known: dict[str, dict] = seen.get("ids") or {}
+        now = datetime.now(UTC).isoformat()
+        first = not seen.get("first_scan")
+        fresh = []
+        for eid, e in result.items():
+            if eid not in known:
+                known[eid] = {"first": now, "ack": first}
+                if not first and not e.info.disabled and e.status != STATUS_IGNORED:
+                    fresh.append(e)
+            e.new = not known[eid].get("ack", True)
+        self.store.put_obj("entities", "seen", {"first_scan": seen.get("first_scan") or now, "ids": known})
+        if fresh:
+            names = ", ".join((e.info.name or e.info.entity_id) for e in fresh[:5]) + (f" (+{len(fresh) - 5})" if len(fresh) > 5 else "")
+            self.send_notification(self._new_text(len(fresh), names))
+
+    def _new_text(self, n: int, names: str) -> str:
+        if self.language == "de":
+            return f"{n} neue Sensoren gefunden: {names}. Im Setup unter „Neu“ anschauen."
+        return f"{n} new sensors found: {names}. Have a look in Setup under “New”."
+
+    def mark_seen(self, entity_id: object) -> dict:
+        """The owner looked at a new entity (or at all of them with entity_id None)."""
+        if entity_id is not None and (not isinstance(entity_id, str) or not re.match(r"^[a-z_]+\.[a-z0-9_]{1,200}$", entity_id)):
+            raise ValueError("invalid entity_id")
+        seen = self.store.get_obj("entities", "seen") or {"ids": {}}
+        n = 0
+        for eid, v in (seen.get("ids") or {}).items():
+            if (entity_id is None or eid == entity_id) and not v.get("ack"):
+                v["ack"] = True
+                n += 1
+        self.store.put_obj("entities", "seen", seen)
+        with self._lock:
+            for eid, e in self.snap.entities.items():
+                if entity_id is None or eid == entity_id:
+                    e.new = False
+        return {"seen": n}
+
+    def notify_view(self) -> dict:
+        try:
+            targets = self.client.notify_services()
+        except Exception:  # noqa: BLE001 – no notify services is fine
+            targets = []
+        return {"targets": targets, "current": self.store.get_value("notify_target") or ""}
+
+    def set_notify(self, target: object) -> dict:
+        if target in ("", None):
+            self.store.set_value("notify_target", "")
+            return {"current": ""}
+        if not isinstance(target, str) or not self.NOTIFY_RE.match(target) or target not in self.notify_view()["targets"]:
+            raise ValueError("unknown notify service")
+        self.store.set_value("notify_target", target)
+        return {"current": target}
+
+    def send_notification(self, message: str, test: bool = False) -> bool:
+        target = self.store.get_value("notify_target") or ""
+        if not target:
+            return False
+        try:
+            self.client.notify(target, "Bifrost", message)
+            return True
+        except Exception as err:  # noqa: BLE001 – a failed push must never stop scanning
+            LOG.warning("Notification failed: %s", type(err).__name__)
+            if test:
+                raise ValueError("notification failed") from None
+            return False
+
+    def test_notification(self) -> dict:
+        msg = "Test von Bifrost ✓" if self.language == "de" else "Test from Bifrost ✓"
+        if not self.store.get_value("notify_target"):
+            raise ValueError("no notify service chosen")
+        return {"sent": self.send_notification(msg, test=True)}
 
     def _migrate_override(self, eid: str, ov: dict, guess: Classification) -> tuple[str, str | None]:
         """≤ 0.5: users set roles. 0.6 has no roles – they become categories or "off"."""
@@ -512,8 +596,21 @@ class BifrostService:
                 start, end = calwords.window(now, days=56)
                 with self._lock:
                     cids = [e.info.entity_id for e in self.snap.entities.values() if e.info.domain == "calendar" and e.status == STATUS_INCLUDED]
+                stats: dict[str, dict] = {}
+                counts: dict[str, int] = {}
                 for cid in cids:
-                    cal_entries[cid] = self.client.get_calendar(cid, start.isoformat(), end.isoformat())
+                    try:
+                        cal_entries[cid] = self.client.get_calendar(cid, start.isoformat(), end.isoformat())
+                        stats[cid] = {"entries": len(cal_entries[cid]), "ok": True}
+                        for e in cal_entries[cid]:
+                            for w in set(calwords.words(str(e.get("summary") or ""))):
+                                counts[w] = counts.get(w, 0) + 1
+                    except Exception:  # noqa: BLE001 – one broken calendar must not stop the others
+                        stats[cid] = {"entries": 0, "ok": False}
+                        LOG.warning("Reading calendar %s failed", cid)
+                # diagnostics for the UI: how much was read, which words are almost learned (words only, never titles)
+                almost = sorted(((n, w) for w, n in counts.items() if n < calwords.MIN_WORD), reverse=True)[:8]
+                self.store.put_obj("model", "calread", {"at": now.isoformat(), "calendars": stats, "almost": [[w, n] for n, w in almost]})
             except Exception:  # noqa: BLE001
                 LOG.exception("Reading calendars failed")
         try:
@@ -538,7 +635,11 @@ class BifrostService:
         with self._lock:
             used = [e.info.entity_id for e in self.snap.entities.values() if e.info.domain == "calendar" and e.status == STATUS_INCLUDED]
         words = self.brain.words.get("words", {})
+        read = self.store.get_obj("model", "calread") or {}
         return {
+            "read": {"at": read.get("at"), "calendars": [{"name": names.get(c, c), **v} for c, v in (read.get("calendars") or {}).items()], "almost": read.get("almost", [])},
+            "next_learn": (self._last_learn + timedelta(hours=6)).isoformat() if self._last_learn else None,
+            "hindsight_empty_h": ((self.brain.hind or {}).get("stats") or {}).get("empty_h"),
             "used": [{"entity_id": c, "name": names.get(c, c)} for c in used],
             "enabled": bool(self.options.get("learn_calendars", True)),
             "min_word": calwords.MIN_WORD,
@@ -607,7 +708,25 @@ class BifrostService:
             "guard": {k: (self.extra or {}).get(k) for k in ("checks", "suspicion", "unknown_min", "people_inside_min", "in_progress", "learning", "questions")},
             "ledger": (self.extra or {}).get("ledger"),
             "probabilities": (self.extra or {}).get("probabilities"),
+            "new_entities": sum(1 for e in self.snap.entities.values() if e.new),
+            "work": self._work(),
             "capability": self.brain.detector.model.get("capability", {}),
+        }
+
+    def _work(self) -> dict:
+        """What Bifrost processes: events per hour/day, live stream, learning runs."""
+        now = datetime.now(UTC)
+        with self._stream_lock:
+            stream = {"connected": bool(self.stream.get("connected")), "since": self.stream.get("since"), "events": self.stream.get("events", 0)}
+        return {
+            "events_1h": self.store.count_events_since(now - timedelta(hours=1)),
+            "events_24h": self.store.count_events_since(now - timedelta(hours=24)),
+            "stream": stream,
+            "signals": sum(1 for e in self.snap.entities.values() if e.status == STATUS_INCLUDED),
+            "last_learn": self._last_learn.isoformat() if self._last_learn else None,
+            "next_learn": (self._last_learn + timedelta(hours=6)).isoformat() if self._last_learn else None,
+            "hindsight": (self.brain.hind or {}).get("stats"),
+            "evidence": (self.brain.evidence or {}).get("samples"),
         }
 
     def optimizations_view(self) -> dict:
@@ -651,6 +770,7 @@ class BifrostService:
         return {
             "scanned_at": at.isoformat() if at else None,
             "summary": {
+                "new": sum(1 for e in ents if e.get("new")),
                 "total": len(ents),
                 "relevant": sum(1 for e in ents if e["status"] != STATUS_IGNORED),
                 "by_status": dict(status),
@@ -831,7 +951,9 @@ class BifrostService:
                 "side": (sides.get(eid) or {}).get("side"),
                 "neighbours": sorted(neigh.get(eid, []), key=lambda n: -(n.get("count") or 0))[:3],
             }  # fmt: skip
-            sig["active"] = bool(ts and (now - ts).total_seconds() < 60 and not noise and sig["origin"] not in (AUTOMATION, SCHEDULED))
+            # a room is "active" only through what people do – energy, water and air values only add context
+            person_kind = e.category in ("motion", "openings", "manual", "media", "access", "mode_home")
+            sig["active"] = bool(person_kind and ts and (now - ts).total_seconds() < 60 and not noise and sig["origin"] not in (AUTOMATION, SCHEDULED))
             vv = (self.brain.value or {}).get(eid) or {}
             sig["value"] = vv.get("verdict")
             sig["archived"] = vv.get("verdict") in ("nothing", "slow")

@@ -2,6 +2,23 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.10.3] – 2026-11-27
+
+### Added
+- **New sensors are never overlooked.** Entities that appear after the first scan are highlighted as **New** in Setup (filter *New*, button *Seen*, *Mark all as seen*) and announced on the Status tab.
+- **Push message to your phone** when new sensors appear: pick a notify service of Home Assistant (e.g. the Home Assistant app on your iPhone) in the new Setup card *Notifications*, with a test button. Each new sensor is announced once.
+- Setup: entities disabled in Home Assistant are hidden by default; the filter *Disabled in HA* shows them.
+- Status: card **What Bifrost processes** – events in the last hour and 24 hours, live connection, last and next learning run, how far the evidence scale and hindsight are.
+- Calendar words: what was read in the last learning run (entries per calendar, calendars that failed) and words that are almost learned.
+- The list of Bifrost's own entities moved from the Status tab into the **ⓘ** info window in the header.
+- Status order: *Last 24 hours* now sits right below the state card; *What Bifrost processes* and *Guest mode* moved to the bottom. Data quality and people home moved into *What Bifrost processes* (no more duplicate numbers).
+- *May the house be empty?* explains itself: one line per rule, what blocks “empty” right now, and why the rules exist (no wrong “empty” for the alarm signal).
+
+### Fixed
+- **A blind left open or a light left on no longer means “home”.** Manual use (lights, blinds, thermostats) counts as *activity right now* only within 5 minutes of the change – before, an open blind could keep Bifrost on “Home” all day while every phone was away.
+- The state card no longer shows “Home” and “Unclear” at the same time: below 70 % it now says “Only 66 % sure – below 70 % Bifrost stays careful.”
+- **Energy, water and air values are no longer activity.** A power sensor that keeps changing made a room look busy (e.g. a technical room) and kept the house “not empty”. These values now only add context – as jumps they still support patterns – and never light up a room or count as somebody being there.
+
 ## [0.10.2] – 2026-11-27
 
 ### Fixed

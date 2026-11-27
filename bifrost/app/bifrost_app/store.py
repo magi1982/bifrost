@@ -163,6 +163,11 @@ class Store:
             ).fetchall()
         return [{"ts": r[0], "entity_id": r[1], "name": r[2], "category": r[3], "role": r[4], "state": r[5], "kind": r[6]} for r in rows]
 
+    def count_events_since(self, since: datetime) -> int:
+        with self._lock:
+            row = self._db.execute("SELECT COUNT(*) FROM events WHERE ts >= ?", (since.astimezone(UTC).isoformat(),)).fetchone()
+        return int(row[0]) if row else 0
+
     def distinct_states(self, entity_ids: list[str], since: datetime, limit: int = 30, kind: str | None = None) -> list[str]:
         """Distinct recent values of some entities, newest first (e.g. users reported by an access system)."""
         if not entity_ids:

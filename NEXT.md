@@ -343,3 +343,42 @@ Retired as separate experts: Huginn, Verdandi, Skuld, Mímir, Forseti, Frigg, Yg
 
 ### Idea · Hint when few signals are used (27.11.)
 - If manual activity (lights, buttons) is mostly only "suggested", show one optimisation: "Switch on lights and buttons – they are the best signal that someone is home." Same when motion is only available as aggregated zone sensors.
+
+### Idea · Baseline that says something (27.11.) – waiting for "mach es"
+Problem: the card *Baseline per signal* (Patterns → detectors) shows a 7×24 heat map for **one** signal picked from a drop-down. Nobody clicks through 90 signals, and a heat map alone answers no question.
+
+Proposal – turn it around: Bifrost picks what matters, the heat map is only the detail.
+- **"Unusual in the last 24 h"** (top of the card): at most 5 rows, sorted by rarity, e.g. *Motion basement · 03:12 · usually never at this hour (0 of 6 Tuesdays)*. Each row: signal, time, plain sentence, rarity as a small neon bar. Empty state: *Nothing unusual in the last 24 h.*
+- **"A normal week in your house"**: one heat map for the whole house (all activity signals together, 7×24), with a marker on *now*. Answers "when is somebody usually active?" and shows at a glance what the routines are built on.
+- **Detail on tap**: tapping a row (or a cell) opens the per-signal heat map in the existing data popup – no drop-down any more.
+- Still learning: *Needs 7 days of data – {n} / 7* instead of an empty map.
+
+Entities / API: no new entities; `/api/patterns` gets `unusual: [{entity_id, ts, rarity, seen, weeks}]` and `house_week: [168 values]` from `baseline.py` (already has `rarity()`).
+Limits: rarity needs ≥ 2 weeks per hour slot to be meaningful; below that the row says *too little data*. Energy/air values stay excluded (only activity categories).
+Open questions: show the *unusual* list also on Status? Threshold for "unusual" (proposal: rarity ≥ 0.9)?
+Tests: unusual list ordering and threshold, house-week aggregation ignores energy/air, empty states; GUI check light/dark/390 px.
+
+### Idea · Bifrost learns what each sensor is good for (27.11.) – waiting for "mach es"
+Today `value.py` judges every signal against **one** question: does it tell "home" from "empty"? A window contact then looks useless (opened twice a week), although it is one of the most important sensors against a **break-in**. One verdict per signal is too little – a sensor can be weak for one job and strong for another.
+
+Proposal: a **value per purpose**, learned for every signal, no setting needed.
+
+| Purpose | What it answers | How Bifrost learns it (from data it already has) |
+|---|---|---|
+| **Presence** | home or empty right now? | evidence weight vs. hindsight, changes per day, hold time (as today) |
+| **Patterns** | is it part of routines (leaving, arriving, going to bed)? | how often it appears in learned routines and paths (`routines.py`, path matrix), timing precision |
+| **Security** | would it notice an intruder? | position on the shell (`blocks.py`: outside / entrance / inside-next-to-door), it is a door, window, lock or outdoor motion, and how rarely it fires while the house is *certainly empty* (quiet when empty = every trigger counts) |
+| **Context** | does it say *when* something will happen? | calendar words, alarm clocks, modes (as today) |
+
+- Every signal gets a small row of verdicts, e.g. *Window living room · Presence: little · Patterns: nothing · Security: **valuable***.
+- Suggestions follow the purpose: a signal is only proposed for "off" if it is weak for **every** purpose. Windows stay, even if they say nothing about presence.
+- Setup gets a filter per purpose; the Patterns tab shows which sensors carry the routines; the Incidents tab lists the sensors that guard the shell ("these 7 sensors would see an intruder", "back door has no sensor that sees inside").
+- Gaps become questions/tips: "Your terrace door has a contact but no motion sensor behind it – an intruder through the terrace would only be seen as 'door opened'."
+
+Limits: security value is a judgement of **coverage**, not a learned intrusion detector – Bifrost never claims to replace the alarm system. Learning needs ≥ 7 days and some hindsight "certainly empty" hours; before that the verdict is "learning".
+**Decided (27.11.):**
+- Windows are **ignored for presence** (no evidence weight, never "activity right now").
+- **Window alarm:** a window on the ground floor or basement (floor level ≤ 0 from the HA floor registry, or set in the House tab) that opens while the house is *empty* or everybody is *asleep* is a **high-severity incident** at once (no waiting, no pattern needed): incident chain "access → window", push message via the notify service, `binary_sensor.bifrost_window_alarm` on. Bifrost only reports – it never arms, disarms or triggers the siren itself; the owner can use the entity in an automation.
+- Upper floors: reported as a normal incident, not as an alarm.
+Open questions: security coverage as its own card (house outline) or a list? Window alarm also while *leaving* (last person just went out)? Ignore a window that was opened from inside shortly before everybody fell asleep (tilted for the night)?
+Tests: window contact = presence little / security valuable; outdoor motion = security valuable; summary zone = presence slow; "off" suggestion only if weak everywhere; GUI check light/dark/390 px.
