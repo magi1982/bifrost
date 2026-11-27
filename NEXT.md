@@ -101,6 +101,13 @@ What homes typically have, and where Bifrost still has gaps:
 - Smart locks: read `changed_by` / user attributes and `event.*` entities (Nuki, Yale, August, Loxone).
 - Per-person count also for unlocks, shared code counted as household.
 
+
+### Idea · Roles mostly automatic (27.11.)
+Today the user picks category **and** role. Since 0.4 Bifrost learns most of what roles express:
+- Trigger ⇐ learned entrances (door roles); Noise ⇐ learned trust, origin (automation/timer); Context ⇐ category calendar/weather; Truth ⇐ alarm/lock; Identity ⇐ name/lock.
+- Only **Blocker** (guest/sleep mode) is a hard rule the user must decide.
+Proposal: the role follows from category + learning; Simple Setup shows only category, "Belongs to" and three switches (counts as activity / prevents "empty" / noise). Technical keeps the role dropdown as override. Engine: Trigger = learned entrance or door to the outside by name.
+
 ## 6 · Details
 
 ### 6.1 Data and pre-processing
