@@ -114,10 +114,6 @@ def test_views_and_extra_entities(tmp_path):
     svc, client = make(tmp_path)
     svc.scan()
     svc.evaluate()
-    dash = svc.dashboard_view()
-    assert len(dash["days"]) == 14 and dash["days"][-1]["minutes"]
-    tl = svc.timeline_view()
-    assert tl["decisions"] and "events" in tl
     assert client.published["sensor.bifrost_person_example_a"][0] == "away"
     assert client.published["binary_sensor.bifrost_anomaly"][0] == "off"
 

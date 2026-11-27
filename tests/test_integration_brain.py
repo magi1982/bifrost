@@ -19,7 +19,7 @@ def test_demo_household_end_to_end(tmp_path):
     assert person["steps"][0]["t"] == "or" and all("ref" in x for x in person["steps"][0]["items"])
     q = svc.questions_view()["items"]
     assert any(x["type"] == "suspicious_entry" for x in q)
-    dev = svc.deviations_view()["items"]
+    dev = svc.brain.inbox.deviations()
     assert {d["kind"] for d in dev} >= {"unexplained", "expected_missing"}
     pv = svc.people_view()
     assert len(pv["people"]) == 4 and all("0123456789abcdef" not in json.dumps(p) for p in pv["people"])
@@ -59,7 +59,7 @@ def test_http_routes(tmp_path, monkeypatch):
             return e.code, json.loads(e.read())
 
     try:
-        for p in ("/api/people", "/api/house", "/api/recognition", "/api/deviations", "/api/questions", "/api/balance", "/api/calendars"):
+        for p in ("/api/people", "/api/house", "/api/recognition", "/api/incidents", "/api/questions", "/api/balance", "/api/calendars"):
             assert isinstance(get(p), dict)
         code, r = post("/api/person", {"name": "Guest Example", "kind": "visitor"})
         assert code == 200 and r["id"] == "guest_example"

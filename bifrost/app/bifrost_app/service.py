@@ -577,81 +577,6 @@ class BifrostService:
         self.settings.guest_mode = on
         return {"guest_mode": on}
 
-    def timeline_view(self, hours: int = 24) -> dict:
-        now = datetime.now(UTC)
-        since = now - timedelta(hours=hours)
-        events = self.store.events_since(since)
-        changes = []
-        prev = None
-        for h in self.store.decisions_since(since):
-            if h["state"] != prev:
-                changes.append({"ts": h["ts"], "state": h["state"], "confidence": h["confidence"]})
-            prev = h["state"]
-        return {"since": since.isoformat(), "events": events, "decisions": changes, "categories": CATEGORIES}
-
-    def dashboard_view(self, days: int = 14) -> dict:
-        now = datetime.now(UTC)
-        start = (now - timedelta(days=days - 1)).replace(hour=0, minute=0, second=0, microsecond=0)
-        hist = self.store.decisions_since(start - timedelta(days=1))
-        per_day: dict[str, dict] = {}
-        for i in range(days):
-            day = (start + timedelta(days=i)).date().isoformat()
-            per_day[day] = {"day": day, "minutes": {}, "conf_sum": 0.0, "conf_n": 0, "short_away": 0}
-        # minutes per state, by walking the decision timeline
-        for i, h in enumerate(hist):
-            t0 = max(parse_time(h["ts"], now), start)
-            t1 = parse_time(hist[i + 1]["ts"], now) if i + 1 < len(hist) else now
-            while t0 < t1:
-                day_end = (t0 + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-                seg_end = min(t1, day_end)
-                key = t0.date().isoformat()
-                if key in per_day:
-                    mins = (seg_end - t0).total_seconds() / 60
-                    m = per_day[key]["minutes"]
-                    m[h["state"]] = m.get(h["state"], 0) + mins
-                    per_day[key]["conf_sum"] += h["confidence"] * mins
-                    per_day[key]["conf_n"] += mins
-                t0 = seg_end
-            # an "Away" that ends within 15 minutes is a likely wrong decision
-            if h["state"] == AWAY and i + 1 < len(hist) and hist[i + 1]["state"] != AWAY:
-                if (parse_time(hist[i + 1]["ts"], now) - parse_time(h["ts"], now)) < timedelta(minutes=15):
-                    key = parse_time(h["ts"], now).date().isoformat()
-                    if key in per_day:
-                        per_day[key]["short_away"] += 1
-        out = []
-        for v in per_day.values():
-            total = sum(v["minutes"].values()) or 0
-            unknown = v["minutes"].get("unknown", 0)
-            out.append(
-                {
-                    "day": v["day"],
-                    "minutes": {k: round(x) for k, x in v["minutes"].items()},
-                    "avg_confidence": round(v["conf_sum"] / v["conf_n"]) if v["conf_n"] else None,
-                    "decided_share": round(100 * (total - unknown) / total) if total else None,
-                    "short_away": v["short_away"],
-                }
-            )
-        weights = (self.brain.evidence or {}).get("weights") or {}
-        bad = self.brain.unreliable()
-        with self._lock:
-            names = {e.info.entity_id: (e.info.name or e.info.entity_id, e.category) for e in self.snap.entities.values()}
-        sensors = sorted(
-            (
-                {
-                    "entity_id": k,
-                    "name": names.get(k, (k, None))[0],
-                    "category": names.get(k, (k, None))[1],
-                    "weight": w.get("active", w.get("home")),
-                    "seen_home": w.get("seen_home", 0),
-                    "seen_empty": w.get("seen_empty", 0),
-                    "unreliable": k in bad,
-                }
-                for k, w in weights.items()
-            ),
-            key=lambda x: -(x["weight"] or 0),
-        )
-        return {"days": out, "sensors": sensors, "use_learning": self.settings.use_learning}
-
     # --- user changes ----------------------------------------------------------
     def update_entity(self, entity_id: str, status: str, category: str | None, role: str | None) -> dict:
         with self._lock:
@@ -891,6 +816,7 @@ class BifrostService:
             saved = (self.store.get_obj("layout", key) or {}).get("cells")
             cells = {k: v for k, v in (saved or {}).items() if v in names_f} if saved else house_mod.auto_layout(names_f, self.brain.paths)
             layouts[f["name"] or ""] = {"key": key, "cells": cells, "saved": bool(saved), "plan": bool(self.brain.floorplan_bytes(key))}
+        lane = self._lane(now, ents)
         room_src = {p.id: [e for e in p.sources if is_room_source(e, self.brain.meta.get(e))] for p in self.brain.people.all()}
         known_areas = {a["name"] for f in floor_list for a in f["areas"]}
         return {
@@ -898,6 +824,7 @@ class BifrostService:
             "now": now.isoformat(),
             "floors": floor_list,
             "layouts": layouts,
+            "lane": lane,
             "avatars": house_mod.avatars(self.brain.people.all(), room_src, self._states, known_areas, now),
             "unassigned": areas.get(None, []),
             "gaps": gaps,
@@ -915,6 +842,27 @@ class BifrostService:
             "names": names,
             "people_inside_min": (self.extra or {}).get("people_inside_min", 0),
         }
+
+    LANE_KINDS = ("on", "auto", "access", "home", "away", "block", "event")
+
+    def _lane(self, now: datetime, ents: dict) -> dict:
+        """The last hour as an event lane: every edge with its area, plus detected entries/exits."""
+        since = now - timedelta(hours=1)
+        rows = []
+        stamp = now.isoformat()
+        for e in reversed(self.store.events_since(since, limit=3000)):
+            if e.get("kind") not in self.LANE_KINDS or e["ts"] > stamp:
+                continue
+            ent = ents.get(e["entity_id"])
+            if e.get("kind") == "block":
+                res, _, door = str(e.get("state", "")).partition(":")
+                rows.append({"ts": e["ts"], "kind": "block", "result": res, "entity_id": door})
+                continue
+            if ent is None:
+                continue
+            lane = "people" if e.get("kind") in ("home", "away") else (ent.info.area or "")
+            rows.append({"ts": e["ts"], "entity_id": e["entity_id"], "lane": lane, "kind": e["kind"], "category": ent.category, "state": str(e.get("state", ""))[:40]})
+        return {"from": since.isoformat(), "to": now.isoformat(), "events": rows[-400:]}
 
     def _floor_areas(self) -> dict[str, list[str]]:
         with self._lock:
@@ -1013,9 +961,6 @@ class BifrostService:
             "entities": self.pattern_entities(),
             "calendars": self.calendars_view(),
         }
-
-    def deviations_view(self) -> dict:
-        return {"items": self.brain.inbox.deviations(), "names": self._names()}
 
     def questions_view(self) -> dict:
         return {

@@ -98,6 +98,9 @@ def test_live_view_on_demo_household(tmp_path):
     sig = {x["entity_id"]: x for f in v["floors"] for a in f["areas"] for x in a["signals"]}
     assert sig["light.garden"]["origin"] == AUTOMATION and not sig["light.garden"]["active"]
     assert sig["light.kitchen"]["origin"] == PERSON and sig["light.kitchen"]["active"]
+    lane = v["lane"]["events"]
+    assert any(x.get("lane") == "Kitchen" and x["entity_id"] == "light.kitchen" for x in lane)
+    assert any(x["kind"] == "auto" and x["entity_id"] == "light.garden" for x in lane)
     assert sig["sensor.bath_humidity"]["event"] == "humidity_jump"
     assert sig["vacuum.robot"]["noise"]
     assert [p["entity_id"] for p in v["last_path"]][:2] == ["binary_sensor.motion_outside_garage", "binary_sensor.garage_door"]
