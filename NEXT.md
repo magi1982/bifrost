@@ -31,7 +31,7 @@ Nothing house-specific is hard-coded (rooms, doors, names). Bifrost observes, di
 - Everything appears in a new "Suggestions" tab; nothing is used before it is confirmed or has strong evidence.
 
 ### Revised order
-- 0.4 Understand: Yggdrasil basics (entrances, inside/outside, door direction, sensor doctor), Family tab + Frigg, Suggestions tab.
+- 0.4 Understand: Yggdrasil basics (entrances, inside/outside, door direction, sensor doctor), People tab + Frigg, Suggestions tab.
 - 0.5 Truth: last-out rule, family balance, labels from hindsight/Loxone/push question, balance tab + backtesting.
 - 0.6 Learn: calendar learning 2.0, missing patterns, day type, Huginn/Verdandi/Skuld.
 - 0.7 → 1.0: room map + BLE location, Forseti fusion, Loki, CO₂, Gjallarhorn.
@@ -110,7 +110,7 @@ Later: life-change detection when many patterns break at once, "phone forgotten 
 - So houses get their own vocabulary without code changes; only the generic kinds and the safety rules are built in.
 
 ### Persons live in Bifrost, not in HA
-- The Family tab is the single source of truth; no HA persons or users are required. Per person the owner links whatever exists: phone tracker(s), BLE identity (iPhone IRK), calendar entities, NFC user, tag – or nothing.
+- The People tab is the single source of truth; no HA persons or users are required. Per person the owner links whatever exists: phone tracker(s), BLE identity (iPhone IRK), calendar entities, NFC user, tag – or nothing.
 - IRKs and similar keys are stored only in Bifrost's local data, never in logs, exports, diagnostics or the repo; masked in the UI.
 - BLE resolution options: HA "Private BLE Device" integration (an integration entry, not a user) or Bifrost reading BLE advertisements via HA (to be checked).
 - Bifrost publishes its own per-person entities (optional), e.g. `sensor.bifrost_person_<slug>`.
@@ -126,7 +126,7 @@ Later: life-change detection when many patterns break at once, "phone forgotten 
 ### Must-have: calendar learning 2.0 (Mímir · calendar)
 - Learn **every frequently used word** (≥5 occurrences) in all chosen calendars – not only "word → house empty".
 - **Five effects per word:** person away · person home · house empty · a known pattern does not happen · day type (school day, holidays, weekend, home office).
-- **Person attribution:** names from the Family tab found in a title assign the entry to that person, whatever calendar it is in. A shared family calendar is fully usable.
+- **Person attribution:** names from the People tab found in a title assign the entry to that person, whatever calendar it is in. A shared family calendar is fully usable.
 - **All-day / multi-day entries** (trip, holidays) are day context, not appointments.
 - **Recurring series** (e.g. school) are a plan that is checked against reality every day; if the pattern does not happen on many consecutive days and a word like "holidays" is active, Bifrost proposes "word = no school".
 - Entries can also mean **at home** (e.g. a morning workout) – learned in both directions.
@@ -143,7 +143,7 @@ Example to support: car arrives → garage gate → outside motion at garage →
 - **Early detection:** a partially completed chain already says "arrival in progress" / "departure in progress".
 - **What it teaches the other layers:** door direction and entrance geometry (Yggdrasil), who arrived via phone/BLE (Frigg), arrival times (Skuld). A pattern cannot count how many people arrived without phones or tags.
 
-### Family tab + Frigg (family) – the core
+### People tab + Frigg (family) – the core
 - Household members with: phone (person/tracker) or none, own calendars, "may be home alone: yes/no", room, optional BLE tag, school schedule (from a calendar or a timetable entity).
 - Per-person "home" probability; **house empty only if every person is accounted for**. A member without phone counts as home until proven away (with an adult, schedule + exit, tag).
 - Suggestions: persons from HA, calendar owner by name, learned link "entry ↔ whose phone leaves".
