@@ -2,6 +2,11 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.10.2] – 2026-11-27
+
+### Fixed
+- Setup: an entity that is disabled in Home Assistant but still used by Bifrost (e.g. a phone tracker that UniFi disabled) could not be switched off. Switching off now always works; only switching on stays blocked while the entity is disabled in Home Assistant.
+
 ## [0.10.1] – 2026-11-27
 
 ### Changed

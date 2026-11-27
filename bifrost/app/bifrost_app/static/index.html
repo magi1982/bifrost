@@ -1071,7 +1071,7 @@ function entityRows(){var E=S.ents;if(!E)return "";
   var all=sortEnts(filterEnts()),more=all.length>300,L=all.slice(0,300);
   var head='<div class="meta" style="margin:4px 0 8px">'+t("f_showing").replace("{n}",all.length).replace("{t}",E.entities.length)+'</div>';
   return head+(L.map(function(e){var c=catOf(e.category);
-    return '<div class="erow" data-id="'+esc(e.entity_id)+'"><div class="top"><label class="switch"><input type="checkbox" class="inc" '+(e.status==="included"?"checked":"")+(e.disabled?" disabled":"")+'><span></span></label>'+
+    return '<div class="erow" data-id="'+esc(e.entity_id)+'"><div class="top"><label class="switch"><input type="checkbox" class="inc" '+(e.status==="included"?"checked":"")+(e.disabled&&e.status!=="included"?" disabled":"")+'><span></span></label>'+
      '<div class="grow"><div>'+esc(e.name)+'</div><div class="ent">'+esc(e.entity_id)+(e.area?' · '+esc(e.area):'')+(e.integration?' · '+esc(e.integration):'')+'</div></div>'+
      (e.disabled?'<span class="tag warn">'+(e.disabled_by?'disabled in HA ('+esc(e.disabled_by)+')':'disabled in HA')+'</span>':!e.available?'<span class="tag warn">unavailable</span>':'')+'</div>'+
      '<div class="meta"><select class="cat"><option value="">'+c.icon+' category…</option>'+Object.keys(E.categories).map(function(k){return '<option value="'+k+'" '+(k===e.category?"selected":"")+'>'+E.categories[k].icon+' '+esc(E.categories[k].name)+'</option>';}).join("")+'</select>'+
