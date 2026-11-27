@@ -103,7 +103,7 @@ ACTIONS = {
     "/api/person/delete": lambda svc, b: svc.delete_person(_str(b, "id", 40)),
     "/api/optimization/dismiss": lambda svc, b: svc.dismiss_optimization(_entity(b), _str(b, "key", 30)),
     "/api/optimization/reset": lambda svc, b: svc.reset_optimizations(),
-    "/api/owner": lambda svc, b: svc.brain.people.set_owner(b.get("entity_id"), b.get("owner")),
+    "/api/owner": lambda svc, b: svc.set_owner(b.get("entity_id"), b.get("owner")),
     "/api/access_map": lambda svc, b: svc.brain.people.map_access(b.get("value"), b.get("target")),
     "/api/irk": lambda svc, b: svc.brain.people.save_irk(b),
     "/api/irk/delete": lambda svc, b: svc.brain.people.delete_irk(b.get("id")),

@@ -50,6 +50,7 @@ class ScannedEntity:
             "integration": self.info.integration,
             "device_class": self.info.device_class,
             "disabled": self.info.disabled,
+            "disabled_by": self.info.disabled_by,
             "available": self.info.available,
             "state": self.state,
             "status": self.status,
@@ -149,6 +150,7 @@ class BifrostService:
                 manufacturer=dev.get("manufacturer"),
                 model=dev.get("model"),
                 disabled=bool(re_.get("disabled_by")),
+                disabled_by=re_.get("disabled_by"),
                 available=st.get("state") not in (None, "unavailable"),
             )
             guess = classify(info)
@@ -749,6 +751,17 @@ class BifrostService:
     def save_person(self, body: dict) -> dict:
         p = self.brain.people.save(body)
         return person_public(p)
+
+    def set_owner(self, entity_id: object, owner: object) -> dict:
+        """Assign a source to a person (or the household) – assigning means using it, so it is switched on."""
+        res = self.brain.people.set_owner(entity_id, owner)
+        if owner:
+            with self._lock:
+                e = self.snap.entities.get(entity_id)
+            if e is not None and e.status != STATUS_INCLUDED:
+                self.update_entity(entity_id, STATUS_INCLUDED, e.category or e.guess.category, e.role or e.guess.role)
+                res["switched_on"] = True
+        return res
 
     def delete_person(self, pid: str) -> dict:
         return {"deleted": self.brain.people.delete(pid)}

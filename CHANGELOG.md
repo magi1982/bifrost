@@ -2,6 +2,18 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.5.2] – 2026-11-27
+
+### Fixed
+- Setup: calendars, phones and trackers that were only *suggested* had no “Belongs to” dropdown. It now shows for every such entity, and assigning it to a person or the household switches it on.
+
+### Added
+- Setup shows **who disabled** an entity in Home Assistant (its integration, you, its device or the integration itself) and where to enable it again. UniFi, for example, disables trackers of devices that were offline during setup.
+- Teslas are recognised by their Bluetooth name (“S” + 16 hex characters + “C”) as a car near the house.
+
+### Changed
+- Vehicles have no “Belongs to”: a car at home does not mean its driver is home. The pattern recognition learns “car comes home → person comes home” by itself.
+
 ## [0.5.1] – 2026-11-27
 
 ### Security

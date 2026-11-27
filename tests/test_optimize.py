@@ -114,3 +114,14 @@ def test_identity_entities_are_suggested():
     items = suggestions([ent("sensor.door_last_user", "Haustür letzter Benutzer", category=None, role=None, status="suggested", guess_role="Identity")])
     assert keys(items) == {("sensor.door_last_user", "identity")}
     assert items[0]["suggest"] == {"status": "included", "category": "security", "role": "Identity"}
+
+
+def test_tesla_bluetooth_and_disabled_reason():
+    from bifrost_app.classifier import EntityInfo, classify
+
+    tesla = classify(EntityInfo("device_tracker.s3ea36bcb2154c537c_bb27", "S3ea36bcb2154c537C BB27"))
+    assert (tesla.category, tesla.role) == ("vehicles", "Evidence") and "Tesla" in tesla.reasons[0]
+    off = classify(EntityInfo("device_tracker.car_wifi", "Car", disabled=True, disabled_by="integration"))
+    assert any("Disabled by its integration" in r for r in off.reasons)
+    phone = classify(EntityInfo("device_tracker.s_phone", "Sam phone"))
+    assert phone.category == "devices"

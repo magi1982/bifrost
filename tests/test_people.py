@@ -152,3 +152,15 @@ def test_irk_keys_validation(tmp_path):
         with pytest.raises(ValueError):
             ps.save_irk(bad)
     assert ps.delete_irk(k["id"]) == {"deleted": True}
+
+
+def test_assigning_a_suggested_calendar_switches_it_on(tmp_path):
+    from demo import build
+
+    svc = build(str(tmp_path / "d.db"))
+    svc.client.states.append({"entity_id": "calendar.work_b", "state": "off", "last_changed": "2026-01-01T00:00:00+00:00", "attributes": {"friendly_name": "Work B"}})
+    svc.scan()
+    assert svc.snap.entities["calendar.work_b"].status == "suggested"
+    res = svc.set_owner("calendar.work_b", "person_b")
+    assert res["switched_on"] and svc.snap.entities["calendar.work_b"].status == "included"
+    assert "calendar.work_b" in svc.brain.people.get("person_b").calendars
