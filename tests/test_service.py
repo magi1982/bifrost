@@ -214,3 +214,22 @@ def test_catalog_counts_by_ha_standards(tmp_path):
     assert kinds["motion"]["found"] == 1 and kinds["phones"]["found"] == 1
     assert kinds["bluetooth"]["found"] == 1 and kinds["alarm"]["found"] == 1 and kinds["robots_cars"]["found"] == 1
     assert kinds["cameras"]["found"] == 0
+
+
+def test_entity_detail_shows_data_history_and_hides_secrets(tmp_path):
+    svc, client = make_warm(tmp_path)
+    attrs = {"access_token": "SECRET", "entity_picture": "/api/x?token=SECRET", "friendly_name": "Door cam"}
+    client.states.append({"entity_id": "camera.door", "state": "idle", "last_changed": OLD, "attributes": attrs})
+    client.get_history = lambda eid, a, b: [{"state": "on", "last_changed": OLD}, {"state": "off", "last_changed": OLD}]
+    svc.scan()
+    svc.evaluate()
+    d = svc.entity_detail("binary_sensor.hall_motion")
+    assert d["attributes"]["device_class"] == "motion" and len(d["history"]) == 2 and d["entity"]["entity_id"] == "binary_sensor.hall_motion"
+    cam = svc.entity_detail("camera.door")
+    assert "SECRET" not in str(cam) and cam["attributes"]["friendly_name"] == "Door cam"
+    import pytest
+
+    with pytest.raises(KeyError):
+        svc.entity_detail("light.unknown")
+    del client.get_history  # a client without history still works
+    assert svc.entity_detail("binary_sensor.hall_motion")["history"] == []
