@@ -17,7 +17,7 @@ from collections import deque
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
-from . import balance, blocks, calwords, evidence, guard, hindsight, timing
+from . import balance, baseline, blocks, calwords, evidence, guard, hindsight, timing
 from . import routines as rt
 from .engine import ASLEEP, AWAY, LEAVING, UNKNOWN, Decision, parse_time
 from .floorplan import validate_floorplan
@@ -68,6 +68,10 @@ class Brain:
         self.evidence = store.get_obj("model", "evidence") or {}
         self.hind = store.get_obj("model", "hindsight") or {}
         self._last_pred: datetime | None = None
+        self.baseline = store.get_obj("model", "baseline") or {}
+        self.paths = store.get_obj("model", "paths") or {"areas": [], "cells": []}
+        self.last_door: datetime | None = None
+        self._rare_seen: set[str] = set()
 
     # --- meta & identities ------------------------------------------------------------
     def set_meta(self, meta: dict[str, dict]) -> None:
@@ -93,6 +97,7 @@ class Brain:
         with self._lock:
             self.detector.feed(edge)
             m = self.meta.get(eid, {})
+            self._watch(edge, m)
             if kind == "on" and m.get("category") == "motion" and self.detector.model.get("sides", {}).get(eid, {}).get("side") != "outside":
                 self.motion_last = _p(edge["ts"])
             owner = self._tracker_owner().get(eid)
@@ -114,6 +119,25 @@ class Brain:
                         st = self.store.get_obj("stats", "access_users") or {}
                         st[p.id] = st.get(p.id, 0) + 1
                         self.store.put_obj("stats", "access_users", st)
+
+    def _watch(self, edge: dict, m: dict) -> None:
+        """Live detectors: rare moments (baseline) and indoor motion without entry while empty (contradiction)."""
+        eid, kind, ts = edge["entity_id"], edge["kind"], _p(edge["ts"])
+        cat = m.get("category")
+        if kind == "on" and cat == "openings":
+            self.last_door = ts
+        if kind not in ("on", "access"):
+            return
+        exc = {x["sensor"] for x in self.inbox.exceptions()}
+        bits = baseline.is_rare(self.baseline, eid, ts)
+        if bits is not None and eid not in exc:
+            key = f"{eid}|{ts.astimezone().date()}|{baseline.slot(ts)}"
+            if key not in self._rare_seen:
+                self._rare_seen.add(key)
+                self.inbox.deviation("rare", key, {"sensor": eid, "ts": ts.isoformat(), "bits": bits}, ts)
+        side = (self.detector.model.get("sides", {}).get(eid) or {}).get("side")
+        if kind == "on" and cat == "motion" and side != "outside" and eid not in exc and self.last_extra.get("state_before") == AWAY and baseline.motion_without_entry(ts, self.last_door):
+            self.inbox.deviation("contradiction", f"{eid}|{ts.isoformat()[:16]}", {"sensor": eid, "ts": ts.isoformat(), "detail": "motion inside without entry"}, ts)
 
     # --- every minute ---------------------------------------------------------------------
     def tick(self, d: Decision, states: dict[str, dict], now: datetime, guest_mode: bool) -> tuple[Decision, dict]:
@@ -288,6 +312,26 @@ class Brain:
         dec = self.store.decisions_since(a - timedelta(hours=1))
         return [t for g, t in outcomes_from_decisions(dec, _p) if g == goal and a <= t <= b]
 
+    def learn_status(self) -> dict:
+        """Learning progress: what is learned, what is almost there (for the card on the patterns tab)."""
+        ev = self.evidence or {}
+        n = ev.get("samples") or {}
+        model = self.detector.model or {}
+        return {
+            "since": self.store.get_value("first_edge"),
+            "updated": self.hind.get("updated"),
+            "items": [
+                {"id": "entrances", "value": sum(1 for e in model.get("entrances", []) if e.get("direction")), "need": max(1, len(model.get("doors", []))) if model.get("doors") else 1},
+                {"id": "neighbours", "value": len(model.get("neighbours", [])), "need": 3},
+                {"id": "routines", "value": len(self.routines), "need": 1},
+                {"id": "words", "value": len(self.words.get("words", {})), "need": 1},
+                {"id": "home_samples", "value": n.get("home", 0), "need": evidence.MIN_SAMPLES},
+                {"id": "empty_samples", "value": n.get("empty", 0), "need": evidence.MIN_SAMPLES},
+                {"id": "departures", "value": self.hind.get("departures", 0), "need": balance.GATE_DEPARTURES},
+            ],
+            "new": [{"id": r["id"], "goal": r["goal"], "first_seen": r.get("first_seen")} for r in self.routines if r.get("first_seen")],
+        }
+
     def learning_phase(self, now: datetime) -> dict:
         first = self.store.get_value("first_edge")
         days = (now - _p(first)).days if first else 0
@@ -332,6 +376,10 @@ class Brain:
                 if len(part) >= 3:
                     names[part] = p.name
         self.evidence = evidence.learn(events, hind, self.meta)
+        self.baseline = baseline.learn(events, self.meta)
+        self.store.put_obj("model", "baseline", self.baseline)
+        self.paths = baseline.paths(events, self.meta, model.get("sides", {}))
+        self.store.put_obj("model", "paths", self.paths)
         self.store.put_obj("model", "evidence", self.evidence)
         bedtimes = [t for g, t in outcomes_from_decisions(decisions, _p) if g == "bedtime"]
         outs = [("departure", t) for t in hind["departures"]] + [("arrival", t) for t in hind["arrivals"]] + [("bedtime", t) for t in bedtimes]
@@ -587,7 +635,9 @@ class Brain:
                 "id": r["id"], "type": "routine", "goal": GOAL_OF.get(r["goal"], r["goal"]), "title": r["goal"], "who": ", ".join(r.get("who") or ["family"]),
                 "seen": r["seen"], "precision": r["precision"], "status": "active", "conditions": r.get("conditions"), "steps": steps, "companions": comps,
             }  # fmt: skip
-        return {"items": list(items.values())}
+        sigs = sorted(((v.get("total", 0), k) for k, v in (self.baseline.get("signals") or {}).items()), reverse=True)[:16]
+        heat = {k: baseline.heat(self.baseline, k) for _, k in sigs}
+        return {"items": list(items.values()), "baseline": heat, "paths": self.paths, "learn": self.learn_status()}
 
     def balance_view(self, now: datetime, health: int, departures: int) -> dict:
         decisions = self.store.decisions_since(now - timedelta(days=30))

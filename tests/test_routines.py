@@ -54,3 +54,16 @@ def test_ids_stay_stable_when_a_pattern_is_re_learned():
     other = [{"id": "r_x", "goal": "departure", "tokens": ["x:on", "y:on"]}]
     assert stabilise(other, old)[0]["id"] == "r_x"
     assert stabilise([{"id": "r_y", "goal": "arrival", "tokens": old[0]["tokens"]}], old)[0]["id"] == "r_y"
+
+
+def test_one_goal_can_have_several_habits():
+    from datetime import UTC
+
+    from bifrost_app.routines import cluster_times
+
+    base = datetime(2026, 2, 2, tzinfo=UTC)  # a Monday
+    morning = [base + timedelta(days=d, hours=7, minutes=40) for d in range(14) if (base + timedelta(days=d)).weekday() < 5]
+    noon = [base + timedelta(days=d, hours=12, minutes=10) for d in range(14) if (base + timedelta(days=d)).weekday() < 5]
+    groups = cluster_times(morning + noon, "departure")
+    assert len(groups) == 2 and all(len(g) == 10 for _, g in groups)
+    assert cluster_times(morning[:3], "departure") == []
