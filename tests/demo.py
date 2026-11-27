@@ -75,7 +75,12 @@ class DemoClient:
         ents += [{"entity_id": eid, "platform": "zha", "area_id": EXTRA_AREA[eid].lower()} for eid, *_ in EXTRA]
         return {
             "entities": ents,
-            "devices": [],
+            "devices": [
+                {"id": "shellyhall01", "name": "Shelly Plus 1 Hall", "manufacturer": "Shelly", "model": "Shelly Plus 1", "area_id": "hall", "connections": [["mac", "aa:bb:cc:00:00:01"]]},
+                {"id": "shellyliving02", "name": "Shelly Plus 2PM Living", "manufacturer": "Shelly", "model": "Shelly Plus 2PM", "area_id": "living", "connections": [["mac", "aa:bb:cc:00:00:02"]]},
+                {"id": "espproxy03", "name": "BT proxy office", "manufacturer": "Espressif", "model": "ESP32", "area_id": None, "connections": [["mac", "aa:bb:cc:00:00:03"]]},
+                {"id": "hueBridge", "name": "Hue Bridge", "manufacturer": "Signify", "model": "BSB002", "area_id": None},
+            ],
             "areas": [{"area_id": a.lower(), "name": a, "floor_id": FLOOR_OF.get(a)} for a in areas],
             "floors": [{"floor_id": "outside", "name": "Outside", "level": -1}, {"floor_id": "ground", "name": "Ground floor", "level": 0}, {"floor_id": "upper", "name": "Upper floor", "level": 1}],
         }
