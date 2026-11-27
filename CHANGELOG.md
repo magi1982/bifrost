@@ -15,6 +15,8 @@ All notable changes to Bifrost are documented here. The format follows [Keep a C
 - *May the house be empty?* explains itself: one line per rule, what blocks “empty” right now, and why the rules exist (no wrong “empty” for the alarm signal).
 
 ### Fixed
+- **A blind left open or a light left on no longer means “home”.** Manual use (lights, blinds, thermostats) counts as *activity right now* only within 5 minutes of the change – before, an open blind could keep Bifrost on “Home” all day while every phone was away.
+- The state card no longer shows “Home” and “Unclear” at the same time: below 70 % it now says “Only 66 % sure – below 70 % Bifrost stays careful.”
 - **Energy, water and air values are no longer activity.** A power sensor that keeps changing made a room look busy (e.g. a technical room) and kept the house “not empty”. These values now only add context – as jumps they still support patterns – and never light up a room or count as somebody being there.
 
 ## [0.10.2] – 2026-11-27
