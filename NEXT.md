@@ -15,7 +15,26 @@ All items below were approved by the maintainer for the next versions. Built one
 
 ## Data review (Nov 2026) – revised order ⭐
 
-A review against real household data showed: only 1 of 5 people is reliably visible today, the garage is the main entrance, some room sensors never fire, and a recurring school calendar keeps "school" entries during holidays. Therefore: **make every person visible and get ground truth first, add clever experts after.** The v0.4–v0.6 items below keep their content but follow this order.
+A review against real household data showed: only 1 of 5 people is reliably visible today, the garage is the main entrance, children's rooms have no motion sensors, some sensors never fire, and a recurring school calendar keeps "school" entries during holidays. Therefore: **make every person visible and get ground truth first, add clever experts after.** The v0.4–v0.6 items below keep their content but follow this order.
+
+### Principle: works in any house
+Nothing house-specific is hard-coded (rooms, doors, names). Bifrost observes, discovers, proposes with a reason ("in 23 of 25 cases …") and the user confirms with one tap. Only what cannot be measured is asked once (household members, who has no phone, who may be home alone, guest rules, privacy). HA areas/floors and entity names are only the starting guess.
+
+### Yggdrasil · house map (self-discovery, new layer before the experts)
+- **Entrances:** a door opens → an indoor motion sensor fires within seconds → that sensor belongs to this entrance.
+- **Inside vs outside:** a motion sensor that fires *before* a door opens, or while the house is confirmed empty, is outside.
+- **Main entrance:** ranking of doors by real use (e.g. garage before front door).
+- **Door direction:** outside → door → inside = in; inside → door → outside → silence = out.
+- **Room map:** motion sensors that often fire shortly after each other are neighbours → adjacency graph, shown in a "House" tab.
+- **Blind zones:** rooms without sensors and members without phone → Bifrost is more careful there and suggests hardware (ESP32/BLE).
+- **Garden instead of away**, **noise sources** (robot, wind, pets), **dead/chatty sensors**, **device ↔ person**, **calendar ↔ person**, **day type**.
+- Everything appears in a new "Suggestions" tab; nothing is used before it is confirmed or has strong evidence.
+
+### Revised order
+- 0.4 Understand: Yggdrasil basics (entrances, inside/outside, door direction, sensor doctor), Family tab + Frigg, Suggestions tab.
+- 0.5 Truth: last-out rule, family balance, labels from hindsight/Loxone/push question, balance tab + backtesting.
+- 0.6 Learn: calendar learning 2.0, missing patterns, day type, Huginn/Verdandi/Skuld.
+- 0.7 → 1.0: room map + BLE location, Forseti fusion, Loki, CO₂, Gjallarhorn.
 
 ### Must-have: calendar learning 2.0 (Mímir · calendar)
 - Learn **every frequently used word** (≥5 occurrences) in all chosen calendars – not only "word → house empty".
