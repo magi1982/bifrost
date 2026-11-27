@@ -1,4 +1,5 @@
 import pytest
+
 from bifrost_app.people import PeopleStore, ledger, public, slugify, validate
 from bifrost_app.store import Store
 

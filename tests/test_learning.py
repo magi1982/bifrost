@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
+
 from bifrost_app.engine import AWAY, HOME, Decision, Settings, Signal, decide
 from bifrost_app.learning import Learner, is_unreliable, trust_score
 from bifrost_app.store import Store

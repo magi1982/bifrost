@@ -18,6 +18,9 @@ target-version = "py311"
 select = ["E", "F", "W", "I", "B", "UP", "S", "BLE", "N"]
 ignore = ["S101"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["bifrost_app"]
+
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S", "N802"]
 

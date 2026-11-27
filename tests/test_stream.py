@@ -1,10 +1,11 @@
 import threading
 from datetime import UTC, datetime, timedelta
 
+from test_service import FakeClient
+
 from bifrost_app.ha_client import parse_state_changed
 from bifrost_app.service import BifrostService
 from bifrost_app.store import Store
-from test_service import FakeClient
 
 T0 = datetime(2026, 1, 5, 17, 30, tzinfo=UTC)
 
@@ -99,6 +100,7 @@ def test_idle_timeout_is_safe_but_a_stalled_message_reconnects():
     import json
 
     import pytest
+
     from bifrost_app.ha_client import HAError
 
     ws, server = _ws_pair()

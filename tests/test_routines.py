@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta
 
+from sim import household
+
 from bifrost_app.patterns import outcomes_from_decisions
 from bifrost_app.routines import mine, progress
-from sim import household
 
 
 def plans():

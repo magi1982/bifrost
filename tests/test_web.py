@@ -4,6 +4,7 @@ import urllib.error
 import urllib.request
 
 import pytest
+
 from bifrost_app.ha_client import encode_frame
 from bifrost_app.web import MAX_BODY, BoundedThreadingHTTPServer, ThreadingHTTPServer, make_handler, validate_entity_update
 
