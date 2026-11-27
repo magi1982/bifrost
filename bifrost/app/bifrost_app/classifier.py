@@ -26,6 +26,7 @@ class EntityInfo:
     manufacturer: str | None = None
     model: str | None = None
     disabled: bool = False
+    disabled_by: str | None = None
     available: bool = True
 
     @property
@@ -71,6 +72,7 @@ KW_GUEST = _kw("guest", "gast", "gäste", "gaste", "gaeste")
 KW_ROOM_NOT_MODE = _kw(r"\bwc\b", "_wc", "toilet", "zimmer", "room", "bad")
 KW_MODE = _kw("mode", "modus", "aktiv", "active", r"\bon\b")
 KW_KIDS = _kw("kid", "kids", "kinder", "child")
+TESLA_BLE = re.compile(r"(^|[._ ])s[0-9a-f]{16}c([._ ]|$)", re.I)  # Teslas advertise "S" + 16 hex + "C" via Bluetooth
 KW_IDENTITY = _kw(
     "last.?user",
     "letzte[rn]?.?benutzer",
@@ -252,7 +254,15 @@ def classify(e: EntityInfo) -> Classification:  # noqa: C901 – a flat rule lis
     def c(cat: str | None, role: str | None, conf: float, *reasons: str, relevant: bool = True) -> Classification:
         rs = list(reasons)
         if e.disabled:
-            rs.append("Disabled in Home Assistant – enable it there first")
+            who = e.disabled_by or "user"
+            rs.append(
+                {
+                    "integration": "Disabled by its integration in Home Assistant (often devices that were offline during setup) – enable it there: Settings → Entities",
+                    "user": "Disabled by you in Home Assistant – enable it there: Settings → Entities",
+                    "device": "Its device is disabled in Home Assistant – enable the device there: Settings → Devices",
+                    "config_entry": "Its integration is disabled in Home Assistant – enable the integration there: Settings → Integrations",
+                }.get(who, "Disabled in Home Assistant – enable it there first")
+            )
         if not e.available:
             rs.append("Currently unavailable – check the device")
         return Classification(cat, role, round(conf, 2), rs, relevant)
@@ -269,6 +279,8 @@ def classify(e: EntityInfo) -> Classification:  # noqa: C901 – a flat rule lis
     if d == "person":
         return c("devices", "Evidence", 0.95, "Home Assistant person – combines this person's trackers")
     if d == "device_tracker":
+        if TESLA_BLE.search(e.entity_id) or TESLA_BLE.search(e.name or ""):
+            return c("vehicles", "Evidence", 0.8, "Tesla via Bluetooth – the car is close to the house", "Whether someone came home with it is learned by the pattern recognition")
         if KW_CAR.search(t):
             return c("vehicles", "Evidence", 0.8, "Tracker of a car or beacon")
         if KW_STATIONARY.search(t) or KW_INFRA.search(t):
