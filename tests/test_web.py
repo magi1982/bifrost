@@ -185,3 +185,12 @@ def test_guest_validation(body):
 
     with pytest.raises(ValueError):
         validate_guest(body)
+
+
+def test_floorplan_query_is_validated():
+    httpd, _svc, base = _server(dev=True)
+    try:
+        code = _req(base + "/api/floorplan?floor=../../etc")[0]
+        assert code == 400
+    finally:
+        httpd.shutdown()

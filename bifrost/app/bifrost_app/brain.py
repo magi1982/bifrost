@@ -17,7 +17,7 @@ from collections import deque
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
-from . import balance, baseline, blocks, calwords, evidence, guard, hindsight, timing
+from . import balance, baseline, blocks, calwords, evidence, guard, hindsight, house, timing
 from . import routines as rt
 from .engine import ASLEEP, AWAY, LEAVING, UNKNOWN, Decision, parse_time
 from .floorplan import validate_floorplan
@@ -72,6 +72,7 @@ class Brain:
         self.paths = store.get_obj("model", "paths") or {"areas": [], "cells": []}
         self.last_door: datetime | None = None
         self._rare_seen: set[str] = set()
+        self.last_openings: dict[str, dict] = {}
 
     # --- meta & identities ------------------------------------------------------------
     def set_meta(self, meta: dict[str, dict]) -> None:
@@ -156,6 +157,7 @@ class Brain:
                     if ex["explained"]:
                         o["result"] = "exit"
                         o["confirmed_by"] = "phone"
+                self.last_openings[o["door"]] = {"result": o["result"], "at": now}
                 if o["result"] == "entry":
                     expl = guard.explain_entry(ts, ids, guest_mode, exc, night)
                 elif o["result"] == "exit":
@@ -277,6 +279,14 @@ class Brain:
                 st = self.store.get_obj("stats", "person_entries") or {}
                 st[pid] = st.get(pid, 0) + 1
                 self.store.put_obj("stats", "person_entries", st)
+
+    def routine_progress(self, now: datetime) -> dict[str, float]:
+        recent = [(_p(e["ts"]), tok) for e in self.store.events_since(now - rt.WINDOW, limit=3000) if (tok := rt.token_of(e))]
+        return {p["id"]: round(rt.progress(p, recent, now), 2) for p in self.routines}
+
+    def incidents_view(self, now: datetime) -> list[dict]:
+        events = self.store.events_since(now - timedelta(days=14), limit=20000)
+        return house.incidents(self.inbox.deviations(300), events, self.meta, (self.detector.model or {}).get("sides", {}), now)
 
     def _in_progress(self, now: datetime) -> list[dict]:
         recent = [(_p(e["ts"]), tok) for e in self.store.events_since(now - rt.WINDOW, limit=3000) if (tok := rt.token_of(e))]
@@ -658,11 +668,18 @@ class Brain:
             "evidence": {"ready": bool(self.evidence.get("ready")), "samples": self.evidence.get("samples", {}), "min": evidence.MIN_SAMPLES},
         }
 
-    def floorplan(self, b64: str) -> None:
+    def floorplan(self, b64: str, key: str = "") -> None:
+        """Store a floor plan picture – one per floor (key from house.floor_key), "" = the single legacy plan."""
         data, ctype = validate_floorplan(b64)
-        self.store.set_value("floorplan", base64.b64encode(data).decode())
-        self.store.set_value("floorplan_type", ctype)
+        suffix = f":{key}" if key else ""
+        self.store.set_value("floorplan" + suffix, base64.b64encode(data).decode())
+        self.store.set_value("floorplan_type" + suffix, ctype)
 
-    def floorplan_bytes(self) -> tuple[bytes, str] | None:
-        v, t = self.store.get_value("floorplan"), self.store.get_value("floorplan_type")
+    def floorplan_bytes(self, key: str = "") -> tuple[bytes, str] | None:
+        suffix = f":{key}" if key else ""
+        v, t = self.store.get_value("floorplan" + suffix), self.store.get_value("floorplan_type" + suffix)
         return (base64.b64decode(v), t) if v and t else None
+
+    def delete_floorplan(self, key: str) -> None:
+        for k in (f"floorplan:{key}", f"floorplan_type:{key}"):
+            self.store.set_value(k, "")
