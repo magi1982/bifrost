@@ -28,6 +28,7 @@ STATIC = Path(__file__).parent / "static"
 MAX_BODY = 4096
 FLOORPLAN_BODY = 3_000_000  # base64 of a 2 MB picture
 LAYOUT_BODY = 32_768  # up to 864 painted cells
+MAP_BODY = 65_536  # house map 2.0: rectangles, marks and placed devices
 FLOOR_KEY_RE = re.compile(r"^[a-z0-9_]{1,40}$")
 MAX_THREADS = 16
 REQUEST_TIMEOUT = 10  # seconds per connection
@@ -109,9 +110,11 @@ ACTIONS = {
     ),
     "/api/exception/delete": lambda svc, b: {"deleted": svc.brain.inbox.remove_exception(_str(b, "sensor", 255))},
     "/api/floorplan": lambda svc, b: svc.set_floorplan(b),
-    "/api/floorplan/delete": lambda svc, b: svc.delete_floorplan(b.get("floor")),
+    "/api/floorplan/delete": lambda svc, b: svc.delete_floorplan(b.get("floor"), b.get("layer", 0)),
     "/api/layout": lambda svc, b: svc.set_layout(b),
     "/api/layout/reset": lambda svc, b: svc.reset_layout(b.get("floor")),
+    "/api/map": lambda svc, b: svc.set_map(b),
+    "/api/map/reset": lambda svc, b: svc.reset_map(b.get("floor")),
     "/api/pattern_entity": lambda svc, b: svc.set_pattern_entity(b),
     "/api/entities/seen": lambda svc, b: svc.mark_seen(b.get("entity_id")),
     "/api/notify": lambda svc, b: svc.set_notify(b.get("target")),
@@ -225,7 +228,7 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
                 return self._send(HTTPStatus.FORBIDDEN, {"error": "missing request header"})
             route = self._route()
             try:
-                raw = self._read_body(FLOORPLAN_BODY if route == "/api/floorplan" else LAYOUT_BODY if route == "/api/layout" else MAX_BODY)
+                raw = self._read_body(FLOORPLAN_BODY if route == "/api/floorplan" else LAYOUT_BODY if route == "/api/layout" else MAP_BODY if route == "/api/map" else MAX_BODY)
             except ValueError:
                 return self._send(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "body too large"})
             try:

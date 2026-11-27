@@ -101,6 +101,40 @@ Goal: with Shelly proxies, Private BLE Device, Bermuda or iBeacon a house quickl
 
 **Tests**: classification of Bermuda / Private BLE / iBeacon entity names and attributes, co-occurrence suggestion on the simulator, stationary and flapping devices, room ping-pong, GUI check.
 
+**Extension (27.11.) · Raw devices the Shellys hear – "what is that?"**
+Most devices the Shelly proxies hear never become an entity. Home Assistant still sees their advertisements (Settings → Bluetooth → advertisement monitor). Bifrost reads them read-only over the WebSocket (`bluetooth/subscribe_advertisements` – to be verified on the maintainer's HA version) and shows them in a Setup card **"Bluetooth devices nearby"**:
+- **What it is** – from public identifiers, no guessing of persons: manufacturer from the company ID in the manufacturer data (e.g. 0x004C Apple, 0x0075 Samsung, 0x0006 Microsoft, 0x00E0 Google), service UUIDs (Fast Pair, Find My, Tile, BTHome, Xiaomi), Apple message type (iPhone/Watch "nearby", AirPods, Find My tag), the advertised name if any, TX power.
+- **Where** – which Shelly hears it best and the signal strength (≈ room), how stable that is.
+- **How often** – first/last seen, share of the day present, home/away rhythm compared with the phones; random-address devices are grouped ("12 changing Apple addresses") instead of listed one by one.
+- **Verdict and action** – stationary (TV, speaker, neighbour) / moves with a person → "belongs to …?" / passer-by. If a device is useful, Bifrost says how to turn it into an entity (iBeacon, Private BLE Device with IRK, BTHome, Bermuda).
+- **Privacy** – addresses stay in the app's own storage, are shown shortened, never exported or logged; devices seen < 3 times in a week are forgotten.
+Limits: iPhones and modern Android phones rotate their address every ~15 min – without an IRK they can be counted and typed ("an Apple phone"), not identified. Needs the Bluetooth integration in HA with the Shellys as proxies (active scanning gives names).
+
+**Concept v2 (27.11.) · Setup section "Bluetooth nearby" – what we can use it for** – mockup: private artifact "Bifrost Bluetooth"
+*Data path.* Read-only WebSocket subscription to HA's advertisements. Advertisements arrive many times per second, so Bifrost aggregates in memory per device and minute (best scanner, RSSI, seen yes/no) and stores 5-minute buckets only. Caps: 500 devices, 14 days; a device unseen for 14 days is forgotten unless the owner named it. **Off by default** – switch "Record Bluetooth surroundings" with an explanation.
+
+*Recognisable or not.* Each device gets "recognisable: yes / until restart / no" from its address type: public or static addresses (TVs, speakers, sensors, car kits, scanners, many fitness bands) are stable; phones rotate (resolvable private) and are only counted per type ("3 Apple phones nearby") – never followed.
+
+*Groups (learned, no setting)*
+- **House devices** – stationary, heard all day by the same scanner (TV, speakers, BTHome sensors). Use: scanner health ("Shelly garage no longer hears the freezer sensor").
+- **Moves with a person** – comes and goes with a phone or code ≥ 80 % → "belongs to …?". Use: extra person source (watch, car kit, earbuds).
+- **Regular visitors** – not stationary, seen on ≥ 3 different days in 4 weeks, stays < 30 min, first heard by an outdoor or entrance scanner, often at similar times (e.g. Mon–Fri 10:15–10:25). The owner names them ("Post", "Cleaner", "Grandma"). Use: explains an "unknown person" at the door, identity step in the incident chain ("approach: Post"), optional push "Post was here 10:22", `binary_sensor.bifrost_visitor_<slug>`.
+- **Passers-by** – seen once or twice, weak signal, outdoor scanner only → hidden, only counted.
+- **Phones nearby (anonymous)** – number of rotating Apple/Android phones in the house now vs. usual; a weak extra presence clue that needs no IRK (cannot see children without a phone, never decides alone).
+
+*UI (Setup → "Bluetooth nearby")*: KPI row (scanners, devices now, regular visitors, phones nearby); filter chips per group; per device: type icon and label from public identifiers (manufacturer, Apple message type, service UUID, name), best scanner ≈ room with signal bar, 7-day rhythm strip, visits and typical time, verdict pill, actions *Name*, *Belongs to person*, *Ignore*, *Use as entity* (explains iBeacon / Private BLE Device / BTHome / Bermuda).
+
+*Position (triangulation, 27.11.).* Every advertisement carries the scanner (source) and its RSSI, so for one device Bifrost gets a vector "Shelly hall −62, Shelly living −71, Shelly door outside −80 …". Geometric trilateration (RSSI → metres → circles) is poor indoors (walls, bodies, antenna direction, ±5–10 dB noise) – Bifrost uses **fingerprints** instead and learns them itself:
+- each room gets a typical RSSI vector; calibrated automatically from stationary devices in rooms with a known area (TV in the living room) and from moments when only one room's motion sensor fires while a device is heard;
+- a device is placed in the room whose fingerprint is nearest (k-nearest neighbours), with a confidence; below it only "in the house" / "outside" (same avatar rule as today);
+- the most useful answer is **inside or outside**: a visitor device at the front door vs. in the hallway; this works with two scanners per entrance (one outside, one inside);
+- optional: if the Shellys are placed on the floor-plan grid (House tab), the position is drawn as a soft dot between them – shown as an area, never as an exact point.
+Accuracy to expect: room level (2–5 m) with ≥ 3 scanners hearing the device; Shelly scanning misses packets, so positions are smoothed over ~30 s. Rotating phones can be placed for as long as their address lasts (~15 min) – enough for "2 phones in the upper floor", never for following a person.
+*Limits.* No guarantee: a postman is only found if they carry something with a stable address (handheld scanner, van, band); rotating phones are not recognisable. Bluetooth reach goes through walls – a neighbour can look like a "house device".
+*Privacy.* Third-party devices are recorded only as type + shortened address, never exported, logged or sent anywhere; names come only from the owner; forgotten after 14 days. The owner is responsible for informing regular visitors where the law asks for it.
+*Open questions.* Place the Shellys on the floor plan, or is their HA area enough? Off by default – yes? Retention 14 days – ok? Push for named visitors ("Post was here") – yes/no? Use "phones nearby" as a weak evidence signal or only display it?
+*Tests.* Aggregation and caps; address-type → recognisable; grouping on a simulated week (TV, watch with a person, Mon–Fri visitor, passers-by, rotating phones); forgetting after 14 days; naming creates the visitor entity; no address in logs; GUI check light/dark/390 px.
+
 ### Done in 0.10.0 · Signal value – which sensors help, which are useless (requested 27.11.)
 Decisions: only suggest switching off; useless/slow signals disappear from the House tab, a separate button shows the archived ones.
 Goal: Bifrost reads every entity and learns by itself which signals help to tell "home" from "empty" – and which bring nothing (e.g. aggregated presence zones from another system that stay "on" for a long time, sensors that hardly change). Filterable in Setup.
@@ -382,3 +416,115 @@ Limits: security value is a judgement of **coverage**, not a learned intrusion d
 - Upper floors: reported as a normal incident, not as an alarm.
 Open questions: security coverage as its own card (house outline) or a list? Window alarm also while *leaving* (last person just went out)? Ignore a window that was opened from inside shortly before everybody fell asleep (tilted for the night)?
 Tests: window contact = presence little / security valuable; outdoor motion = security valuable; summary zone = presence slow; "off" suggestion only if weak everywhere; GUI check light/dark/390 px.
+
+### Idea · Free patterns – more than arriving, leaving and sleeping (27.11.) – waiting for "mach es"
+Today Bifrost only searches patterns **for a goal** (arrival, departure, bedtime): it looks at the hour before each one. Everything else that repeats in the house is not looked for.
+
+Proposal: a second, **goal-free** search over the same facts (edges, block events, person events, energy/water jumps):
+- **Recurring sequences** – chains that happen again and again in the same order, e.g. *coffee machine → kitchen light → blinds up* (morning), *TV off → hallway light → bathroom* (evening).
+- **Weekly rhythms** – something that happens on fixed days/times, e.g. *cleaner: Tuesday 09:00–12:00, door code + motion everywhere*, *washing machine mostly Saturday*, *children home Wednesday 11:45*.
+- **Machines and timers** – things that repeat to the minute without a person (pool pump, robot, timer lights) → marked as "machine", so they never count as activity.
+- **Habits that break** – a learned rhythm that does not happen today (*the coffee machine did not run this morning although somebody is home*) or a device left on (*basement light on for 3 h, usually 10 min*).
+
+**Naming without cloud (27.11.)**: Bifrost cannot "understand" a pattern, it only knows facts. The name proposal is built from them: kind + time + rooms + the most telling devices, e.g. *Weekdays 06:40 · kitchen → bathroom · coffee machine*, *Tuesday 09–12 · entrance + motion everywhere*. If a calendar word regularly coincides with it, the word is used (*"Homeoffice"*, *"Ferien"*). Unknown patterns stay neutral (*Pattern 7 · Tue 09–12*) – exactly those may be the ones nobody thought of. The owner renames them once; the name sticks to the pattern's stable id. Optional, opt-in: if Home Assistant has a **local** conversation agent (e.g. Ollama), Bifrost can ask it for a nicer name – the facts never leave the house; without one nothing changes.
+Every found pattern gets a plain name proposal, how often it was seen, when, and how precise it is; the owner can rename it, keep it as `binary_sensor.bifrost_<slug>` or hide it. Patterns that predict a state (e.g. "coffee machine = somebody is awake") also feed the evidence scale.
+Limits: needs ≥ 2 weeks; at most ~20 proposals, sorted by how often and how regular; energy/water only as jumps.
+Open questions: show free patterns in the Patterns tab as their own section ("Everyday life") or mixed with the routines? Push message for "habit broke" (e.g. light left on) – yes/no, or only on the Status page?
+Tests: simulator with a weekly cleaner visit, a morning chain and a pool timer → three patterns found with the right kind; machine detection; "habit broke"; GUI check.
+
+### Next version 0.11 · Everyday life, Bluetooth nearby, house map 2.0 (27.11.) – waiting for "mach es"
+Decisions of the maintainer (27.11.): free patterns get their own section **"Alltagserkennung" (everyday life)** in the Patterns tab; the HA advertisement monitor is available; Bluetooth positions use the **house map**; the map editor gets better and lets the owner **place Shellys and advertising devices** on it.
+
+**1 · Everyday life – finding patterns cleverly (not "everything")**
+Patterns on **three time scales** – long ones (hours) are not too much, they are often the most telling:
+- *Sequences* (minutes): chains inside an episode – morning routine, cooking, going to bed (method below).
+- *Phases* (hours): every hour is described by a small profile (which rooms are active, which devices used, energy/water jumps, number of phones nearby). Hours that look alike are grouped (clustering); blocks of similar hours that come back are a phase: *home-office 08–17 (office motion, PC power, a coffee every ~2 h)*, *washing day Saturday 09–15 (washer, dryer, basement back and forth)*, *guests' evening 19–23 (dining room, music, more phones than usual)*.
+- *Day types* (whole days): days are grouped by their phase sequence – *school day, home-office day, weekend at home, day away, holiday* – and linked with calendar words ("Ferien" → holiday type). Tomorrow's type can be predicted from the calendar.
+- *Couplings* (across hours): B regularly follows A with a delay – *dishwasher ~40 min after cooking*, *bathroom 10 min after the alarm clock*, *lights off ~25 min after the TV*.
+- *Breaks*: a phase or coupling that should happen today but does not (*no morning routine although it is a school day*), or a device on far longer than in its phase.
+Ranking for all scales: how often × how regular × how surprising (lift vs. chance) × size (steps or hours); top 20, grouped by scale.
+A fixed "at least 4 steps" would drop good short patterns and still keep noise. Instead Bifrost mines and then *filters by interest*:
+- *Episodes*: the event stream is cut into episodes at quiet gaps (≥ 10 min without activity). Patterns are searched inside episodes only.
+- *Facts that count as a step*: only person-made changes (origin person/app), block events, person events, energy/water jumps. Not counted: automation/timer changes, the off-edge of the same device, steps that always follow each other by physics or automation (hall motion → hall light within 2 s ≥ 95 %) – they are merged into one step.
+- *Closed patterns only*: if "A → B → C → D" is found, its parts "A → B" and "B → C → D" are not shown separately unless they also happen often on their own.
+- *Minimum*: ≥ 3 different devices in ≥ 2 rooms **or** ≥ 4 steps; seen on ≥ 5 days.
+- *Score* = how often × how regular (time/weekday spread) × lift (happens together far more often than chance) × length bonus. The top 20 are shown, the rest behind "more".
+- *Kinds*: daily routine (morning, cooking, evening), weekly rhythm (cleaner Tuesday, washing Saturday), machine (to the minute, no person → marked, never activity), broken habit (expected today but missing, or a device on much longer than usual).
+- Each pattern: name proposal, steps as a chain (THEN/AND/OPTIONAL like the routines), when, how often, precision; actions *Rename*, *Keep as entity* (`binary_sensor.bifrost_<slug>`), *Hide*. Patterns that predict a state feed the evidence scale.
+
+**2 · Bluetooth nearby** – as in the Bluetooth concept v2 above (groups, visitors, privacy, fingerprints).
+
+**3 · House map 2.0**
+- *Drawing*: rooms as rectangles by dragging (no painting cell by cell); **a room can be several joined rectangles** (L- or T-shaped hallways: select the room, draw another rectangle touching it → it becomes part of the same room, outline drawn as one shape); resize/move by handles, rename and colour; doors and windows as markers on walls; *stairs* as a special room that connects two floors; an *outside* zone (garden, street, drive) around the house; copy a floor as a start for the next one; zoom/pan on the phone; undo/redo.
+- *Exact positions*: devices are placed freely (not on grid cells), stored as metres from the floor's corner, with the floor; the grid is only a snap help that can be switched off.
+- *Placing devices*: a side list (bottom sheet on the phone) with tabs **Scanners** (Shellys and other Bluetooth proxies from HA), **Bluetooth devices** (from the advertisement monitor, stationary ones first), **Sensors** (motion, doors, windows). Drag onto the map or tap device → tap position. Placed devices show an icon; unplaced ones a hint "3 Shellys not placed yet".
+- *Live layer*: Bluetooth positions as soft dots/areas, motion as glowing rooms (as today).
+- *Visitors on the map*: an entry through an entrance (door block "entry" without a known phone or code) creates a **visitor token** at that door. It moves along with the next motion events on the learned path matrix (hall → kitchen …) and merges with a Bluetooth device that appeared at the outside scanner just before and now is heard inside ("visitor with a watch"). A named visitor (Post, Cleaner) shows its name. Limits: motion cannot tell two people apart – with several people in the house the token becomes an area ("visitor somewhere on the ground floor"); it disappears with an exit through an entrance or after the guard's unknown-person rules.
+
+**4 · Triangulation across floors**
+Floors damp Bluetooth strongly (a concrete slab ~10–20 dB), which helps:
+1. *Floor first*: the floor whose scanners hear the device clearly best wins (strongest scanner and the sum of the top 2 per floor). Hysteresis: a floor change needs ~30 s or a stair/motion event on the new floor.
+2. *Then the room*: fingerprint match only among the rooms of that floor; with placed scanners also a weighted centre of the strongest scanners of that floor, drawn as an area.
+3. *Stairs*: if two floors are almost equal, the device is "on the stairs / between floors" – not guessed.
+4. *Calibration*: placed stationary devices (TV, BTHome sensors) give each scanner a per-floor offset; motion in a single room gives fingerprint samples.
+Needs ≥ 1 scanner per floor (better 2–3); the floor plan heights are not needed.
+*Light construction (timber houses, wooden ceilings)*: a wooden ceiling damps only ~3–6 dB, so "strongest floor wins" is not reliable. Bifrost therefore does not hard-code the damping – it **learns per house** how well floors separate (from placed stationary devices and calibration samples) and picks the method:
+- *Floors separate well* (concrete): floor first, then room (as above).
+- *Floors separate poorly* (wood): one fingerprint over **all** scanners of the house (3D), so the floor comes out of the whole pattern, not from one scanner; the floor needs a confirmation (motion on that floor, stairs) before it changes; otherwise it says "in the house".
+- *Scanner placement hint*: scanners stacked straight above each other cannot tell floors apart – Bifrost suggests offsets ("move the Shelly upper floor towards the other end of the house").
+- *Calibration walk* (optional, 5 min): in the House tab the owner walks through the rooms with a known device (phone with the HA app or a placed Bluetooth tag) and taps "I am here" for ~30 s per room – gives clean fingerprints, especially where floors separate poorly.
+- Bluetooth also travels further through wooden walls: more neighbours and passers-by are heard, so the "outside" zone and the passer-by filter matter more.
+
+**4b · Map tabs and motion correlation (decided 27.11.)**
+- The House map gets three tabs: **Live** (default – family phones with names, visitors, active motion sensors, occupied zones), **Configuration** (place gateways, motion sensors, doors, windows, zones; list of unplaced devices) and **Signal** (accuracy map, start calibrating). Calibration runs from the Signal tab.
+- Motion sensors are placed on the map and used for calibration-free learning: a placed motion sensor that fires while a known device is heard gives a sample "device near this sensor / in this room". This is the main way floor changes are learned in a timber house – motion on the upper floor + device heard = sample for the upper floor.
+- Tab contents (decided 27.11.): **Live** shows people only (family phones with names, visitors, occupied zones, active rooms) – no gateways, no motion sensors. **Configuration** shows technology only (gateways, motion sensors, Bluetooth devices, doors, windows) – no people. **Signal** draws map and rooms in neutral grey so only the coverage colours stand out.
+- **Inside and outside**: the map covers house **and garden**. A *hull* line defines what is inside. *Outside areas* are drawn like rooms (path to the entrance, terrace, seating area, pergola, pool area, driveway …), are marked "outside", never count as "somebody is in the house", but help with arriving/leaving, visitors and calibration. Gateways and motion sensors can be placed outside too; calibration points cover the garden.
+- Icons: round, all the same size. Every look must work in light and dark mode.
+- **Chosen (27.11.)**: look 1 **"Aurora"** (light and dark) with the round icon set 1 **"Voll"**.
+- **Zones** become entities like a motion sensor (`binary_sensor.bifrost_zone_<slug>`, device class occupancy).
+- **Per person with IRK**: `sensor.bifrost_<person>_location` – the room, outside area or zone the person is in right now (history comes from HA's recorder). In Bifrost's People tab each such person gets a card with the **last 10 movements** (room → room with time).
+- **House shape**: the hull is drawable like a room (several joined rectangles – e.g. an attached garage with its own door), proposed automatically from the outline of all inside rooms and editable.
+- **Imported floor plans**: several pictures per floor can be layered; each can be moved, zoomed, rotated and made transparent, so ground floor with garden, upper floor and basement line up over each other (alignment shared across floors via two reference points).
+- **All floors at once**: Bifrost shows every floor map one below the other; on a large display side by side as space allows.
+- Earlier: round 3 proposals (artifact "Bifrost Kartenstudio 3": 5 looks light+dark × 5 round icon sets) – waiting for the maintainer's choice. Earlier: round 2 proposals (artifact "Bifrost Kartenstudio": 5 looks × 5 icon sets) – waiting for the maintainer's choice.
+
+**5 · Calibration walk ("Einmessen", maintainer's idea 27.11.)** – after the map is drawn and the gateways are placed:
+- Button **Calibrate** in the House tab. Bifrost proposes measuring points on the map – about one per 6–10 m², at least one per room, plus near stairs and entrances – floor by floor, shown as numbered dots.
+- *Which device is measured* (decided 27.11.: chosen **before the start** from the list of IRK devices of HA's Private BLE Device, preselected: the last one used): the owner picks it once – best a phone that Bifrost can recognise (HA app with BLE transmitter on Android, an iPhone with its IRK in Private BLE Device) or any small Bluetooth tag with a fixed address carried in the hand. Bifrost checks before starting that the device is heard.
+- *Measuring*: the owner stands on the shown point, taps **Measure**; Bifrost records 20 s of signal strength from every gateway (median, spread, how many gateways), shows a quality tick (good / weak / heard by < 3 gateways → "add a gateway nearby?") and moves on to the next point. Points can be skipped, repeated, or added by tapping the map.
+- *Result*: a radio map per floor (fingerprints at known positions), an estimated accuracy from leave-one-out (*±1.4 m on the ground floor*), coverage gaps marked on the map ("upper floor east: only 1 gateway hears it"). Re-calibrate a single room later.
+- *Wooden house*: points on every floor are what makes floors separable at all; Bifrost shows how well each floor separates after the walk.
+
+**5b · "Show signal" – accuracy map after calibrating (maintainer's idea 27.11.)**
+- Button **Show signal** in the House tab: a heat map over the floor like a Wi-Fi planner – green = position accurate (± < 1.5 m), yellow = room-level, red = only "in the house" or not heard. Computed from leave-one-out errors of the calibration points, the number of gateways that hear each spot and the wall model in between.
+- Tap a red or yellow spot → **Measure here** adds a calibration point at exactly that place; the map updates after each measurement.
+- Hints next to the map: "Garage: only 1 gateway – a Shelly near the back door would help"; per floor the share of the area that is accurate.
+
+**5c · Zones on the map that become entities ("phones as motion sensors", maintainer's idea 27.11.)**
+- New map tool **Zone**: draw a rectangle (or several joined, like rooms) anywhere – *Sofa*, *Desk*, *Bed parents*, *Front door inside*, *Driveway*. A zone may cross room borders and may lie outside.
+- Each zone becomes `binary_sensor.bifrost_zone_<slug>` (device class *occupancy*): on while a tracked device of a family member is inside. Attributes: `people` (names), `devices`, `since`, `accuracy` (expected ± m at this spot). Optional per zone: one entity per person (`binary_sensor.bifrost_zone_sofa_alex`) and a count sensor.
+- Usable in automations like any presence sensor – and Bifrost itself uses them as an extra, person-bound motion signal (with its learned value, never alone for "empty").
+- Against flapping: enter after ~20 s inside, leave after ~60 s outside (adjustable per zone); a zone smaller than the local accuracy is flagged ("Desk is 1 × 1 m, accuracy here ± 2 m – make it bigger or measure more here").
+- Only devices that are bound to a person (phone with HA app / IRK, watch, tag) count; anonymous or visitor devices never switch a zone, named visitors optionally.
+
+**6 · Learning how walls and floors damp the signal (continuous)**
+Every placed gateway and every calibration point fits a simple multi-wall model: *strength = transmit power − distance loss − Σ losses of the walls/ceilings crossed*. The rooms on the map give the walls; Bifrost fits one loss per wall type it can tell apart (outer wall, inner wall, ceiling) per house – so it learns e.g. "ceiling 4 dB, inner wall 3 dB" by itself. Afterwards it keeps learning without the owner: whenever exactly one room's motion sensor fires while a known device is heard, that is an extra sample at "somewhere in this room"; samples that contradict the model are dropped. The model fills the gaps between calibration points, the fingerprints stay the reference.
+
+**Limits**: room-level accuracy; rotating phones are only placed while their address lasts (~15 min); everything stays local.
+**Decided (27.11.)**: build straight away (no design round), in stages 0.11a map → 0.11b Bluetooth and visitors → 0.11c everyday life. Push for **named** visitors, switchable per visitor. Phones: family phones shown **with the family member's name** (HA app / Private BLE Device), other phones only counted.
+**Decided (27.11.)**: calibration is done with the owner's phone resolved by its IRK (HA Private BLE Device).
+**Retention, clarified**: rotating addresses (phones without IRK) are never stored per device – only counted per type and dropped after ~15 min. The 14 days apply only to devices with a fixed address (TVs, sensors, tags, watches, car kits, handheld scanners): how long Bifrost keeps one that stopped appearing, unless it was named.
+**Decided (27.11.)**: Bluetooth surroundings are recorded **from the update on** (on by default, switch in Setup to turn it off).
+**Identification shown per device (decided 27.11.)**:
+- *With IRK* (HA Private BLE Device): the device/person name from HA, e.g. "iPhone Alex" – stable, positioned, usable for zones.
+- *Without IRK*: the best type Bifrost can read from public data, with how sure it is:
+  - Apple (company 0x004C) by message type: *iPhone / iPad / Mac nearby* (Nearby Info – iPhone vs. iPad vs. Watch is a guess and shown as "probably"), *AirPods* (proximity pairing, model readable, e.g. AirPods Pro), *Find My tag* (AirTag or offline device), *Apple TV / HomePod* (AirPlay);
+  - Samsung (0x0075) and others mostly by their advertised name ("Galaxy Watch6", "[TV] Samsung 7 Series"); Google Fast Pair (FE2C) → Android earbuds/phone; Microsoft (0x0006) → Windows PC; Garmin, Fitbit, Xiaomi, Tile, BTHome by company id / service uuid;
+  - name from the scan response when the Shellys scan actively.
+- Always shown: shortened address, address type (fixed / changing), manufacturer, best scanner and signal.
+- Rotating devices stay grouped and counted ("3 iPhones nearby"), never followed individually.
+**Decided (27.11.)**: fixed-address devices that stopped appearing are deleted after **3 months** (named ones stay). The list shows **only devices present right now**; the positions of **all** of them are drawn directly on the map. Stationary devices (TV, speakers, sensors – learned as "house devices") can be hidden: one switch for all of them plus *Hide* per device; hidden devices still serve as scanner health check and calibration help. Labels as short as possible: "iPhone", "Android", "Watch", "AirPods", "Samsung TV" …; a guess gets a small "≈" mark instead of the word "probably".
+**To discuss (reminder set for the maintainer)**: what Bifrost does when it says "everybody away" and a Bluetooth device moves inside the house.
+**Status**: 0.11a + 0.11b (map with tabs Live/Configuration/Signal, Aurora look, garden with outside areas, drawable hull, floor plan layers, all floors at once) built in 0.11.0. Next: 0.11c Bluetooth nearby, calibration (IRK device chosen before the start), zones and person location entities; 0.11d everyday life. Map look: 6 proposals (artifact "Bifrost Kartenwerkstatt") – waiting for the maintainer's choice.
+**Tests**: episode cutting and merged automation steps; closed-pattern filter; scoring on a simulated month (morning chain, cleaner Tuesday, pool timer, broken habit); floor decision with hysteresis and stairs; fingerprint room match; editor: rectangles, stairs, device placement saved per floor; GUI check light/dark/390 px.

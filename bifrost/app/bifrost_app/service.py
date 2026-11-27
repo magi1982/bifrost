@@ -13,12 +13,14 @@ from datetime import UTC, datetime, timedelta
 
 from . import __version__, calwords, guard, i18n
 from . import house as _house
+from . import housemap as _housemap
 from .balance import signal as _signal
 from .brain import Brain
 from .categories import CATEGORIES, STATUS_IGNORED, STATUS_INCLUDED, derive_role
 from .classifier import Classification, EntityInfo, classify
 from .engine import ARRIVING, AWAY, HOME, Decision, Settings, Signal, decide, parse_time
 from .ha_client import HAClient, HAError
+from .housemap import clean as _clean_map
 from .live import AUTOMATION, SCHEDULED, LiveBoard, NumericEvents, OriginLearner, classify_origin
 from .optimize import suggestions as opt_suggestions
 from .people import is_room_source
@@ -149,6 +151,7 @@ class BifrostService:
         except ValueError:
             LOG.warning("Stored origin data unreadable – starting fresh")
         self.floors: dict[str, dict] = {}
+        self.scanners: list[dict] = []
         self.source_types: dict[str, str | None] = {}
         self._states: dict[str, dict] = {}
         self.snap = Snapshot()
@@ -179,7 +182,12 @@ class BifrostService:
             f = floors.get(a.get("floor_id") or "")
             if a.get("name"):
                 area_floor[a["name"]] = {"floor": f.get("name") if f else None, "level": f.get("level") if f else None, "icon": a.get("icon")}
-        devices = {d["id"]: d for d in reg["devices"]}
+        devices = {d["id"]: d for d in reg["devices"] if d.get("id")}
+        plats: dict[str, set[str]] = {}
+        for e in reg["entities"]:
+            if e.get("device_id"):
+                plats.setdefault(e["device_id"], set()).add(e.get("platform") or "")
+        scanners = _housemap.scanner_candidates(list(devices.values()), plats, areas)
         overrides = self.store.get_overrides()
         result: dict[str, ScannedEntity] = {}
 
@@ -228,6 +236,7 @@ class BifrostService:
             self.snap.entities = result
             self.snap.scanned_at = datetime.now(UTC)
             self.floors = area_floor
+            self.scanners = scanners
             self.source_types = {k: (v.get("attributes") or {}).get("source_type") for k, v in states.items() if k.startswith("device_tracker.")}
         self.brain.set_meta(
             {
@@ -988,7 +997,17 @@ class BifrostService:
             names_f = [a["name"] for a in f["areas"]]
             saved = (self.store.get_obj("layout", key) or {}).get("cells")
             cells = {k: v for k, v in (saved or {}).items() if v in names_f} if saved else house_mod.auto_layout(names_f, self.brain.paths)
-            layouts[f["name"] or ""] = {"key": key, "cells": cells, "saved": bool(saved), "plan": bool(self.brain.floorplan_bytes(key))}
+            stored = self.store.get_obj("map", key)
+            hmap = _clean_map(stored, names_f) if stored else _housemap.from_cells(cells)
+            layouts[f["name"] or ""] = {
+                "key": key,
+                "cells": cells,
+                "saved": bool(saved),
+                "plan": bool(self.brain.floorplan_bytes(key)),
+                "map": hmap,
+                "map_saved": bool(stored),
+                "plans": [{"n": n, "key": _housemap.layer_key(key, n)} for n in range(_housemap.MAX_LAYERS) if self.brain.floorplan_bytes(_housemap.layer_key(key, n))],
+            }
         lane = self._lane(now, ents)
         room_src = {p.id: [e for e in p.sources if is_room_source(e, self.brain.meta.get(e))] for p in self.brain.people.all()}
         known_areas = {a["name"] for f in floor_list for a in f["areas"]}
@@ -1014,6 +1033,7 @@ class BifrostService:
             "links": [{**x, "a_area": area_of.get(x["a"]), "b_area": area_of.get(x["b"])} for x in walk],
             "names": names,
             "people_inside_min": (self.extra or {}).get("people_inside_min", 0),
+            "placeable": self._placeable(ents),
         }
 
     LANE_KINDS = ("on", "auto", "access", "home", "away", "block", "event")
@@ -1051,6 +1071,27 @@ class BifrostService:
         self.store.put_obj("layout", key, {"floor": floor, "cells": cells})
         return {"floor": floor, "cells": len(cells)}
 
+    def _placeable(self, ents: dict) -> dict:
+        """What can be put on the house map: Bluetooth scanners and the sensors Bifrost uses."""
+        with self._lock:
+            scanners = list(self.scanners)
+        sensors = [
+            {"id": eid, "name": e.info.name or eid, "area": e.info.area, "category": e.category}
+            for eid, e in sorted(ents.items())
+            if e.status == STATUS_INCLUDED and e.category in ("motion", "openings", "access") and eid.split(".", 1)[0] in ("binary_sensor", "lock", "event", "sensor", "cover")
+        ]
+        return {"scanners": scanners, "sensors": sensors[:200], "ble": []}
+
+    def set_map(self, body: object) -> dict:
+        floor, m = _housemap.validate_map(body, self._floor_areas())
+        self.store.put_obj("map", _house.floor_key(floor), {"floor": floor, **m})
+        return {"floor": floor, "rooms": len(m["rooms"]), "devices": len(m["devices"])}
+
+    def reset_map(self, floor: object) -> dict:
+        if not isinstance(floor, str) or floor not in self._floor_areas():
+            raise ValueError("unknown floor")
+        return {"deleted": self.store.del_obj("map", _house.floor_key(floor))}
+
     def reset_layout(self, floor: object) -> dict:
         if not isinstance(floor, str) or floor not in self._floor_areas():
             raise ValueError("unknown floor")
@@ -1062,13 +1103,18 @@ class BifrostService:
         img = body.get("image")
         if not isinstance(img, str) or not img:
             raise ValueError("image missing")
-        self.brain.floorplan(img, _house.floor_key(body["floor"]))
-        return {"ok": True}
+        n = body.get("layer", 0)
+        if not isinstance(n, int) or isinstance(n, bool) or not 0 <= n < _housemap.MAX_LAYERS:
+            raise ValueError("layer: 0..3")
+        self.brain.floorplan(img, _housemap.layer_key(_house.floor_key(body["floor"]), n))
+        return {"ok": True, "layer": n, "key": _housemap.layer_key(_house.floor_key(body["floor"]), n)}
 
-    def delete_floorplan(self, floor: object) -> dict:
+    def delete_floorplan(self, floor: object, layer: object = 0) -> dict:
         if not isinstance(floor, str) or floor not in self._floor_areas():
             raise ValueError("unknown floor")
-        self.brain.delete_floorplan(_house.floor_key(floor))
+        if not isinstance(layer, int) or isinstance(layer, bool) or not 0 <= layer < _housemap.MAX_LAYERS:
+            raise ValueError("layer: 0..3")
+        self.brain.delete_floorplan(_housemap.layer_key(_house.floor_key(floor), layer))
         return {"ok": True}
 
     def incidents_view(self) -> dict:

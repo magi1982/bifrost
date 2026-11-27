@@ -2,6 +2,19 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.11.0] – 2026-11-27
+
+### Added
+- **House map with three tabs**, all floors shown at once (one below the other, side by side on large screens):
+  - **Live** (default) – only people: family members as a phone icon with their name in their room, rooms light up by what happens.
+  - **Configuration** – only technology: Bluetooth gateways (blue Bluetooth logo), motion sensors, contacts, Bluetooth devices (white circles), doors and windows; **Edit map** per floor.
+  - **Signal** – the map in grey, only the coverage in colour (accurate / room level / rough / weak), estimated from the gateway positions; calibration comes next.
+- **Drawing**: rooms as rectangles in metres – several rectangles of one room join into one shape (L- or T-shaped hallways); **outside areas** (path to the entrance, terrace, pool, pergola … – an HA area or a free name) that never count as "in the house"; the **hull** – the outline of the house, drawable too (e.g. an attached garage), by default taken from the rooms; stairs, doors, windows (snap to the nearest wall); select, move, resize, delete, undo/redo, 0.5 m grid, floor size.
+- **Place devices exactly**: gateways (Shelly Gen2+, ESPHome proxies from the HA device registry), motion sensors and contacts; unplaced gateways are pointed out.
+- **Floor plan pictures**: up to four per floor, each moved, scaled, rotated and made transparent so ground floor with garden, upper floor and basement line up.
+- New look "Aurora" in light and dark mode with round icons of the same size. Your 0.9 room layout is taken over automatically.
+- API: `/api/map`, `/api/map/reset`, `/api/floorplan` with `layer` (validated: known floor and areas, outside names checked, sizes, at most 240 rectangles, 40 hull rectangles, 240 devices, 4 pictures).
+
 ## [0.10.3] – 2026-11-27
 
 ### Added
