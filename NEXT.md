@@ -560,5 +560,10 @@ Tests: stop → off; exception in evaluate → off; start → off first; watchdo
 - *No loop*: Bifrost's own `bifrost_*` entities stay excluded as input (already the case in the scan – kept and tested).
 - *Internal path*: zones and person locations flow into pattern recognition directly inside Bifrost, not via HA.
 
-**Priority**: point 1 before any release (proposal: 0.11.1 right away). Points 2 and 3 as the next version – proposal **0.12 before 0.11c**, because 0.11c adds many new entities (zones, person locations, visitors) that should be born as MQTT entities right away.
+**Decided (27.11.)**:
+- No separate 0.11.1 – the safeguards become part of the MQTT design in **0.12**, which comes **before 0.11c** so the new entities (zones, person locations, visitors) are born as MQTT entities. Order: 0.12 → 0.11c → 0.11d. `empty_confirmed` is not connected to Loxone before 0.12.
+- How MQTT covers point 1: a clean stop publishes `offline` itself (the Last Will only fires on a crash); on start Bifrost first publishes `empty_confirmed = off`, then `online` (a retained `on` from before a crash never comes back); a hung loop is caught by `expire_after`; a crash or power loss by the Last Will. The fallback via `/api/states` keeps the three cheap safeguards.
+- Entity ids do **not** have to be kept (no automations yet) – clean new ids under the device "Bifrost".
+- **Clean-up help**: on the switch Bifrost removes its old `/api/states` entities itself (`DELETE /api/states/<id>`), lists leftovers it cannot remove (e.g. old ids in dashboards) in the new entity card with a "remove" button, and DOCS get a short checklist (what to check in HA after the update).
+**Priority (original)**: point 1 before any release. Points 2 and 3 as the next version – proposal **0.12 before 0.11c**, because 0.11c adds many new entities (zones, person locations, visitors) that should be born as MQTT entities right away.
 **Open questions**: the three safeguards as proposed? Freshness window 3 × interval (default interval 30 s → 90 s) ok? Keep the existing entity ids under MQTT? 0.12 before 0.11c?
