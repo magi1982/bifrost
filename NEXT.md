@@ -509,7 +509,16 @@ Every placed gateway and every calibration point fits a simple multi-wall model:
 **Decided (27.11.)**: build straight away (no design round), in stages 0.11a map → 0.11b Bluetooth and visitors → 0.11c everyday life. Push for **named** visitors, switchable per visitor. Phones: family phones shown **with the family member's name** (HA app / Private BLE Device), other phones only counted.
 **Decided (27.11.)**: calibration is done with the owner's phone resolved by its IRK (HA Private BLE Device).
 **Retention, clarified**: rotating addresses (phones without IRK) are never stored per device – only counted per type and dropped after ~15 min. The 14 days apply only to devices with a fixed address (TVs, sensors, tags, watches, car kits, handheld scanners): how long Bifrost keeps one that stopped appearing, unless it was named.
-**Still open**: recording on or off after the update; 14 days for fixed-address devices ok?
+**Decided (27.11.)**: Bluetooth surroundings are recorded **from the update on** (on by default, switch in Setup to turn it off).
+**Identification shown per device (decided 27.11.)**:
+- *With IRK* (HA Private BLE Device): the device/person name from HA, e.g. "iPhone Michael" – stable, positioned, usable for zones.
+- *Without IRK*: the best type Bifrost can read from public data, with how sure it is:
+  - Apple (company 0x004C) by message type: *iPhone / iPad / Mac nearby* (Nearby Info – iPhone vs. iPad vs. Watch is a guess and shown as "probably"), *AirPods* (proximity pairing, model readable, e.g. AirPods Pro), *Find My tag* (AirTag or offline device), *Apple TV / HomePod* (AirPlay);
+  - Samsung (0x0075) and others mostly by their advertised name ("Galaxy Watch6", "[TV] Samsung 7 Series"); Google Fast Pair (FE2C) → Android earbuds/phone; Microsoft (0x0006) → Windows PC; Garmin, Fitbit, Xiaomi, Tile, BTHome by company id / service uuid;
+  - name from the scan response when the Shellys scan actively.
+- Always shown: shortened address, address type (fixed / changing), manufacturer, best scanner and signal.
+- Rotating devices stay grouped and counted ("3 iPhones nearby"), never followed individually.
+**Still open**: 14 days for fixed-address devices that stopped appearing – ok?
 **To discuss (reminder set for the maintainer)**: what Bifrost does when it says "everybody away" and a Bluetooth device moves inside the house.
 **Status**: 0.11a (house map 2.0, device placement) built in 0.11.0. Map look: 6 proposals (artifact "Bifrost Kartenwerkstatt") – waiting for the maintainer's choice.
 **Tests**: episode cutting and merged automation steps; closed-pattern filter; scoring on a simulated month (morning chain, cleaner Tuesday, pool timer, broken habit); floor decision with hysteresis and stairs; fingerprint room match; editor: rectangles, stairs, device placement saved per floor; GUI check light/dark/390 px.
