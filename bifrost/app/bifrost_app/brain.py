@@ -20,7 +20,7 @@ from . import routines as rt
 from .engine import AWAY, Decision, parse_time
 from .location import Fingerprints, validate_floorplan
 from .patterns import outcomes_from_decisions
-from .people import STRENGTH_BY_INTEGRATION, WEAK, PeopleStore, access_match, ledger
+from .people import STRENGTH_BY_INTEGRATION, WEAK, PeopleStore, ledger
 from .questions import Inbox
 
 LOG = logging.getLogger(__name__)
@@ -37,6 +37,7 @@ class Brain:
     def __init__(self, store, options: dict) -> None:  # noqa: ANN001
         self.store, self.options = store, options
         self.people = PeopleStore(store)
+        self.people.migrate()
         self.inbox = Inbox(store)
         self.detector = blocks.Detector()
         self.gs = guard.GuardState()
@@ -80,16 +81,20 @@ class Brain:
             owner = self._tracker_owner().get(eid)
             if owner and kind == "home":
                 self.identity.append({"ts": _p(edge["ts"]), "who": owner[1], "pid": owner[0], "kind": "home", "strength": self.strength(eid)})
-            # access systems (keypad, NFC, fingerprint): a change whose value names a known user
-            access = self.people.access_entities()
-            if kind == "change" and (eid in access if access else m.get("category") == "security"):
-                reported = edge.get("state") or ""
-                for p in self.people.all():
-                    if access_match(p.nfc_user, reported):
-                        self.identity.append({"ts": _p(edge["ts"]), "who": p.name, "pid": p.id, "kind": "nfc", "strength": "strong"})
-                for shared in self.people.shared_access():
-                    if access_match(shared, reported):  # household code: somebody from the family, not a specific person
-                        self.identity.append({"ts": _p(edge["ts"]), "who": "household", "pid": None, "kind": "nfc", "strength": "strong"})
+            # access systems (keypad, NFC, fingerprint, smart lock): the service already resolved who it was
+            if kind == "access":
+                target = edge.get("state") or "unknown"
+                ts = _p(edge["ts"])
+                if target == "denied":
+                    self.inbox.deviation("unexplained", f"access_denied:{eid}", {"sensor": eid, "detail": "access denied"}, ts)
+                elif target != "ignore":
+                    p = self.people.get(target) if target not in ("household", "unknown") else None
+                    who = p.name if p else target
+                    self.identity.append({"ts": ts, "who": who, "pid": p.id if p else None, "kind": "nfc", "strength": "strong"})
+                    if p:
+                        st = self.store.get_obj("stats", "access_users") or {}
+                        st[p.id] = st.get(p.id, 0) + 1
+                        self.store.put_obj("stats", "access_users", st)
 
     # --- every minute ---------------------------------------------------------------------
     def tick(self, d: Decision, states: dict[str, dict], now: datetime, guest_mode: bool) -> tuple[Decision, dict]:
@@ -372,6 +377,11 @@ class Brain:
                         res, door = tok[6:].split(":", 1)
                         ref = ("in_" if res == "entry" else "out_" if res == "exit" else "io_") + door
                         its.append({"ref": ref} if ref in items else {"label": tok})
+                    elif tok.startswith("access:"):
+                        _, eid, target = tok.split(":", 2)
+                        p = self.people.get(target) if target not in ("household", "unknown") else None
+                        who = p.name if p else {"household": "Household", "unknown": "authorised"}.get(target, target)
+                        its.append({"label": f"{nm(eid)} · {who}", "entity": eid})
                     elif tok.startswith("person:"):
                         pid = tok.split(":")[1]
                         its.append({"ref": "p_" + pid} if "p_" + pid in items else {"label": tok})

@@ -71,6 +71,24 @@ KW_GUEST = _kw("guest", "gast", "gäste", "gaste", "gaeste")
 KW_ROOM_NOT_MODE = _kw(r"\bwc\b", "_wc", "toilet", "zimmer", "room", "bad")
 KW_MODE = _kw("mode", "modus", "aktiv", "active", r"\bon\b")
 KW_KIDS = _kw("kid", "kids", "kinder", "child")
+KW_IDENTITY = _kw(
+    "last.?user",
+    "letzte[rn]?.?benutzer",
+    "zuletzt",
+    r"\bbenutzer\b",
+    r"\buser\b",
+    "nfc",
+    "fingerprint",
+    "fingerabdruck",
+    "code.?touch",
+    "keypad",
+    "zutritt",
+    "access",
+    "rfid",
+    "transponder",
+    "unlocked.?by",
+    "ge(ö|oe)ffnet.?von",
+)
 KW_FRONT = _kw("front.?door", "haust", "entrance", "eingang", "garage", "terrass", "terrace", "sitzplatz", "balkon", "balcony", "patio")
 KW_DOORNAME = _kw("tür", "tuer", r"\btor\b", "garagentor", "gartentor", "door", r"\bgate\b", "schiebe")
 KW_FRIDGE = _kw("fridge", "kühlschrank", "kuehlschrank", "kuhlschrank", "freezer", "gefrier")
@@ -240,6 +258,8 @@ def classify(e: EntityInfo) -> Classification:  # noqa: C901 – a flat rule lis
         return Classification(cat, role, round(conf, 2), rs, relevant)
 
     # --- clearly irrelevant ---------------------------------------------------
+    if d in {"sensor", "input_text", "text", "event"} and KW_IDENTITY.search(t) and dc not in {"timestamp", "battery", "signal_strength"}:
+        return c("security", "Identity", 0.75, "Name says it reports who unlocked (keypad, NFC, fingerprint)", "Assign the reported users to people in Setup")
     if d in IRRELEVANT_DOMAINS:
         return c(None, None, 0.0, f"Domain “{d}” says nothing about presence", relevant=False)
     if d == "sensor" and KW_SYSTEM.search(t) and dc not in {"carbon_dioxide", "humidity"}:
@@ -279,7 +299,7 @@ def classify(e: EntityInfo) -> Classification:  # noqa: C901 – a flat rule lis
     if d == "alarm_control_panel":
         return c("security", "Truth", 0.9, "Alarm panel – armed away is proof the house is empty")
     if d == "lock":
-        return c("security", "Evidence", 0.9, "Lock – locked from outside is a strong “empty” clue")
+        return c("security", "Evidence", 0.9, "Lock – locked from outside is a strong “empty” clue", "Bifrost also reads who unlocked it, if the lock reports it")
 
     # --- noise sources -------------------------------------------------------
     if KW_ROBOT.search(t) and d in {"sensor", "binary_sensor"} and KW_ROBOT_DETAIL.search(t):

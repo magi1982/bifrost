@@ -24,6 +24,7 @@ ROLES: dict[str, str] = {
     "Blocker": "prevents “empty”",
     "Noise": "fakes activity – gets masked",
     "Truth": "proof that teaches Bifrost",
+    "Identity": "says who it was",
 }
 
 # Status of an entity inside Bifrost

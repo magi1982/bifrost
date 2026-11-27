@@ -108,11 +108,44 @@ def test_live_view_on_demo_household(tmp_path):
     assert "light.garden" in svc.live.automated(timedelta(hours=24), datetime.now(UTC))
 
 
-def test_shared_household_code_explains_an_entry(tmp_path):
+def test_identity_entities_explain_entries_and_become_steps(tmp_path):
     from demo import build
 
+    from bifrost_app.routines import token_of
+
     svc = build(str(tmp_path / "demo.db"))
-    svc.brain.people.set_shared_access(["Family code"])
+    eid = "sensor.front_door_last_user"
     t = datetime.now(UTC)
-    svc.brain.on_edge({"ts": t, "entity_id": "sensor.front_door_last_user", "kind": "change", "state": "Family code"})
-    assert any(i["who"] == "household" and i["strength"] == "strong" for i in svc.brain.identity)
+    svc.brain.people.map_access("Family code", "household")
+    svc.brain.identity.clear()
+    svc.on_state_changed(eid, "Family code", t)
+    svc.on_state_changed(eid, "", t + timedelta(seconds=3))
+    svc.on_state_changed(eid, "Person B", t + timedelta(seconds=10))
+    svc.on_state_changed(eid, "", t + timedelta(seconds=13))
+    svc.on_state_changed(eid, "42", t + timedelta(seconds=20))  # a user number nobody assigned yet – still authorised
+    svc.on_state_changed(eid, "", t + timedelta(seconds=23))
+    svc.on_state_changed(eid, "Zugang verweigert", t + timedelta(seconds=30))
+    who = [(i["who"], i["pid"]) for i in svc.brain.identity]
+    assert ("household", None) in who and ("Person B", "person_b") in who and ("unknown", None) in who
+    assert len(who) == 3  # the denial explains nothing
+    assert any(d["key"] == f"access_denied:{eid}" for d in svc.brain.inbox.deviations())
+    seen = {s["value"]: s["target"] for s in svc.sources_view()["identity"][0]["seen"]}
+    assert seen["42"] == "" and seen["Family code"] == "household" and seen["Person B"] == "person_b"
+    evs = [e for e in svc.store.events_since(t - timedelta(seconds=1)) if e["kind"] == "access"]
+    toks = {token_of(e) for e in evs}
+    assert f"access:{eid}:household" in toks and f"access:{eid}:person_b" in toks and None in toks  # denied → no token
+
+
+def test_smart_lock_reports_who_unlocked(tmp_path):
+    from demo import build
+
+    svc = build(str(tmp_path / "demo2.db"))
+    svc.client.states.append({"entity_id": "lock.front", "state": "locked", "last_changed": datetime.now(UTC).isoformat(), "attributes": {"friendly_name": "Front lock"}})
+    svc.scan()
+    svc.update_entity("lock.front", "included", "security", "Evidence")
+    svc.brain.identity.clear()
+    t = datetime.now(UTC)
+    svc.on_state_changed("lock.front", "unlocked", t, attrs={"changed_by": "Person B"})
+    svc.on_state_changed("lock.front", "locked", t + timedelta(seconds=30), attrs={"changed_by": "Person B"})
+    assert [(i["who"], i["pid"]) for i in svc.brain.identity] == [("Person B", "person_b")]
+    assert "lock.front" in [x["entity_id"] for x in svc.sources_view()["identity"]]

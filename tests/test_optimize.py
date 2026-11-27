@@ -108,3 +108,9 @@ def test_applying_a_suggestion_does_not_create_the_opposite_one():
         s = suggestions([e])[0]
         e.update(s["suggest"])
         assert suggestions([e]) == []
+
+
+def test_identity_entities_are_suggested():
+    items = suggestions([ent("sensor.door_last_user", "Haustür letzter Benutzer", category=None, role=None, status="suggested", guess_role="Identity")])
+    assert keys(items) == {("sensor.door_last_user", "identity")}
+    assert items[0]["suggest"] == {"status": "included", "category": "security", "role": "Identity"}

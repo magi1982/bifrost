@@ -9,9 +9,10 @@ Bifrost tells you whether anybody is home – with a confidence and the reasons.
 ### First steps
 1. Start the app and open **Bifrost** in the sidebar. The language follows Home Assistant; change it in **Setup**.
 2. **Setup** – Bifrost has already scanned your Home Assistant and switched on the signals it is sure about. Go through **Optimisations** (one suggestion per signal) and the **Suggested** filter; **Why?** shows the reasons, “Which role for what?” explains the roles.
-3. **People** – add everybody who lives here, children without phones too. Pick their phones and calendars; optionally pick the user in your access system and enter the iPhone IRK (stored locally, never shown again). No Home Assistant users are needed.
-4. Assign your sensors to **areas** (and areas to **floors**) in Home Assistant – the **House** tab is built from them.
-5. Let Bifrost learn for a few days. It runs in **shadow mode** and does not trigger anything.
+3. **People** – add everybody who lives here by name, children without phones too. No Home Assistant users are needed.
+4. **Setup** – assign phones and calendars with **Belongs to**; give keypad/NFC/“last user” entities the role **Identity** and assign the users they report; add iPhone Bluetooth keys (IRK) in their card.
+5. Assign your sensors to **areas** (and areas to **floors**) in Home Assistant – the **House** tab is built from them.
+6. Let Bifrost learn for a few days. It runs in **shadow mode** and does not trigger anything.
 
 ### Tabs
 - **Status** – result, confidence, reasons, “May the house be empty?” checklist, people, suspicious entry, learning progress, “That's wrong” correction, guest mode.
@@ -24,7 +25,7 @@ Bifrost tells you whether anybody is home – with a confidence and the reasons.
 - **Timeline**, **Dashboard**, **Balance**, **Setup** (with the guide “Which role for what?”).
 
 ### Access system (optional)
-If you have a keypad, NFC or fingerprint reader: pick the entity that reports who unlocked (People tab). Bifrost lists the users it has seen; assign each to a person or mark it as a **shared household code**.
+Keypad, NFC, fingerprint or smart lock: give the entity that reports who unlocked the role **Identity** in Setup (smart locks are read automatically). The reported users appear right under the entity; assign each to a person, mark it as **household code**, ignore it – or leave it unassigned (still counts as “someone authorised”). “Denied” never explains an entry.
 
 ### Who switched it?
 Bifrost reads the Home Assistant context of every change: by hand, via app or by an automation. A light switched by an automation – or by a timer Bifrost learned (same time on 5 of the last 14 days, e.g. a Loxone timer) – is not a person. Humidity jumps, CO₂ rises, power spikes and running water count as events.
@@ -60,9 +61,10 @@ Entities created by an app through the REST API disappear after a Home Assistant
 ### Erste Schritte
 1. App starten und **Bifrost** in der Seitenleiste öffnen. Die Sprache folgt Home Assistant; umstellen im **Setup**.
 2. **Setup** – Bifrost hat dein Home Assistant schon gescannt und die sicheren Signale eingeschaltet. **Optimierungen** durchgehen (ein Vorschlag pro Signal) und den Filter **Vorgeschlagen** prüfen; **Warum?** zeigt die Gründe, „Welche Rolle wofür?“ erklärt die Rollen.
-3. **Personen** – alle anlegen, die hier wohnen, auch Kinder ohne Handy. Handys und Kalender wählen; optional den Benutzer im Zugangssystem wählen und das iPhone-IRK eintragen (lokal gespeichert, nie wieder angezeigt). Benutzer in Home Assistant braucht es nicht.
-4. Sensoren in Home Assistant **Bereichen** zuweisen (und Bereiche **Stockwerken**) – daraus entsteht der Tab **Haus**.
-5. Bifrost ein paar Tage lernen lassen. Es läuft im **Schattenmodus** und löst nichts aus.
+3. **Personen** – alle, die hier wohnen, mit Namen anlegen, auch Kinder ohne Handy. Benutzer in Home Assistant braucht es nicht.
+4. **Setup** – Handys und Kalender mit **Gehört zu** zuordnen; Code-/NFC-/„letzter Benutzer“-Entitäten die Rolle **Wer (Identität)** geben und die gemeldeten Benutzer zuordnen; iPhone-Bluetooth-Schlüssel (IRK) in ihrer Karte hinzufügen.
+5. Sensoren in Home Assistant **Bereichen** zuweisen (und Bereiche **Stockwerken**) – daraus entsteht der Tab **Haus**.
+6. Bifrost ein paar Tage lernen lassen. Es läuft im **Schattenmodus** und löst nichts aus.
 
 ### Tabs
 - **Status** – Ergebnis, Sicherheit, Gründe, Checkliste „Darf das Haus leer sein?“, Personen, verdächtiger Eintritt, Lernfortschritt, „Stimmt nicht“, Gästemodus.
@@ -75,7 +77,7 @@ Entities created by an app through the REST API disappear after a Home Assistant
 - **Verlauf**, **Dashboard**, **Bilanz**, **Setup** (mit der Anleitung „Welche Rolle wofür?“).
 
 ### Zugangssystem (optional)
-Wenn du eine Code-Tastatur, NFC oder einen Fingerabdruck-Leser hast: Wähle im Tab Personen die Entität, die meldet, wer aufgeschlossen hat. Bifrost zeigt die gemeldeten Benutzer; ordne jeden einer Person zu oder markiere ihn als **gemeinsamen Code der Familie**.
+Code-Tastatur, NFC, Fingerabdruck oder smartes Schloss: Gib der Entität, die meldet, wer aufgeschlossen hat, im Setup die Rolle **Wer (Identität)** (smarte Schlösser liest Bifrost automatisch). Die gemeldeten Benutzer erscheinen direkt darunter; ordne jeden einer Person zu, markiere ihn als **Familien-Code**, ignoriere ihn – oder lass ihn offen (zählt trotzdem als „jemand mit Berechtigung“). „Verweigert“ erklärt nie einen Eintritt.
 
 ### Wer hat geschaltet?
 Bifrost liest bei jeder Änderung den Home-Assistant-Context: von Hand, per App oder durch eine Automation. Ein Licht, das eine Automation geschaltet hat – oder eine gelernte Zeitschaltung (gleiche Zeit an 5 der letzten 14 Tage, z. B. in Loxone) – ist keine Person. Feuchte-Sprünge, steigendes CO₂, Strom-Spitzen und laufendes Wasser zählen als Ereignisse.

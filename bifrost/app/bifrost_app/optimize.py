@@ -73,6 +73,8 @@ def suggestions(entities: list[dict], door_roles: dict[str, dict] | None = None,
             found.append(_sug(e, "robot", category="vehicles", role="Noise"))
         elif domain == "alarm_control_panel" and used and role != "Truth":
             found.append(_sug(e, "alarm", category="security", role="Truth"))
+        elif e.get("guess_role") == "Identity" and role != "Identity" and status != "ignored":
+            found.append(_sug(e, "identity", status="included", category="security", role="Identity"))
         elif domain == "calendar" and used and role != "Context":
             found.append(_sug(e, "calendar", category="calendar", role="Context"))
 

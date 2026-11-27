@@ -146,7 +146,7 @@ class HAClient:
                     continue
                 change = parse_state_changed(msg)
                 if change:
-                    on_change(*change, origin=origin_of(msg))
+                    on_change(*change, origin=origin_of(msg), attrs=identity_attrs(msg))
         finally:
             ws.close()
 
@@ -231,6 +231,15 @@ class _SimpleWebSocket:
         except OSError:
             pass
         self.sock.close()
+
+
+IDENTITY_ATTRS = ("changed_by", "user", "user_name", "username", "user_id", "code_slot_name", "code_name", "last_user", "name")
+
+
+def identity_attrs(msg: dict) -> dict:
+    """Only the few attributes that can say who unlocked (smart locks, keypads) – nothing else is kept."""
+    attrs = (((msg.get("event") or {}).get("data") or {}).get("new_state") or {}).get("attributes") or {}
+    return {k: str(attrs[k])[:40] for k in IDENTITY_ATTRS if attrs.get(k) not in (None, "")}
 
 
 def parse_state_changed(msg: dict) -> tuple[str, str | None, datetime] | None:

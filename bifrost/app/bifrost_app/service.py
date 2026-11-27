@@ -159,6 +159,15 @@ class BifrostService:
                 ent = ScannedEntity(info, guess, guess.status, guess.category, guess.role)
             ent.state = st.get("state")
             result[eid] = ent
+        # ≤ 0.4.2: access entities were chosen in the People tab → now role Identity in Setup
+        legacy = self.brain.people.access_entities()
+        for eid in legacy:
+            e = result.get(eid)
+            if e is not None and not e.user_set:
+                self.store.set_override(eid, STATUS_INCLUDED, "security", "Identity")
+                e.status, e.category, e.role, e.user_set = STATUS_INCLUDED, "security", "Identity", True
+        if legacy:
+            self.store.set_value("access_entities", "[]")
         with self._lock:
             self.snap.entities = result
             self.snap.scanned_at = datetime.now(UTC)
@@ -648,7 +657,7 @@ class BifrostService:
     def optimizations_view(self) -> dict:
         """Where category or role of a signal differs from what works best – one suggestion per entity."""
         with self._lock:
-            ents = [{**e.to_dict(), "guess_category": e.guess.category} for e in self.snap.entities.values()]
+            ents = [{**e.to_dict(), "guess_category": e.guess.category, "guess_role": e.guess.role} for e in self.snap.entities.values()]
         model = self.brain.detector.model or {}
         try:
             dismissed = set(json.loads(self.store.get_value("opt_dismissed") or "[]"))
@@ -704,41 +713,42 @@ class BifrostService:
     def people_view(self) -> dict:
         led = (self.extra or {}).get("ledger") or {}
         rows = {r["id"]: r for r in led.get("people", [])}
-        with self._lock:
-            trackers = sorted(
-                ({"entity_id": k, "name": e.info.name or k, "integration": e.info.integration} for k, e in self.snap.entities.items() if k.startswith(("device_tracker.", "person."))),
-                key=lambda x: x["name"].lower(),
-            )
-            calendars = sorted(({"entity_id": k, "name": e.info.name or k} for k, e in self.snap.entities.items() if k.startswith("calendar.")), key=lambda x: x["name"].lower())
-            access_candidates = sorted(
-                ({"entity_id": k, "name": e.info.name or k} for k, e in self.snap.entities.items() if k.startswith(("sensor.", "input_text.", "text.", "event.", "lock.")) and not _is_number(e.state)),
-                key=lambda x: x["name"].lower(),
-            )
+        names = self._names()
+        irks = self.brain.people.irks()
+        stats = self.store.get_obj("stats", "access_users") or {}
+        out = []
+        for p in self.brain.people.all():
+            out.append({
+                **person_public(p), "now": rows.get(p.id),
+                "tracker_names": [names.get(e, e) for e in p.trackers + p.tags],
+                "calendar_names": [names.get(e, e) for e in p.calendars],
+                "irks": [k["label"] for k in irks if k.get("owner") == p.id],
+                "unlocks": stats.get(p.id, 0),
+            })  # fmt: skip
         return {
-            "people": [{**person_public(p), "now": rows.get(p.id)} for p in self.brain.people.all()],
+            "people": out,
             "unknown_min": led.get("unknown_min", 0),
+            "household_calendars": [names.get(e, e) for e in self.brain.people.household_calendars()],
             "shared_access": self.brain.people.shared_access(),
-            "access_entities": self.brain.people.access_entities(),
-            "access_seen": self.store.distinct_states(self.brain.people.access_entities(), datetime.now(UTC) - timedelta(days=60)),
-            "access_candidates": access_candidates,
-            "trackers": trackers,
-            "calendars": calendars,
             "timing": {k: v for k, v in self.brain.timing.items() if not k.startswith("_")},
+        }
+
+    def sources_view(self) -> dict:
+        """Everything Setup needs to assign sources: owners, identity entities with reported values, IRK keys."""
+        ids = self._identity_ids()
+        since = datetime.now(UTC) - timedelta(days=60)
+        amap = self.brain.people.access_map()
+        names = self._names()
+        return {
+            "people": [{"id": p.id, "name": p.name} for p in self.brain.people.all()],
+            "owners": self.brain.people.owners(),
+            "identity": [{"entity_id": e, "name": names.get(e, e), "seen": [{"value": v, "target": amap.get(v, "")} for v in self.store.distinct_states([e], since, kind="access_raw")]} for e in ids],
+            "irks": self.brain.people.irks(),
         }
 
     def save_person(self, body: dict) -> dict:
         p = self.brain.people.save(body)
         return person_public(p)
-
-    def set_access_entities(self, ids: object) -> dict:
-        """Entities that report who unlocked (keypad, NFC, fingerprint). They are switched on as security signals."""
-        out = self.brain.people.set_access_entities(ids)
-        for eid in out:
-            try:
-                self.update_entity(eid, STATUS_INCLUDED, "security", "Evidence")
-            except KeyError:
-                raise ValueError(f"unknown entity {eid}") from None
-        return {"access_entities": out}
 
     def delete_person(self, pid: str) -> dict:
         return {"deleted": self.brain.people.delete(pid)}
@@ -877,10 +887,46 @@ class BifrostService:
             self.stream.update(connected=True, since=now.isoformat(), error=None)
         LOG.info("Live event stream connected")
 
-    def on_state_changed(self, entity_id: str, state: str | None, ts: datetime, origin: str = "device") -> None:
+    def _identity_ids(self) -> list[str]:
+        """Entities that say who it was: role Identity, plus smart locks (who unlocked is an attribute)."""
+        return sorted(k for k, e in self._included().items() if e.role == "Identity" or e.info.domain == "lock")
+
+    def _on_identity(self, ent: ScannedEntity, state: str | None, ts: datetime, attrs: dict | None) -> None:
+        eid, domain = ent.info.entity_id, ent.info.domain
+        attrs = attrs or {}
+        user = next((attrs[k] for k in ("changed_by", "user", "user_name", "username", "code_slot_name", "code_name", "last_user", "user_id", "name") if attrs.get(k)), "")
+        if domain == "lock":
+            if (state or "").lower() not in ("unlocked", "open", "opening", "unlocking"):
+                return  # locking is an ordinary signal; only an unlock says who came in
+            reported = user
+        elif domain == "event":
+            reported = user or ""
+        else:
+            reported = (state or "").strip()
+            if not reported or reported.lower() in ("unknown", "unavailable", "none", "-", "0"):
+                return  # value was cleared after the last unlock
+        reported = reported[:40]
+        target = self.brain.people.access_target(reported) if reported else None
+        target = target or "unknown"
+        name = ent.info.name or eid
+        if reported:
+            self.store.add_event(ts, eid, name, ent.category or "", ent.role or "", reported, kind="access_raw")
+        self.store.add_event(ts, eid, name, ent.category or "", ent.role or "", target, kind="access")
+        with self._stream_lock:
+            self.live.note(eid, ts, reported or target, "person", "access_denied" if target == "denied" else "access_ok")
+        try:
+            self.brain.on_edge({"ts": ts, "entity_id": eid, "kind": "access", "state": target})
+        except Exception:  # noqa: BLE001 – recognition must never break the stream
+            LOG.exception("Brain could not process an access event")
+
+    def on_state_changed(self, entity_id: str, state: str | None, ts: datetime, origin: str = "device", attrs: dict | None = None) -> None:
         ent = self._included().get(entity_id)
         if ent is None:
             return
+        if ent.role == "Identity" or ent.info.domain == "lock":
+            self._on_identity(ent, state, ts, attrs)
+            if ent.role == "Identity":
+                return
         cat = ent.category or ""
         with self._stream_lock:
             edges = self.edges.feed(entity_id, state, ts)
