@@ -41,8 +41,9 @@ class Person:
     trackers: list[str] = field(default_factory=list)
     calendars: list[str] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
-    nfc_user: str = ""
-    irk: str = ""
+    nfc_user: str = ""  # legacy (≤ 0.4.2): single access user, migrated into access_users
+    irk: str = ""  # legacy (≤ 0.4.2): migrated into IRK objects (Setup)
+    access_users: list[str] = field(default_factory=list)
 
     @property
     def sources(self) -> list[str]:
@@ -108,15 +109,26 @@ def validate(body: dict, existing: Person | None = None) -> Person:
 
 
 def from_dict(d: dict) -> Person:
-    return Person(**{k: d[k] for k in Person.__dataclass_fields__ if k in d})
+    p = Person(**{k: d[k] for k in Person.__dataclass_fields__ if k in d})
+    if p.nfc_user and p.nfc_user not in p.access_users:
+        p.access_users = [*p.access_users, p.nfc_user]
+    return p
 
 
 def public(p: Person) -> dict:
-    """API representation – never contains the IRK itself."""
+    """API representation – never contains an IRK."""
     d = asdict(p)
-    d["irk"] = ("••••" + p.irk[-4:]) if p.irk else ""
-    d["has_irk"] = bool(p.irk)
+    d.pop("irk", None)
+    d.pop("nfc_user", None)
     return d
+
+
+def mask(key: str) -> str:
+    return ("••••" + key[-4:]) if key else ""
+
+
+DENIED_RE = re.compile(r"denied|verweigert|abgelehnt|invalid|ungültig|falsch|wrong|unknown.?(code|tag|user)|unbekannt|rejected|failed|fehlgeschlagen", re.I)
+LABEL_RE = re.compile(r"^[\w .\-()]{1,40}$", re.UNICODE)
 
 
 class PeopleStore:
@@ -131,21 +143,210 @@ class PeopleStore:
         return from_dict(d) if d else None
 
     def save(self, body: dict) -> Person:
+        """Name, kind and "may be alone" come from the People tab; sources are assigned in Setup and kept."""
         existing = self.get(body.get("id")) if isinstance(body.get("id"), str) else None
         p = validate(body, existing)
         if existing is None and self.get(p.id) is not None:
             raise ValueError("a person with this id exists")
         if existing is None and len(self.all()) >= 30:
             raise ValueError("at most 30 people")
-        if p.nfc_user:
-            if any(o.id != p.id and o.nfc_user.lower() == p.nfc_user.lower() for o in self.all()):
-                raise ValueError("access user already belongs to another person")
-            if p.nfc_user.lower() in (x.lower() for x in self.shared_access()):
-                raise ValueError("access user is a shared household code")
+        if existing is not None:
+            for k in ("trackers", "calendars", "tags", "access_users"):
+                if k not in body:
+                    setattr(p, k, getattr(existing, k))
+        if "access_users" in body:
+            p.access_users = self._check_access_users(body.get("access_users"), p.id)
+        elif p.nfc_user:
+            p.access_users = self._check_access_users([*p.access_users, p.nfc_user], p.id)
+        legacy_irk = p.irk
+        p.nfc_user, p.irk = "", ""
         self.store.put_obj(KIND, p.id, asdict(p))
+        if legacy_irk and not any(d.get("key") == legacy_irk for d in self.irk_keys()):
+            self.save_irk({"label": p.name, "key": legacy_irk, "owner": p.id})
         return p
 
+    def _check_access_users(self, values: object, pid: str) -> list[str]:
+        if not isinstance(values, list) or len(values) > 10:
+            raise ValueError("access_users: list with at most 10 entries")
+        out: list[str] = []
+        for v in values:
+            if not isinstance(v, str) or not NFC_RE.match(v.strip()):
+                raise ValueError("access_users: letters, digits, space, . _ - (max 40)")
+            v = v.strip()
+            if any(o.id != pid and v.lower() in (x.lower() for x in o.access_users) for o in self.all()):
+                raise ValueError("access user already belongs to another person")
+            if v.lower() in (x.lower() for x in self.shared_access()):
+                raise ValueError("access user is a shared household code")
+            if v not in out:
+                out.append(v)
+        return out
+
+    def migrate(self) -> None:
+        """≤ 0.4.2 → 0.5: single NFC user → list, IRK on the person → IRK objects in Setup."""
+        for p in self.all():
+            raw = self.store.get_obj(KIND, p.id) or {}
+            if raw.get("nfc_user") or raw.get("irk"):
+                if raw.get("irk") and not any(d.get("key") == raw["irk"] for d in self.irk_keys()):
+                    self.save_irk({"label": p.name, "key": raw["irk"], "owner": p.id})
+                p.nfc_user, p.irk = "", ""
+                self.store.put_obj(KIND, p.id, asdict(p))
+
+    # --- owners: Setup decides who a source belongs to ---
+    def owner_of(self, entity_id: str) -> str:
+        for p in self.all():
+            if entity_id in p.trackers or entity_id in p.calendars or entity_id in p.tags:
+                return p.id
+        return "household" if entity_id in self.household_calendars() else ""
+
+    def owners(self) -> dict[str, str]:
+        out = {e: "household" for e in self.household_calendars()}
+        for p in self.all():
+            for e in p.trackers + p.calendars + p.tags:
+                out[e] = p.id
+        return out
+
+    def household_calendars(self) -> list[str]:
+        try:
+            v = json.loads(self.store.get_value("household_calendars") or "[]")
+        except ValueError:
+            return []
+        return [x for x in v if isinstance(x, str)] if isinstance(v, list) else []
+
+    def set_owner(self, entity_id: object, owner: object) -> dict:
+        """Assign a tracker or calendar to a person, to the household (calendars only) or to nobody ("")."""
+        if not isinstance(entity_id, str) or not ENTITY_RE.match(entity_id):
+            raise ValueError("invalid entity_id")
+        if not isinstance(owner, str) or (owner not in ("", "household") and self.get(owner) is None):
+            raise ValueError("unknown person")
+        is_cal = entity_id.startswith("calendar.")
+        if owner == "household" and not is_cal:
+            raise ValueError("only calendars can belong to the whole household")
+        if not is_cal and not entity_id.startswith(("device_tracker.", "person.", "binary_sensor.", "sensor.")):
+            raise ValueError("this entity cannot belong to a person")
+        for p in self.all():
+            changed = False
+            for k in ("trackers", "calendars", "tags"):
+                lst = getattr(p, k)
+                if entity_id in lst:
+                    setattr(p, k, [x for x in lst if x != entity_id])
+                    changed = True
+            if p.id == owner:
+                key = "calendars" if is_cal else "trackers"
+                if len(getattr(p, key)) >= MAX_LINKS:
+                    raise ValueError(f"at most {MAX_LINKS} per person")
+                setattr(p, key, [*getattr(p, key), entity_id])
+                changed = True
+            if changed:
+                self.store.put_obj(KIND, p.id, asdict(p))
+        hc = [x for x in self.household_calendars() if x != entity_id]
+        if owner == "household":
+            hc.append(entity_id)
+        self.store.set_value("household_calendars", json.dumps(hc))
+        return {"entity_id": entity_id, "owner": owner}
+
+    # --- access values: Setup maps what an identity entity reports ---
+    def access_target(self, reported: str | None) -> str | None:
+        """person id, "household", "ignore", "denied" or None (authorised but not assigned)."""
+        if not reported:
+            return "ignore"
+        if DENIED_RE.search(reported):
+            return "denied"
+        low = reported.strip().lower()
+        if low in (x.lower() for x in self.ignored_access()):
+            return "ignore"
+        for p in self.all():
+            if any(low == u.lower() or access_match(u, reported) for u in p.access_users):
+                return p.id
+        if any(low == u.lower() or access_match(u, reported) for u in self.shared_access()):
+            return "household"
+        return None
+
+    def access_map(self) -> dict[str, str]:
+        out = {v: "household" for v in self.shared_access()}
+        out.update({v: "ignore" for v in self.ignored_access()})
+        for p in self.all():
+            for u in p.access_users:
+                out[u] = p.id
+        return out
+
+    def ignored_access(self) -> list[str]:
+        try:
+            v = json.loads(self.store.get_value("access_ignored") or "[]")
+        except ValueError:
+            return []
+        return [x for x in v if isinstance(x, str)] if isinstance(v, list) else []
+
+    def map_access(self, value: object, target: object) -> dict:
+        """target: person id, "household", "ignore" or "" (not assigned – still counts as authorised)."""
+        if not isinstance(value, str) or not NFC_RE.match(value.strip()):
+            raise ValueError("value: letters, digits, space, . _ - (max 40)")
+        if not isinstance(target, str) or (target not in ("", "household", "ignore") and self.get(target) is None):
+            raise ValueError("unknown target")
+        v = value.strip()
+        for p in self.all():
+            if any(u.lower() == v.lower() for u in p.access_users):
+                p.access_users = [u for u in p.access_users if u.lower() != v.lower()]
+                self.store.put_obj(KIND, p.id, asdict(p))
+        shared = [x for x in self.shared_access() if x.lower() != v.lower()]
+        ignored = [x for x in self.ignored_access() if x.lower() != v.lower()]
+        if target == "household":
+            shared.append(v)
+        elif target == "ignore":
+            ignored.append(v)
+        self.store.set_value("shared_access", json.dumps(shared[:20]))
+        self.store.set_value("access_ignored", json.dumps(ignored[:50]))
+        if target not in ("", "household", "ignore"):
+            p = self.get(target)
+            if p is not None:
+                if len(p.access_users) >= 10:
+                    raise ValueError("at most 10 access users per person")
+                p.access_users = [*p.access_users, v]
+                self.store.put_obj(KIND, p.id, asdict(p))
+        return {"value": v, "target": target}
+
+    # --- Bluetooth keys (iPhone IRK): no HA entity, kept in Setup, never returned in clear ---
+    def irks(self) -> list[dict]:
+        return [{**d, "key": mask(d.get("key", "")), "has_key": bool(d.get("key"))} for d in self.store.list_objs("irk")]
+
+    def irk_keys(self) -> list[dict]:
+        """With the real keys – for internal matching only, never for the API."""
+        return self.store.list_objs("irk")
+
+    def save_irk(self, body: object) -> dict:
+        if not isinstance(body, dict):
+            raise ValueError("invalid body")
+        label = body.get("label")
+        if not isinstance(label, str) or not LABEL_RE.match(label.strip()):
+            raise ValueError("label: 1–40 characters")
+        owner = body.get("owner") or ""
+        if not isinstance(owner, str) or (owner and self.get(owner) is None):
+            raise ValueError("unknown person")
+        existing = self.store.get_obj("irk", body["id"]) if isinstance(body.get("id"), str) and ID_RE.match(body["id"]) else None
+        key = body.get("key")
+        key = (key or "").strip().lower().replace(":", "").replace(" ", "") if isinstance(key, str) else ""
+        if not key and existing:
+            key = existing.get("key", "")
+        if not IRK_RE.match(key):
+            raise ValueError("key: 32 hex characters")
+        if existing is None:
+            if len(self.store.list_objs("irk")) >= 30:
+                raise ValueError("at most 30 keys")
+            if any(d.get("key") == key for d in self.store.list_objs("irk")):
+                raise ValueError("this key exists already")
+        iid = existing["id"] if existing else slugify(label)[:30] + "_" + key[-4:]
+        d = {"id": iid, "label": label.strip(), "key": key, "owner": owner}
+        self.store.put_obj("irk", iid, d)
+        return {**d, "key": mask(key), "has_key": True}
+
+    def delete_irk(self, iid: object) -> dict:
+        if not isinstance(iid, str) or not ID_RE.match(iid):
+            raise ValueError("invalid id")
+        return {"deleted": self.store.del_obj("irk", iid)}
+
     def delete(self, pid: str) -> bool:
+        for d in self.store.list_objs("irk"):
+            if d.get("owner") == pid:
+                self.store.put_obj("irk", d["id"], {**d, "owner": ""})
         return self.store.del_obj(KIND, pid)
 
     # --- access system: entities that report who unlocked ---
@@ -176,7 +377,7 @@ class PeopleStore:
         for n in names:
             if not isinstance(n, str) or not NFC_RE.match(n.strip()):
                 raise ValueError("names: letters, digits, space, . _ - (max 40)")
-            if any(p.nfc_user.lower() == n.strip().lower() for p in self.all()):
+            if any(u.lower() == n.strip().lower() for p in self.all() for u in p.access_users):
                 raise ValueError("names: already belongs to a person")
             if n.strip() not in out:
                 out.append(n.strip())

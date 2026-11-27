@@ -43,6 +43,8 @@ def token_of(e: dict) -> str | None:
         return f"{eid}:{k}"
     if k in ("block", "person"):
         return f"{k}:{e.get('state')}"
+    if k == "access":  # who unlocked: person id, "household" or "unknown" (authorised, not assigned)
+        return None if e.get("state") in ("ignore", "denied") else f"access:{eid}:{e.get('state')}"
     if k == "event":  # numeric event, e.g. humidity jump in the bathroom
         return f"{eid}:{e.get('state')}"
     return None

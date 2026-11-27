@@ -94,7 +94,7 @@ What homes typically have, and where Bifrost still has gaps:
 - Onboarding: ask once "house or apartment? pets? alarm system? access system?" and tune defaults and suggestions.
 
 
-### Idea · Access events as learned steps (27.11.)
+### Done in 0.5.0 · Access events as learned steps (27.11.) – except: smart-lock `event.*` user fields vary by integration, check with real devices
 - Every unlock becomes its own event and routine token: `access:<entity>:<user>` (reader + person or "household" for the shared code) – routines learn e.g. "garage gate → NFC garage Michael → cloakroom" even without entry detection.
 - Match by user number as well as by name (numeric states from access entities are kept, not dropped).
 - Detect "denied / verweigert / invalid / falsch" in the reported value: never an explanation; repeated denials → suspicion / question.

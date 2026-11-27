@@ -146,8 +146,14 @@ def build(path: str) -> BifrostService:
         ("light.kitchen", "on", 14, "device"),
         ("binary_sensor.motion_hallway", "on", 9, "device"),
     ]
-    svc.set_access_entities(["sensor.front_door_last_user"])
-    live += [("sensor.front_door_last_user", "Person B", 3000, "device"), ("sensor.front_door_last_user", "", 2990, "device"), ("sensor.front_door_last_user", "Family code", 1500, "device")]
+    svc.update_entity("sensor.front_door_last_user", "included", "security", "Identity")
+    live += [
+        ("sensor.front_door_last_user", "Person B", 3000, "device"),
+        ("sensor.front_door_last_user", "", 2990, "device"),
+        ("sensor.front_door_last_user", "Family code", 1500, "device"),
+        ("sensor.front_door_last_user", "", 1490, "device"),
+        ("sensor.front_door_last_user", "Code 7", 700, "device"),
+    ]
     live.sort(key=lambda x: -x[2])
     for eid, st, ago, origin in live:
         svc.on_state_changed(eid, st, now - timedelta(seconds=ago), origin=origin)

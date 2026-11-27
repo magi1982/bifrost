@@ -2,6 +2,24 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] – 2026-11-27
+
+### Changed
+- **One place for every source: Setup.** Setup says *what* a signal is and *who it belongs to*; the People tab only holds the name, the kind (household / regular visitor) and “may be home alone”, plus a read-only overview of each person's sources.
+  - Phones, trackers and calendars get a **“Belongs to”** dropdown right at the entity; calendars can belong to the **whole household**.
+  - New role **“Identity”** for entities that report *who* it was (keypad, NFC, fingerprint, “last user” sensors). The scanner suggests it from the name; Optimisations point it out; the role guide explains it.
+  - Every reported user or **user number** is listed under its entity and assigned to a person, marked as **household code**, ignored – or left unassigned, which still counts as “someone authorised”.
+  - **Bluetooth keys (iPhone IRK)** have their own card in Setup with label and owner; keys are never shown again.
+- Existing data is migrated automatically (NFC user → access users, IRK on the person → Setup key, access entities from 0.4.1 → role Identity).
+
+### Added
+- **Smart locks** (Nuki, Yale, August, …): when a lock unlocks, Bifrost reads who did it from the lock's attributes (`changed_by`, user). Locking stays an ordinary signal.
+- **Unlocks are learned steps**: every unlock becomes its own event with reader and person (or “household” / “authorised”), so routines learn e.g. “garage gate → keypad garage · person → cloakroom” even without entry detection. Unlock counts per person in the People tab.
+- **Access denied** (“denied”, “verweigert”, “invalid”, …) is never an explanation; it is recorded as an unexplained deviation.
+
+### Security
+- Only a fixed list of lock attributes is read (and cut to 40 characters); everything else from the event is dropped. All new endpoints validate entity ids, person ids, values and keys.
+
 ## [0.4.2] – 2026-11-27
 
 ### Added
