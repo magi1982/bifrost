@@ -2,6 +2,32 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] – 2026-11-27
+
+### Security
+- **Heimdall fails closed.** If the safety check itself fails, Bifrost never says “empty” and `binary_sensor.bifrost_empty_confirmed` stays off.
+- **The guard survives restarts.** Unknown people, the last entry and exit and an open suspicion are saved. For 10 minutes after a start Bifrost collects before it may say “empty”.
+- **An exit needs proof.** Quiet after a door is no longer an exit – every house has rooms without sensors. An exit needs an outside sensor right after the door or a phone leaving; otherwise it is “door used, direction open”.
+- Only an exit that no known person explains lowers the “unknown people” counter.
+- An access value nobody assigned counts as a medium explanation (enough by day, not at night) instead of a strong one.
+- “That's wrong” on a wrong “empty” marks somebody unknown inside until a confirmed exit.
+- The release gate for the alarm signal also needs at least one person in the household.
+
+### Added
+- **Visibility per person** (well / partly / invisible), worked out from the assigned sources with the Home Assistant standard `source_type` instead of a list of integration names.
+- **Setup card “What Bifrost sees in your home”**: per kind of signal how many entities exist and what they enable – recognised by Home Assistant standards, never by vendor. Alarm panels, Bluetooth trackers, Bermuda area sensors and camera person counts are recognised.
+- **Bluetooth help in Setup**: Shellys as Bluetooth proxies, iPhones via *Private BLE Device*, rooms via *Bermuda*. Bermuda area sensors can belong to a person.
+- **New pattern chain**: steps as tiles with real connecting lines – a fork for OR, a join for AND, dashed lines for companions; sub-patterns open inline with their own lines; Simple (plain sentences) and Technical (entity → state, time spans, shares). Neon accents in light and dark.
+- Pattern ids stay the same when a pattern is re-learned with the same goal and mostly the same steps.
+
+### Changed
+- **Bluetooth keys (IRK) are no longer stored in Bifrost.** They belong in Home Assistant (*Private BLE Device*). Keys stored by older versions are listed masked with a button to delete them.
+- The calendar tab shows the learned calendar words and what they mean.
+- Pattern titles and steps are translated (no more English in the German UI).
+
+### Removed
+- The 0.3 pattern miner (replaced by routines) with its `binary_sensor.bifrost_pattern_*` entities, the 0.3 calendar learner (replaced by calendar words) and unused Bluetooth-fingerprint / CO₂ code.
+
 ## [0.6.0] – 2026-11-27
 
 ### Changed
