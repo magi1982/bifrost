@@ -95,6 +95,47 @@ def _circ_window(times: list[datetime]) -> dict:
     return {"typical": fmt(mean_min), "from": fmt(mean_min + lo), "to": fmt(mean_min + hi), "spread_min": round((hi - lo) / 2)}
 
 
+CLUSTER_GAP = 120  # minutes between two groups of the same goal (e.g. work in the morning, shopping at noon)
+
+
+def cluster_times(times: list[datetime], goal: str = "") -> list[tuple[str, list[datetime]]]:
+    """Split the moments of one goal into groups of similar days and times, so each habit gets its own plan.
+
+    Working days and weekends are separated when both have enough cases; within them times of day that are
+    more than ``CLUSTER_GAP`` minutes apart are separate habits. Groups that are too small fall back to the
+    whole set, so nothing is lost compared with one plan per goal.
+    """
+    shift = 720 if goal == "bedtime" else 0  # bedtimes cross midnight – centre them on noon
+
+    def minute(t: datetime) -> int:
+        lt = t.astimezone()
+        return (lt.hour * 60 + lt.minute + shift) % 1440
+
+    parts: list[tuple[str, list[datetime]]] = []
+    wd = [t for t in times if t.astimezone().weekday() < 5]
+    we = [t for t in times if t.astimezone().weekday() >= 5]
+    split_days = len(wd) >= MIN_SEEN and len(we) >= MIN_SEEN
+    for name, group in (("weekday", wd), ("weekend", we)) if split_days else (("all", list(times)),):
+        ordered = sorted(group, key=minute)
+        cur: list[datetime] = []
+        for t in ordered:
+            if cur and minute(t) - minute(cur[-1]) > CLUSTER_GAP:
+                parts.append((name, cur))
+                cur = []
+            cur.append(t)
+        if cur:
+            parts.append((name, cur))
+    out = []
+    for name, ts in parts:
+        if len(ts) >= MIN_SEEN:
+            mid = sorted(minute(t) for t in ts)[len(ts) // 2]
+            mid = (mid - shift) % 1440
+            out.append((f"{name}@{mid // 60:02d}", sorted(ts)))
+    if not out and len(times) >= MIN_SEEN:
+        out = [("all", sorted(times))]
+    return out
+
+
 def mine(events: list[dict], outcomes: list[tuple[str, datetime]], calendar_words: dict[str, list[tuple[datetime, datetime]]] | None = None, owners: dict[str, str] | None = None) -> list[dict]:
     """Build routine plans. owners: token → person name (for the 'who' of a plan)."""
     calendar_words = calendar_words or {}
@@ -114,7 +155,8 @@ def mine(events: list[dict], outcomes: list[tuple[str, datetime]], calendar_word
     by_goal: dict[str, list[datetime]] = defaultdict(list)
     for goal, t in outcomes:
         by_goal[goal].append(t)
-    for goal, times in by_goal.items():
+    groups = [(goal, key, ts) for goal, all_times in by_goal.items() for key, ts in cluster_times(all_times, goal)]
+    for goal, ckey, times in groups:
         if len(times) < MIN_SEEN:
             continue
         occ = [_first_times(seq, t - WINDOW, t) for t in times]
@@ -207,18 +249,19 @@ def mine(events: list[dict], outcomes: list[tuple[str, datetime]], calendar_word
             conds["calendar"] = cal
         # precision of the required core: how often did the core happen and was followed by the goal?
         core = [s for s in steps if s["kind"] in ("step", "and", "or")]
-        prec, seen = _precision(seq, core, times)
+        prec, seen = _precision(seq, core, sorted(by_goal[goal]))  # the goal after the core counts, whichever habit it was
         best_single = max((present[t] / max(1, sum(1 for _, x in seq if x == t)) for t in chosen), default=0)
         if seen < MIN_SEEN or prec < MIN_PRECISION or (prec + 0.01 < best_single and len(core) > 1):  # worse than one step alone
             continue
         tokens = sorted({x for s in steps for x in s["tokens"]} | {c["token"] for c in comp})
-        pid = "r" + hashlib.sha1((goal + "|" + "|".join(tokens)).encode(), usedforsecurity=False).hexdigest()[:8]
+        pid = "r" + hashlib.sha1((goal + "|" + ckey + "|" + "|".join(tokens)).encode(), usedforsecurity=False).hexdigest()[:8]
         who = sorted({owners[t] for t in tokens if t in owners})
         plans.append(
             {
                 "id": pid,
                 "type": "routine",
                 "goal": goal,
+                "cluster": ckey,
                 "seen": seen,
                 "occurrences": n,
                 "precision": round(prec, 3),
@@ -258,7 +301,11 @@ def hygiene(plans: list[dict]) -> list[dict]:
     kept: list[dict] = []
     for p in plans:
         ts = set(p["tokens"])
-        if any(k["goal"] == p["goal"] and len(ts & set(k["tokens"])) / max(1, len(ts | set(k["tokens"]))) >= 0.8 for k in kept):
+        twin = next((k for k in kept if k["goal"] == p["goal"] and len(ts & set(k["tokens"])) / max(1, len(ts | set(k["tokens"]))) >= 0.8), None)
+        if twin is not None:
+            # the same habit on other days (e.g. weekend) – one plan, with the days of both
+            days = set(twin.get("conditions", {}).get("weekdays", [])) | set(p.get("conditions", {}).get("weekdays", []))
+            twin.setdefault("conditions", {})["weekdays"] = [d for d in WEEKDAYS if d in days]
             continue
         if sum(1 for k in kept if k["goal"] == p["goal"]) >= MAX_PER_GOAL:
             continue
