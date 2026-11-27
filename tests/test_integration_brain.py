@@ -1,5 +1,4 @@
 import json
-import os
 import threading
 import urllib.request
 
@@ -36,8 +35,8 @@ def test_demo_household_end_to_end(tmp_path):
     assert svc.brain.gs.suspicion is None
 
 
-def test_http_routes(tmp_path):
-    os.environ["BIFROST_DEV"] = "1"
+def test_http_routes(tmp_path, monkeypatch):
+    monkeypatch.setenv("BIFROST_DEV", "1")
     from bifrost_app.web import serve
 
     svc = build(str(tmp_path / "demo.db"))

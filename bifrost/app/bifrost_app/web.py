@@ -84,6 +84,15 @@ def _str(body: dict, key: str, maxlen: int = 80) -> str:
     return v
 
 
+VIEWS = {
+    "/api/people": "people_view",
+    "/api/house": "house_view",
+    "/api/recognition": "recognition_view",
+    "/api/deviations": "deviations_view",
+    "/api/questions": "questions_view",
+    "/api/balance": "balance_view",
+}
+
 ACTIONS = {
     "/api/person": lambda svc, b: svc.save_person(b if isinstance(b, dict) else {}),
     "/api/person/delete": lambda svc, b: svc.delete_person(_str(b, "id", 40)),
@@ -174,17 +183,11 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
             if route == "/api/patterns":
                 return self._send(HTTPStatus.OK, service.patterns_view())
             if route == "/api/calendars":
-                return self._send(HTTPStatus.OK, {**service.calendars_view(), "words": service.brain.words.get("words", {})})
-            views = {
-                "/api/people": service.people_view,
-                "/api/house": service.house_view,
-                "/api/recognition": service.recognition_view,
-                "/api/deviations": service.deviations_view,
-                "/api/questions": service.questions_view,
-                "/api/balance": service.balance_view,
-            }
-            if route in views:
-                return self._send(HTTPStatus.OK, views[route]())
+                words = service.brain.words.get("words", {}) if hasattr(service, "brain") else {}
+                return self._send(HTTPStatus.OK, {**service.calendars_view(), "words": words})
+            view = VIEWS.get(route)
+            if view and hasattr(service, view):
+                return self._send(HTTPStatus.OK, getattr(service, view)())
             if route == "/api/floorplan":
                 fp = service.brain.floorplan_bytes()
                 if not fp:
