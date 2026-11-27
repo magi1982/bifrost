@@ -45,6 +45,15 @@ Nothing house-specific is hard-coded (rooms, doors, names). Bifrost observes, di
 - Entries can also mean **at home** (e.g. a morning workout) – learned in both directions.
 - Proposals need confirmation; only words and counters are stored, never full titles. Built-in, editable **block list for sensitive words** (health, doctor) – never learned, never shown.
 
+### Patterns 2.0 – real-life sequences (Muninn)
+Example to support: car arrives → garage gate → outside motion at garage → door → indoor motion at entrance → hallway *or* storeroom, with one or more phones arriving via Wi-Fi/BLE somewhere in between.
+- **Core chain + companions:** a fixed-order core and companion events that may happen anywhere in a time window (e.g. "phone arrives between −3 and +2 min").
+- **Alternative steps (OR):** "hallway or storeroom" merged into one pattern instead of two weak ones.
+- **Longer chains:** more than 5 steps when the evidence supports it.
+- **Rare but strong tokens** (car, gate) are not dropped by the "top 10 most frequent" limit; selection by information value, not only frequency.
+- **Early detection:** a partially completed chain already says "arrival in progress" / "departure in progress".
+- **What it teaches the other layers:** door direction and entrance geometry (Yggdrasil), who arrived via phone/BLE (Frigg), arrival times (Skuld). A pattern cannot count how many people arrived without phones or tags.
+
 ### Family tab + Frigg (family) – the core
 - Household members with: phone (person/tracker) or none, own calendars, "may be home alone: yes/no", room, optional BLE tag, school schedule (from a calendar or a timetable entity).
 - Per-person "home" probability; **house empty only if every person is accounted for**. A member without phone counts as home until proven away (with an adult, schedule + exit, tag).
