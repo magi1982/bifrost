@@ -19,9 +19,10 @@ GATE_HEALTH = 90
 def kpis(labels: list[dict], decisions: list[dict], suspicions: list[dict], now: datetime, parse, days: int = 30) -> dict:  # noqa: ANN001
     since = now - timedelta(days=days)
     lab = [x for x in labels if parse(x["ts"]) >= since]
-    wrong_empty = sum(1 for x in lab if x.get("said") == "away" and x.get("actual") in ("home", "asleep"))
-    wrong_home = sum(1 for x in lab if x.get("said") in ("home", "asleep") and x.get("actual") == "away")
-    confirmed_empty = sum(1 for x in lab if x.get("said") == "away" and x.get("actual") == "away")
+    house = [x for x in lab if not x.get("person")]
+    wrong_empty = sum(1 for x in house if x.get("said") == "away" and x.get("actual") in ("home", "asleep"))
+    wrong_home = sum(1 for x in house if x.get("said") in ("home", "asleep", "arriving") and x.get("actual") == "away")
+    confirmed_empty = sum(1 for x in house if x.get("said") == "away" and x.get("actual") == "away")
     dec = sorted((parse(d["ts"]), d["state"]) for d in decisions if parse(d["ts"]) >= since)
     away_min = 0.0
     for (t, s), nxt in zip(dec, dec[1:] + [(now, None)], strict=False):

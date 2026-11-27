@@ -868,10 +868,28 @@ class BifrostService:
     def answer(self, qid: str, answer: str, label: str | None) -> dict:
         return self.brain.answer(qid, answer, label, datetime.now(UTC), self.store.set_override)
 
-    def correct(self, actual: str) -> dict:
+    def correct(self, actual: str, culprit: str | None = None, person: str | None = None) -> dict:
         with self._lock:
             said = self.snap.decision.state if self.snap.decision else "unknown"
-        return self.brain.correct(said, actual, datetime.now(UTC))
+        person_said = None
+        if person:
+            row = next((r for r in ((self.extra or {}).get("ledger") or {}).get("people", []) if r.get("id") == person), None)
+            person_said = row.get("state") if row else None
+        return self.brain.correct(said, actual, datetime.now(UTC), culprit=culprit, person=person, person_said=person_said)
+
+    def correct_candidates(self) -> dict:
+        """Signals that may have fooled Bifrost: what changed in the last 30 minutes (newest first)."""
+        now = datetime.now(UTC)
+        names = self._names()
+        inc = self._included()
+        seen: dict[str, dict] = {}
+        for e in self.store.events_since(now - timedelta(minutes=30), limit=500):
+            eid = e["entity_id"]
+            ent = inc.get(eid)
+            if ent is None or eid in seen or ent.category not in ("motion", "openings", "manual", "media", "devices", "energy", "climate", "modes"):
+                continue
+            seen[eid] = {"entity_id": eid, "name": names.get(eid, eid), "category": ent.category, "ts": e["ts"], "state": e["state"]}
+        return {"items": list(seen.values())[:12], "said": self.snap.decision.state if self.snap.decision else None}
 
     def balance_view(self) -> dict:
         now = datetime.now(UTC)

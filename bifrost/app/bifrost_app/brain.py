@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import secrets
 import threading
 from collections import deque
 from datetime import UTC, datetime, timedelta
@@ -68,7 +69,8 @@ class Brain:
 
     def strength(self, entity_id: str) -> str:
         integ = (self.meta.get(entity_id, {}).get("integration") or "").lower()
-        return STRENGTH_BY_INTEGRATION.get(integ, WEAK)
+        wrong = (self.store.get_obj("stats", "tracker_wrong") or {}).get(entity_id, 0)
+        return WEAK if wrong >= 3 else STRENGTH_BY_INTEGRATION.get(integ, WEAK)
 
     def on_edge(self, edge: dict) -> None:
         """Called for every clean edge from the live stream."""
@@ -284,14 +286,46 @@ class Brain:
                 self.store.put_obj("door_role", f["door"], {"door": f["door"], "role": f.get("role")})
         return q
 
-    def correct(self, said: str, actual: str, now: datetime) -> dict:
+    def correct(self, said: str, actual: str, now: datetime, culprit: str | None = None, person: str | None = None, person_said: str | None = None) -> dict:
+        """The owner says Bifrost was wrong. Every correction must teach something:
+
+        * whole house: counted in the balance (wrong "empty" blocks the alarm signal),
+        * a culprit signal (e.g. motion from the cat) loses trust and – for motion – becomes a disturbance question,
+        * a person: the trackers that said otherwise lose reliability (after 3 mistakes they only count as weak).
+        """
         if actual not in ("home", "away", "asleep"):
             raise ValueError("actual must be home, away or asleep")
-        lab = {"ts": now.isoformat(), "said": said, "actual": actual, "source": "owner"}
-        self.store.put_obj("label", now.isoformat(), lab)
+        lab: dict = {"ts": now.isoformat(), "said": said, "actual": actual, "source": "owner"}
+        learned: list[str] = []
+        if person:
+            p = self.people.get(person)
+            if p is None:
+                raise ValueError("unknown person")
+            lab.update(person=p.id, said=person_said or said)
+            if actual == "asleep":
+                actual = lab["actual"] = "home"
+            st = self.store.get_obj("stats", "tracker_wrong") or {}
+            for t in p.trackers:
+                st[t] = st.get(t, 0) + 1
+                learned.append(f"tracker:{t}")
+            self.store.put_obj("stats", "tracker_wrong", st)
+        elif said == "away" and actual in ("home", "asleep"):
+            learned.append("balance:wrong_empty")
+        elif said in ("home", "asleep", "arriving") and actual == "away":
+            learned.append("balance:wrong_home")
+        if culprit:
+            if not isinstance(culprit, str) or culprit not in self.meta:
+                raise ValueError("unknown signal")
+            self.store.add_trust(culprit, 0, 3)
+            learned.append(f"trust:{culprit}")
+            lab["culprit"] = culprit
+            if self.meta[culprit].get("category") == "motion" and actual == "away":
+                self.inbox.ask("disturbance", culprit, {"sensor": culprit, "count": 1}, now, priority=2)
+                learned.append(f"question:{culprit}")
+        self.store.put_obj("label", f"{now.isoformat()}_{secrets.token_hex(3)}", {**lab, "learned": learned})
         if actual != AWAY:
             self.gs.unknown_min = max(self.gs.unknown_min, 0)
-        return lab
+        return {**lab, "learned": learned}
 
     def labels(self) -> list[dict]:
         return [x for x in self.store.list_objs("label") if "said" in x]

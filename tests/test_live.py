@@ -149,3 +149,32 @@ def test_smart_lock_reports_who_unlocked(tmp_path):
     svc.on_state_changed("lock.front", "locked", t + timedelta(seconds=30), attrs={"changed_by": "Person B"})
     assert [(i["who"], i["pid"]) for i in svc.brain.identity] == [("Person B", "person_b")]
     assert "lock.front" in [x["entity_id"] for x in svc.sources_view()["identity"]]
+
+
+def test_corrections_teach_something(tmp_path):
+    from demo import build
+
+    svc = build(str(tmp_path / "corr.db"))
+    now = datetime.now(UTC)
+    b = svc.brain
+    # whole house: Bifrost said away, somebody was home → wrong "empty" in the balance
+    r = b.correct("away", "home", now)
+    assert "balance:wrong_empty" in r["learned"]
+    # culprit: the hallway motion was the cat while nobody was home → trust drops, disturbance question
+    before = svc.store.get_trust().get("binary_sensor.motion_hallway", (0, 0))
+    r = b.correct("home", "away", now, culprit="binary_sensor.motion_hallway")
+    after = svc.store.get_trust()["binary_sensor.motion_hallway"]
+    assert "trust:binary_sensor.motion_hallway" in r["learned"] and after[1] >= before[1] + 3
+    assert any(q["type"] == "disturbance" for q in b.inbox.all())
+    # person: phone said home three times, person was away → that phone only counts as weak
+    for _ in range(3):
+        b.correct("home", "away", now, person="person_a", person_said="home")
+    assert b.strength("device_tracker.phone_a") == "weak"
+    k = b.balance_view(now, 100, 0)["kpis"]
+    assert k["wrong_empty"] >= 1 and k["wrong_home"] >= 1
+    import pytest
+
+    with pytest.raises(ValueError):
+        b.correct("home", "away", now, culprit="light.not_used")
+    with pytest.raises(ValueError):
+        b.correct("home", "away", now, person="nobody")

@@ -15,7 +15,7 @@ Bifrost tells you whether anybody is home – with a confidence and the reasons.
 6. Let Bifrost learn for a few days. It runs in **shadow mode** and does not trigger anything.
 
 ### Tabs
-- **Status** – result, confidence, reasons, “May the house be empty?” checklist, people, suspicious entry, learning progress, “That's wrong” correction, guest mode.
+- **Status** – result, confidence, reasons, “Is Bifrost wrong?” right under the result (what is true, what fooled it – Bifrost says what it learned), “May the house be empty?” checklist, people, suspicious entry, learning progress, guest mode.
 - **People** – everybody in the household with their sources; unknown people inside.
 - **House** – live: floors and areas from Home Assistant, what fires right now, the last path through the house, gaps (door without sensor, area without signal, signal without area). *Technical* adds entity ids, who switched it, learned connections, entrances, exceptions and the optional floor plan.
 - **Pattern recognition** – Blocks · People · Routines, learned automatically. Open any pattern and expand its sub-patterns.
@@ -67,7 +67,7 @@ Entities created by an app through the REST API disappear after a Home Assistant
 6. Bifrost ein paar Tage lernen lassen. Es läuft im **Schattenmodus** und löst nichts aus.
 
 ### Tabs
-- **Status** – Ergebnis, Sicherheit, Gründe, Checkliste „Darf das Haus leer sein?“, Personen, verdächtiger Eintritt, Lernfortschritt, „Stimmt nicht“, Gästemodus.
+- **Status** – Ergebnis, Sicherheit, Gründe, „Liegt Bifrost falsch?“ direkt unter dem Ergebnis (was stimmt, was getäuscht hat – Bifrost sagt, was es gelernt hat), Checkliste „Darf das Haus leer sein?“, Personen, verdächtiger Eintritt, Lernfortschritt, Gästemodus.
 - **Personen** – alle im Haushalt mit ihren Quellen; Unbekannte im Haus.
 - **Haus** – live: Stockwerke und Bereiche aus Home Assistant, was gerade auslöst, der letzte Weg durchs Haus, Lücken. *Technisch* zeigt zusätzlich Entity-IDs, wer geschaltet hat, gelernte Verbindungen, Eingänge, Ausnahmen und den Grundriss.
 - **Mustererkennung** – Bausteine · Personen · Abläufe, selbst gelernt. Jedes Muster öffnen, Unter-Muster auf- und zuklappen.
