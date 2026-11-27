@@ -77,6 +77,15 @@ One pattern engine, used on several levels – higher levels use the events of l
 - **Learning from answers:** the push "motion in hallway while nobody is home – was that something?" offers "animal / disturbance", "that was us", "unknown!". The answer is stored as a narrow exception (this sensor, isolated, no entry, no follow-up) – never "ignore this sensor". Exceptions are listed in the app, can be deleted and are re-checked after some weeks.
 - **Storage:** everything learned (patterns, taboo patterns, counters, exceptions, answers) lives in Bifrost's local database in the app folder and is visible in the pattern recognition tab ("Deviations" and "Known exceptions").
 
+### Questions without flooding the user
+- **Two places only:** push notifications just for urgent safety questions (suspicious entry, "house seems empty – arm?"); everything else goes to a **Questions inbox** in the app (badge count, optional `sensor.bifrost_open_questions`, optional weekly digest). Unanswered questions never block anything – Bifrost stays conservative.
+- **Learn first, ask last:** most things resolve themselves by hindsight and repetition; a question is only created when Bifrost cannot resolve it alone after N repetitions.
+- **Value ranking:** questions are ranked by how often the answer would change a decision × current uncertainty; only the top ones are shown.
+- **Grouping:** many similar events become one question ("hallway sensor fired 14× alone while nobody was home – animals?").
+- **Budget (setting):** e.g. max 1 push per day outside safety, max 3 new inbox questions per day; modes "ask more / normal / ask little"; "don't ask about this again" per topic.
+- **Auto-accept (setting, off by default):** very strong, long-stable suggestions may be accepted automatically and listed as "accepted automatically – undo?".
+- Expected volume: a handful per day in the first two weeks (setup, house blocks, people), then a few per week.
+
 ### Entry guard (suspicious entries) – idea
 - **Every entry must be explained:** known phone/BLE arriving, NFC disarm at the keypad, somebody was already inside (inside motion before), a learned pattern (e.g. regular visitor), or guest mode. Otherwise: unexplained entry.
 - **Door profiles learned by Yggdrasil (no names needed):** per door/window how often it is used as entry from outside, as exit, or only opened from inside (ventilation, garden), by time of day. The entity name and HA device class are only a first hint; the role comes from behaviour and is shown as a suggestion ("door X is almost only opened from inside – garden door?").
