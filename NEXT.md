@@ -481,7 +481,7 @@ Needs ≥ 1 scanner per floor (better 2–3); the floor plan heights are not nee
 - Tab contents (decided 27.11.): **Live** shows people only (family phones with names, visitors, occupied zones, active rooms) – no gateways, no motion sensors. **Configuration** shows technology only (gateways, motion sensors, Bluetooth devices, doors, windows) – no people. **Signal** draws map and rooms in neutral grey so only the coverage colours stand out.
 - **Inside and outside**: the map covers house **and garden**. A *hull* line defines what is inside. *Outside areas* are drawn like rooms (path to the entrance, terrace, seating area, pergola, pool area, driveway …), are marked "outside", never count as "somebody is in the house", but help with arriving/leaving, visitors and calibration. Gateways and motion sensors can be placed outside too; calibration points cover the garden.
 - Icons: round, all the same size. Every look must work in light and dark mode.
-- **Chosen (27.11.)**: look 5 "Tinte & Punkt" (light and dark) with the round icon set 1 "Voll".
+- **Chosen (27.11.)**: look 1 **"Aurora"** (light and dark) with the round icon set 1 **"Voll"**.
 - **Zones** become entities like a motion sensor (`binary_sensor.bifrost_zone_<slug>`, device class occupancy).
 - **Per person with IRK**: `sensor.bifrost_<person>_location` – the room, outside area or zone the person is in right now (history comes from HA's recorder). In Bifrost's People tab each such person gets a card with the **last 10 movements** (room → room with time).
 - **House shape**: the hull is drawable like a room (several joined rectangles – e.g. an attached garage with its own door), proposed automatically from the outline of all inside rooms and editable.
