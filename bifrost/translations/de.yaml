@@ -26,6 +26,17 @@ configuration:
     name: Live-Ereignisse
     description: >-
       Bifrost hört live mit, wenn sich ein genutzter Sensor ändert, und speichert die genaue Uhrzeit. So bleibt die Reihenfolge erhalten (z. B. Bewegung aussen → Tür → Bewegung innen) und auch kurze Türöffnungen gehen nicht verloren. Ausschalten nur bei Problemen – dann liest Bifrost wie bisher im Intervall.
+  suspicious_entry_level:
+    name: Verdächtiger Eintritt
+    description: >-
+      Was passiert, wenn eine Tür von aussen geöffnet wird, während alle weg sind oder schlafen, und nichts es erklärt (kein NFC, kein bekanntes Handy; nachts reicht Bluetooth/WLAN allein nicht). 0 = aus, 1 = nur in der App melden, 2 = zusätzlich binary_sensor.bifrost_suspicious_entry einschalten (empfohlen).
+  person_entities:
+    name: Personen-Sensoren
+    description: Erstellt pro Person in Bifrost einen sensor.bifrost_person_<id> (daheim / weg / unklar). Es werden keine Benutzer in Home Assistant angelegt.
+  alarm_signal:
+    name: Signal „Haus leer bestätigt“
+    description: >-
+      Schaltet binary_sensor.bifrost_empty_confirmed frei – das Signal, mit dem z. B. Loxone die Alarmanlage scharf schalten darf. Wirkt erst, wenn die Bilanz grün ist (mind. 30 Tage Schattenmodus, 20 erkannte Abfahrten, kein falsches „leer“). Bifrost schaltet die Alarmanlage nie unscharf.
   log_level:
     name: Protokoll-Stufe
     description: Wie ausführlich das App-Protokoll ist.

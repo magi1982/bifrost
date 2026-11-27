@@ -28,9 +28,7 @@ def test_arrival_plan_and_who():
     ps, _ = plans()
     arr = [p for p in ps if p["goal"] == "arrival"]
     assert arr
-    assert any(c["token"].startswith("device_tracker.") for p in arr for c in p["companions"]) or any(
-        x.startswith("device_tracker.") for p in arr for s in p["steps"] for x in s["tokens"]
-    )
+    assert any(c["token"].startswith("device_tracker.") for p in arr for c in p["companions"]) or any(x.startswith("device_tracker.") for p in arr for s in p["steps"] for x in s["tokens"])
 
 
 def test_progress_for_early_detection():

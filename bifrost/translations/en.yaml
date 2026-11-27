@@ -26,6 +26,17 @@ configuration:
     name: Live events
     description: >-
       Bifrost listens live when a used sensor changes and stores the exact time. This keeps the order (e.g. outside motion → door → inside motion) and short door openings are not missed. Switch off only if there are problems – Bifrost then reads at the interval as before.
+  suspicious_entry_level:
+    name: Suspicious entry
+    description: >-
+      What happens when a door is opened from outside while everybody is away or asleep and nothing explains it (no NFC, no known phone; at night Bluetooth/Wi-Fi alone is not enough). 0 = off, 1 = report in the app only, 2 = also turn on binary_sensor.bifrost_suspicious_entry (recommended).
+  person_entities:
+    name: Person sensors
+    description: Creates one sensor.bifrost_person_<id> (home / away / unclear) per person defined in Bifrost. No Home Assistant users are created.
+  alarm_signal:
+    name: "“House empty confirmed” signal"
+    description: >-
+      Enables binary_sensor.bifrost_empty_confirmed – the signal that lets e.g. Loxone arm the alarm. Only takes effect once the balance is green (at least 30 days in shadow mode, 20 detected departures, no wrong “empty”). Bifrost never disarms the alarm.
   log_level:
     name: Log level
     description: Amount of detail in the app log.

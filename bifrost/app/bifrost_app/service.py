@@ -311,7 +311,7 @@ class BifrostService:
             sus = ex.get("suspicion")
             self.client.set_state(
                 "binary_sensor.bifrost_suspicious_entry",
-                "on" if sus and int(self.options.get("suspicious_entry_level", 1)) >= 2 else "off",
+                "on" if sus and int(self.options.get("suspicious_entry_level", 2)) >= 2 else "off",
                 {**common, "friendly_name": "Bifrost suspicious entry", "device_class": "safety", "icon": "mdi:shield-alert", "door": (sus or {}).get("door")},
             )
             q = ex.get("questions") or {}

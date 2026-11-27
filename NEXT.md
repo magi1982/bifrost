@@ -3,6 +3,7 @@
 ## 1 · Status
 - **0.2.0** – released and running (rules, per-sensor trust, dashboard, timeline).
 - **0.3.0** – built and tested, **not released yet** (simple patterns, calendar keywords).
+- **0.4.0** – built and tested, **not released yet**: the roadmap 0.4–1.0 below is implemented in one go (163 tests, synthetic household, GUI check). Still open, see the `⏳` marks: Loxone read-only connector (alarm state, NFC user), push question, real ESP32/IRK scanners, CO₂ test, backtesting on real data. The alarm signal stays off until the release gate is green on real data.
 - Everything below is the agreed concept. It is built **one version at a time**; every version is released only after the maintainer's OK.
 
 ## 2 · Principles
@@ -55,19 +56,19 @@ In parallel the guard watches entries: an entry nothing explains becomes a hint 
 - Learning phase, restart behaviour, capability check, re-evaluation on new sources.
 ### 0.5 · Safe and true
 - Guard rules (§6.3), explanation strength, suspicious-entry levels 1–2.
-- Labels: hindsight, "That's wrong" button, push question, Loxone read-only (alarm state, NFC with user).
-- Balance tab: false "empty" and false suspicions per month; backtesting; simulator households as release tests.
+- Labels: hindsight, "That's wrong" button ✅, ⏳ push question, ⏳ Loxone read-only (alarm state, NFC with user).
+- Balance tab ✅; simulator household as release test ✅; ⏳ backtesting on real data.
 ### 0.6 · Learn
 - Routines 2.0 with all chain parts and pattern hygiene (§6.2.4).
 - Calendar learning 2.0, day type, holidays.
 - Timing (arrival times, durations), "arriving soon" / "leaving soon".
 - Deviations: expectation list, rarity, learned negatives, contradictions, owner labels.
 ### 0.7 · Where in the house
-- BLE fingerprints (inside / garden / room) from Shelly and ESP32 scanners with IRK identities; UniFi access point as rough location.
-- Optional floor plan as background for the learned house map; CO₂ "breathing" signal (test first).
+- BLE fingerprints and access point place ✅ (logic); ⏳ real ESP32 scanners with IRK identities.
+- Optional floor plan ✅; ⏳ CO₂ "breathing" signal (logic ready, test on real data first).
 ### 1.0 · Act
 - Release gate: 30 days shadow mode, ≥ 20 departures, 0 wrong "empty", data health ≥ 90 %.
-- Signal "house empty confirmed" and "suspicion" to the alarm system; the alarm system arms itself. **Never disarm.**
+- Signal "house empty confirmed" and "suspicion" as entities ✅ (off by default); ⏳ wiring to the alarm system in Loxone. **Never disarm.**
 
 ## 6 · Details
 
@@ -160,4 +161,5 @@ Retired as separate experts: Huginn, Verdandi, Skuld, Mímir, Forseti, Frigg, Yg
 
 ## 9 · Done
 - **0.2** – dashboard, timeline, per-sensor trust, faster setup, own entities.
+- **0.4** (not released) – live stream, Blocks · People · Routines, People/House/Deviations/Questions/Balance tabs, guard and suspicious entry, calendar 2.0, timing, location groundwork, release gate, one design system DE/EN.
 - **0.3** (not released) – patterns as processes (≤ 5 steps, ≥ 5 observations, ≥ 85 %), drift check, calendar keywords, tabs Patterns and Calendars.

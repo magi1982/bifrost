@@ -2,6 +2,33 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] – 2026-11-27
+
+### Added
+- **Live event stream** – Bifrost subscribes to state changes over the Home Assistant WebSocket API and keeps the exact time and order of every used sensor (short door openings included). Edges are debounced, unavailable states count as gaps, duplicate sensors are detected. Option `event_stream` (on).
+- **Pattern recognition** – one tab with three pattern types, learned automatically for any house:
+  - **Blocks** – neighbouring sensors and walking times (house map), inside/outside sensors, entrances with direction, door roles (entrance / opened from inside only), known disturbances, sensor doctor and a capability check.
+  - **People** – how each person comes home, built from their sources.
+  - **Routines** – chains with THEN / AND / OR / optional / NOT steps, companions, weekday, time and calendar-word conditions, precision replay, value test, merge and budget against pattern sprawl, live progress.
+- **People tab** – people live only in Bifrost (no Home Assistant users). Per person: trackers, calendars, NFC user, iPhone IRK (masked, never returned), “may be home alone”. Unknown people are counted as “at least N”.
+- **Guard** – fixed safety rules for “may the house be empty?” (fresh entry, everybody accounted for, no unknown people, last one out, data health) and **suspicious entry** detection; at night a weak explanation (Bluetooth/Wi-Fi) is not enough. Option `suspicious_entry_level` (2).
+- **Deviations and Questions** – expected-but-missing, unexplained, rare and contradicting events; questions and suggestions with a daily budget (3/5), safety first, grouped, answered Yes / No / Maybe / Don't know, optional labels, expiry after 7 days, known exceptions.
+- **House tab** – capability, learned map, entrances, sensor doctor, exceptions, optional floor plan upload (PNG/JPEG, max 2 MB).
+- **Calendar learning 2.0** – all words (≥ 5 occurrences) are learned with their effect (house empty, per person, day type, missing routines); a block list keeps sensitive words out; full titles are never stored.
+- **Timing and location** – typical arrival/departure per person and weekday; BLE fingerprint and access point place as groundwork for ESP32 scanners.
+- **Balance tab** – key figures and a release gate. `binary_sensor.bifrost_empty_confirmed` only turns on with option `alarm_signal` (off) and a green gate (30 days, ≥ 20 departures, 0 wrong “empty”, health ≥ 90 %). Bifrost never disarms.
+- **“That's wrong”** correction on the Status tab (home / away / asleep) stored as a label.
+- New entities: `binary_sensor.bifrost_suspicious_entry`, `binary_sensor.bifrost_empty_confirmed`, `sensor.bifrost_open_questions`, `sensor.bifrost_unknown_people`, `sensor.bifrost_person_<id>` (option `person_entities`).
+- One design system for the whole app (icons, buttons, chips, cards) in light and dark, German and English UI depending on the browser language.
+- `tools/demo_server.py` and `tools/gui_check.py` – demo household with example data and an automated GUI check (text overflow, squeezed columns, clickable buttons, JavaScript errors) in light, dark and phone width.
+
+### Changed
+- The **Patterns** tab is replaced by **Pattern recognition**.
+- Events are stored with a kind and in UTC; a generic object store holds the learned model.
+
+### Security
+- New write endpoints require the `X-Bifrost-Request` header and JSON, every field is validated (length, format); the floor plan has its own 3 MB body limit and is checked for PNG/JPEG signatures. IRKs are never logged, exported or sent to the browser.
+
 ## [0.3.0] – 2026-11-26
 
 ### Added
