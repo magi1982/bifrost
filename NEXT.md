@@ -71,6 +71,35 @@ In parallel the guard watches entries: an entry nothing explains becomes a hint 
 - Signal "house empty confirmed" and "suspicion" as entities ✅ (off by default); ⏳ wiring to the alarm system in Loxone. **Never disarm.**
 
 
+### Next versions · Plan 0.7 – 0.9 from the full review and proposal v2 (agreed 27.11.)
+Mockup: proposal page "Bifrost Vorschlag" (private artifact, example data). Decisions of the maintainer: avatars in rooms yes, one floor plan per floor, status shows Home / Asleep / Away + "in progress", Bifrost's own IRK store goes away (IRKs live in HA's Private BLE Device).
+
+**Core idea:** Bifrost must not learn from its own decisions. Truth comes from hindsight facts, "That's wrong" and answers. Several detectors (like a security operations centre) check each other; Heimdall keeps the last word for "empty".
+
+#### 0.7 · Safe foundation, HA standards, chain design
+- Safety fixes (see "Safety fixes from the review" below): guard failure ⇒ Unknown + guard not ok; persist guard state + "Unknown – collecting" after restart; only an unexplained exit lowers unknowns; unmapped access value = medium, not strong; "That's wrong" on a wrong "empty" sets unknowns ≥ 1; exit only with confirmation (outside motion, phone leaves, lock from outside, car leaves) – otherwise "door used, direction open".
+- **Visibility per person, derived automatically** from the assigned sources: good (GPS phone `source_type: gps`, BLE with room, code/NFC), medium (`source_type: router`, BLE without room), invisible (no source). Strength from the HA standard `source_type`, no longer from a list of integration names. Invisible persons count as home until facts say otherwise (learned companionship "leaves with person B", calendar words with the name, confirmed exit). People tab shows a visibility bar and the sources.
+- **Setup card "What Bifrost sees in your home"**: per kind (motion, doors, locks/access, phones, Bluetooth, light/buttons, media, air/water, power, calendars, modes, alarm panel, cameras, robots/cars) the number found and what it enables. Recognition by domain, `device_class`, `source_type`, unit, area, floor – never by vendor. New standard sources: `alarm_control_panel` (armed away = strong "empty" label), camera person counts (count > 0 = motion), Bermuda area sensors (room per person), `event.*` button presses.
+- **Remove Bifrost's own IRK store** (`/api/irk`, Bluetooth key card): iPhones via HA "Private BLE Device" (key stays in HA) → `device_tracker` with `source_type: bluetooth_le`; rooms via Bermuda (HACS); tags via iBeacon Tracker. Shellys are only Bluetooth proxies. Migration: if keys are stored, show a banner with the steps and a "Delete keys" button; never export keys. Docs (EN/DE) get a "Bluetooth with Shelly" how-to.
+- **Pattern chain design (new)**: header card with KPIs, step tiles with icon and share, real connecting lines (fork for OR, join for AND, dashed for companions), groups "OR · one of them", "AND · all, any order", "COMPANION", optional dashed, NOT red, ✓ on done steps of a running routine, sub-patterns expand inline with their own lines. Simple (plain sentences) / Technical (entity → state, spans, shares). Neon accents, light and dark, HA look. The word "level" stays out of the UI.
+- Clean-up: remove `patterns.py` (0.3 miner) – its `binary_sensor.bifrost_pattern_*` move to "patterns as entities"; remove `calendars.py` (calendar tab uses calwords); move unused `location.py` parts back to NEXT; remove `s1–s3.png`; structured reasons instead of regex translation for new texts; fix English leftovers in the German UI.
+- Stable pattern ids (kept on re-learning with same goal and ≥ 80 % token overlap).
+
+#### 0.8 · Truth instead of self-confirmation
+- **Hindsight labeller**: every night the past day is split into certainly empty (confirmed exit → no indoor activity at all → entry), certainly home (indoor activity, modes), unclear. All learning (routines, calendar words, inside/outside, disturbances, durations, signal weights) uses only these labels plus owner labels and answers. `learning.py` trust-from-decisions is removed.
+- **Evidence scale**: per signal a learned weight (log-odds), summed and explainable; calibration chart in Balance. The rule engine stays as fallback.
+- **Status shows a probability per state**: Home / Asleep / Away with % (sum 100 %), the top state above; "in progress: leaving 60 %" when a chain runs; "Unclear" when no state reaches 70 % or Heimdall blocks, always with the reason. Entities `sensor.bifrost_p_home`, `sensor.bifrost_p_asleep`, `sensor.bifrost_p_away`.
+- Realistic simulator (persons without phone, flapping trackers, rooms without sensors, animals) and local backtesting against the stored event history.
+
+#### 0.9 · Control room and house
+- **House tab**: per HA floor the HA areas become rooms on a fine grid (36 × 24), first arranged from learned neighbours. The owner picks a room and paints its cells (any shape, e.g. L-shaped hallway), eraser. Neon outline and fill by state: grey quiet / no signal, green motion, orange window/door open, yellow light, magenta media, red unexplained. Label with name, sensor counts, last activity. **One floor plan image per floor** as background (stored locally, max 2 MB, validated). **Person avatars** in the room when a room source (Bermuda) exists. Tap → details: signals with origin, learned paths to neighbours.
+- Detectors: baseline per signal × hour of week (rarity in bits → deviation "rare"), path matrix (Markov transitions; impossible jumps and new paths → "contradiction"), routines clustered first (several plans per goal, per person), drift.
+- **Incidents** bundle detector hits into one chain: approach → access → inside → identity, score, answers "That was us / Don't know / Unknown".
+- Patterns as HA entities (section below), learning-progress card, tabs 11 → 7 (Status · People · House · Patterns · Incidents · Balance · Setup).
+
+#### Tests (all versions)
+Guard failure fails closed; guard state survives restart; exit/unknown counting; visibility from `source_type`; IRK migration banner and delete; source catalogue counts; chain rendering (OR/AND/companion lines, expand, simple/technical); hindsight labels on synthetic days; evidence weights and calibration; probabilities sum to 100; cell painting, floor plan validation (type, size); avatars only with a room source; GUI check light/dark/390 px, DE/EN.
+
 ### Next version · Recognised patterns as HA entities (requested 27.11.)
 Goal: every pattern Bifrost recognises (blocks, people, routines) can be published as its own Home Assistant entity, so owners can use it in their own automations (e.g. "departure in progress" → turn off the heating early, "entry via garage" → light in the hallway).
 
