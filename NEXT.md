@@ -475,8 +475,18 @@ Needs ≥ 1 scanner per floor (better 2–3); the floor plan heights are not nee
 - *Calibration walk* (optional, 5 min): in the House tab the owner walks through the rooms with a known device (phone with the HA app or a placed Bluetooth tag) and taps "I am here" for ~30 s per room – gives clean fingerprints, especially where floors separate poorly.
 - Bluetooth also travels further through wooden walls: more neighbours and passers-by are heard, so the "outside" zone and the passer-by filter matter more.
 
+**5 · Calibration walk ("Einmessen", maintainer's idea 27.11.)** – after the map is drawn and the gateways are placed:
+- Button **Calibrate** in the House tab. Bifrost proposes measuring points on the map – about one per 6–10 m², at least one per room, plus near stairs and entrances – floor by floor, shown as numbered dots.
+- *Which device is measured*: the owner picks it once – best a phone that Bifrost can recognise (HA app with BLE transmitter on Android, an iPhone with its IRK in Private BLE Device) or any small Bluetooth tag with a fixed address carried in the hand. Bifrost checks before starting that the device is heard.
+- *Measuring*: the owner stands on the shown point, taps **Measure**; Bifrost records 20 s of signal strength from every gateway (median, spread, how many gateways), shows a quality tick (good / weak / heard by < 3 gateways → "add a gateway nearby?") and moves on to the next point. Points can be skipped, repeated, or added by tapping the map.
+- *Result*: a radio map per floor (fingerprints at known positions), an estimated accuracy from leave-one-out (*±1.4 m on the ground floor*), coverage gaps marked on the map ("upper floor east: only 1 gateway hears it"). Re-calibrate a single room later.
+- *Wooden house*: points on every floor are what makes floors separable at all; Bifrost shows how well each floor separates after the walk.
+
+**6 · Learning how walls and floors damp the signal (continuous)**
+Every placed gateway and every calibration point fits a simple multi-wall model: *strength = transmit power − distance loss − Σ losses of the walls/ceilings crossed*. The rooms on the map give the walls; Bifrost fits one loss per wall type it can tell apart (outer wall, inner wall, ceiling) per house – so it learns e.g. "ceiling 4 dB, inner wall 3 dB" by itself. Afterwards it keeps learning without the owner: whenever exactly one room's motion sensor fires while a known device is heard, that is an extra sample at "somewhere in this room"; samples that contradict the model are dropped. The model fills the gaps between calibration points, the fingerprints stay the reference.
+
 **Limits**: room-level accuracy; rotating phones are only placed while their address lasts (~15 min); everything stays local.
 **Decided (27.11.)**: build straight away (no design round), in stages 0.11a map → 0.11b Bluetooth and visitors → 0.11c everyday life. Push for **named** visitors, switchable per visitor. Phones: family phones shown **with the family member's name** (HA app / Private BLE Device), other phones only counted.
 **Still open**: Bluetooth recording off by default and 14 days retention (explained again to the maintainer).
-**Status**: 0.11a (house map 2.0, device placement) built in 0.11.0.
+**Status**: 0.11a (house map 2.0, device placement) built in 0.11.0. Map look: 6 proposals (artifact "Bifrost Kartenwerkstatt") – waiting for the maintainer's choice.
 **Tests**: episode cutting and merged automation steps; closed-pattern filter; scoring on a simulated month (morning chain, cleaner Tuesday, pool timer, broken habit); floor decision with hysteresis and stairs; fingerprint room match; editor: rectangles, stairs, device placement saved per floor; GUI check light/dark/390 px.
