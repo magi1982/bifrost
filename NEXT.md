@@ -102,6 +102,10 @@ What homes typically have, and where Bifrost still has gaps:
 - Per-person count also for unlocks, shared code counted as household.
 
 
+### Idea · Remove roles completely (27.11., extends "roles mostly automatic")
+- Setup per signal: on/off, category, belongs to. Categories gain "Access" (was role Identity) and split "Modes" into "mode: someone home" (guest/sleep, was Blocker) and "mode: away" (holiday/away). Noise = switched off (robots auto-detected). Trigger = learned entrance or door name; Context/Truth from category.
+- Migration: Noise → off, Identity → Access, Blocker → mode: someone home. Role guide removed; optimisations check categories only.
+
 ### Idea · Roles mostly automatic (27.11.)
 Today the user picks category **and** role. Since 0.4 Bifrost learns most of what roles express:
 - Trigger ⇐ learned entrances (door roles); Noise ⇐ learned trust, origin (automation/timer); Context ⇐ category calendar/weather; Truth ⇐ alarm/lock; Identity ⇐ name/lock.
