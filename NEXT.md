@@ -103,6 +103,12 @@ Later: life-change detection when many patterns break at once, "phone forgotten 
 - **Questions:** default recipient is the admin only (configurable for other homes). Answers: **Yes / No / Maybe / Don't know**. "Maybe" = weak label; "Don't know" keeps the case open and re-asks only when a similar event happens again (bundled), otherwise it expires after some days without creating a label. Each question shows what happened (time, sequence, who Bifrost thought was where) so it can be answered later.
 - **Contradictions as anomalies:** a phone at home with no activity near it while its person's routine says away → hint "something is off" (decision stays safe: not empty). A known phone seen via BLE at home while its GPS is far away → contradiction → suspicion. An unknown BLE device moving across several indoor scanners while nobody is home, plus an entry without NFC → strong suspicion (unknown devices seen only outside are normal – passers-by, random addresses).
 
+### No hand-written special cases
+- The code knows only **four generic kinds of deviation**: expected but missing · happened but unexplained · rare · **contradiction** (two sources disagree about the same person, door or room). Plus the fixed guard rules.
+- **Messages are generated from the facts involved**, not from templates per case: "Contradiction: phone of person A says *home*, routine 'A at work' is running and nothing happened near the phone for 3 h. What is it?"
+- **The user names it:** answers can carry a label ("phone forgotten", "animal", "cleaner"); the next deviation with the same structure (same sources, same kind) is shown with that label and handled as learned. Labels are local and editable.
+- So houses get their own vocabulary without code changes; only the generic kinds and the safety rules are built in.
+
 ### Entry guard (suspicious entries) – idea
 - **Every entry must be explained:** known phone/BLE arriving, NFC disarm at the keypad, somebody was already inside (inside motion before), a learned pattern (e.g. regular visitor), or guest mode. Otherwise: unexplained entry.
 - **Door profiles learned by Yggdrasil (no names needed):** per door/window how often it is used as entry from outside, as exit, or only opened from inside (ventilation, garden), by time of day. The entity name and HA device class are only a first hint; the role comes from behaviour and is shown as a suggestion ("door X is almost only opened from inside – garden door?").
