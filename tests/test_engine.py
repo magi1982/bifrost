@@ -138,3 +138,13 @@ def test_fresh_manual_change_is_activity_right_now():
     sigs = [sig("person.a", "devices", "Evidence", "not_home", 120), sig("light.kitchen", "manual", "Evidence", "on", 1)]
     d = decide(sigs, S, NOW)
     assert d.state == HOME and any("Activity right now" in r for r in d.reasons)
+
+
+def test_unreliable_sensor_firing_never_allows_empty():
+    """Learning may only make Bifrost more careful: a motion sensor learned as unreliable is not activity,
+    but while it fires Bifrost must not say "empty" (fail closed)."""
+    sigs = [sig("person.a", "devices", "Evidence", "not_home", 120), sig("binary_sensor.hall", "motion", "Evidence", "on", 1), sig("binary_sensor.door", "openings", "Evidence", "off", 120)]
+    d = decide(sigs, S, NOW, unreliable={"binary_sensor.hall"})
+    assert d.state == UNKNOWN and not d.house_empty and d.ignored_unreliable == ["binary_sensor.hall"]
+    sigs[1] = sig("binary_sensor.hall", "motion", "Evidence", "off", 120)
+    assert decide(sigs, S, NOW, unreliable={"binary_sensor.hall"}).state == AWAY

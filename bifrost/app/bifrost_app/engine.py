@@ -145,6 +145,10 @@ def decide(signals: list[Signal], settings: Settings, now: datetime, unreliable:
         if trackers:
             reason.append("No known phone is home – maybe a person without a tracked device")
         return Decision(HOME, round(70 * cap), reason, health, [], last_act, anomaly=bool(trackers), ignored_unreliable=skipped)
+    if skipped:
+        # Fail closed: a sensor learned as unreliable (pet, robot, draft) is not proof of a person – but while it fires,
+        # Bifrost must not say "empty" either. Learning may only make Bifrost more careful, never less.
+        return Decision(UNKNOWN, round(50 * cap), [f"{', '.join(skipped[:2])} is active – learned as unreliable, not trusted for “empty”"], health, [], last_act, ignored_unreliable=skipped)
 
     if health < MIN_HEALTH_FOR_AWAY:
         return Decision(UNKNOWN, round(30 * cap), [f"Only {health}% of signals are available – too little data to decide"], health, [], last_act)

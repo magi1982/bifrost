@@ -229,6 +229,8 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
             ctype = (self.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
             if ctype != "application/json" or self.headers.get(CSRF_HEADER) != "1":
                 return self._send(HTTPStatus.FORBIDDEN, {"error": "missing request header"})
+            if (self.headers.get("Sec-Fetch-Site") or "").lower() == "cross-site":
+                return self._send(HTTPStatus.FORBIDDEN, {"error": "cross-site request"})  # CSRF: defence in depth
             route = self._route()
             try:
                 raw = self._read_body(FLOORPLAN_BODY if route == "/api/floorplan" else LAYOUT_BODY if route == "/api/layout" else MAP_BODY if route == "/api/map" else MAX_BODY)

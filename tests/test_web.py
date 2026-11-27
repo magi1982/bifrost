@@ -93,6 +93,9 @@ def test_api_in_dev_mode():
         assert _req(base + "/api/scan", raw=b"a=1", headers={"Content-Type": "application/x-www-form-urlencoded"})[0] == 403
         assert _req(base + "/api/scan", {}, headers={"Content-Type": "application/json"})[0] == 403
         assert svc.scans == 1
+        # a browser marks requests from another site – refused even with the custom header
+        assert _req(base + "/api/scan", {}, headers={"Content-Type": "application/json", "X-Bifrost-Request": "1", "Sec-Fetch-Site": "cross-site"})[0] == 403
+        assert _req(base + "/api/scan", {}, headers={"Content-Type": "application/json", "X-Bifrost-Request": "1", "Sec-Fetch-Site": "same-origin"})[0] == 202
     finally:
         httpd.shutdown()
 
