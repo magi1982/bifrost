@@ -15,14 +15,12 @@ Bifrost tells you whether anybody is home – with a confidence and the reasons.
 6. Let Bifrost learn for a few days. It runs in **shadow mode** and does not trigger anything.
 
 ### Tabs
-- **Status** – result, confidence, reasons, “Is Bifrost wrong?” right under the result (what is true, what fooled it – Bifrost says what it learned), “May the house be empty?” checklist, people, suspicious entry, learning progress, guest mode.
-- **People** – everybody in the household with their sources; unknown people inside.
-- **House** – live: floors and areas from Home Assistant, what fires right now, the last path through the house, gaps (door without sensor, area without signal, signal without area). *Technical* adds entity ids, who switched it, learned connections, entrances, exceptions and the optional floor plan.
-- **Pattern recognition** – Blocks · People · Routines, learned automatically. Open any pattern and expand its sub-patterns.
-- **Deviations** – what did not fit (open / explained).
-- **Questions** – when Bifrost is unsure it asks (max. 3 questions and 5 suggestions a day). Answer *Yes / No / Maybe / Don't know* and optionally name the reason.
-- **Calendars** – words Bifrost learned from your calendars (never full titles).
-- **Timeline**, **Dashboard**, **Balance**, **Setup** (with the guide “Which category for what?” and filters).
+- **Status** – the result with a percentage for Home, Asleep and Away (and how Bifrost calculated it), reasons, “Is Bifrost wrong?” right under the result, “May the house be empty?” checklist, people, suspicious entry, guest mode.
+- **People** – everybody in the household with their sources and how visible they are; unknown people inside.
+- **House** – rooms per floor: Bifrost places every area on a grid; **Edit rooms**, pick a room and paint its cells (any shape). **Load floor plan** puts your own picture underneath (one per floor). Rooms light up by what happens; people with a room source appear in their room. Below: live signals, the last path, gaps.
+- **Patterns** – learning progress, then Blocks · People · Routines. Open a pattern: a chain with lines, OR / AND groups, companions and sub-patterns that open inline; *Simple* or *Technical*. Switch **As an entity in Home Assistant** on to use it in your own automations. Detectors (baseline, paths) and calendar words at the end.
+- **Incidents** – what did not fit, bundled into a chain approach → access → inside → identity with a score. Questions and suggestions are answered here (*Yes / No / Maybe / Don't know*, optionally with a name).
+- **Balance** – key figures, hindsight, calibration and the release gate. **Setup** – language, what Bifrost sees in your home, guide, optimisations, Bluetooth help, filters and all entities.
 
 ### Access system (optional)
 Keypad, NFC, fingerprint or smart lock: give the entity that reports who unlocked the category **Access** in Setup (smart locks are read automatically). The reported users appear right under the entity; assign each to a person, mark it as **household code**, ignore it – or leave it unassigned (still counts as “someone authorised”). “Denied” never explains an entry.
@@ -53,7 +51,7 @@ After an entry the house stays “not empty” for 15 minutes. “Empty” needs
 Bifrost learns only from what is certain afterwards – never from its own live decision: quiet between a confirmed exit and an entry was *certainly empty*; activity inside, or quiet after which activity resumes without anybody coming in (e.g. a child upstairs), was *certainly home*. From this it learns one weight per signal (the **evidence scale**) and shows on **Status** a percentage for Home, Asleep and Away. **Balance** shows the hindsight summary and whether the percentages were right. To test on your own data, copy the database from `/data` and run `python3 tools/backtest.py bifrost.db` – everything stays on your machine.
 
 ### Entities
-`sensor.bifrost_p_home`, `sensor.bifrost_p_asleep`, `sensor.bifrost_p_away`, `sensor.bifrost_home_status`, `binary_sensor.bifrost_house_empty`, `sensor.bifrost_confidence`, `sensor.bifrost_reason`, `sensor.bifrost_data_health`, `sensor.bifrost_expected_return`, `binary_sensor.bifrost_anomaly`, `binary_sensor.bifrost_guest_mode`, `binary_sensor.bifrost_suspicious_entry`, `binary_sensor.bifrost_empty_confirmed`, `sensor.bifrost_open_questions`, `sensor.bifrost_unknown_people`, `sensor.bifrost_person_<id>`.
+`sensor.bifrost_p_home`, `sensor.bifrost_p_asleep`, `sensor.bifrost_p_away`, `binary_sensor.bifrost_<slug>` (patterns you switched on), `sensor.bifrost_home_status`, `binary_sensor.bifrost_house_empty`, `sensor.bifrost_confidence`, `sensor.bifrost_reason`, `sensor.bifrost_data_health`, `sensor.bifrost_expected_return`, `binary_sensor.bifrost_anomaly`, `binary_sensor.bifrost_guest_mode`, `binary_sensor.bifrost_suspicious_entry`, `binary_sensor.bifrost_empty_confirmed`, `sensor.bifrost_open_questions`, `sensor.bifrost_unknown_people`, `sensor.bifrost_person_<id>`.
 
 Example automation (notification only):
 ```yaml
@@ -86,14 +84,12 @@ Entities created by an app through the REST API disappear after a Home Assistant
 6. Bifrost ein paar Tage lernen lassen. Es läuft im **Schattenmodus** und löst nichts aus.
 
 ### Tabs
-- **Status** – Ergebnis, Sicherheit, Gründe, „Liegt Bifrost falsch?“ direkt unter dem Ergebnis (was stimmt, was getäuscht hat – Bifrost sagt, was es gelernt hat), Checkliste „Darf das Haus leer sein?“, Personen, verdächtiger Eintritt, Lernfortschritt, Gästemodus.
-- **Personen** – alle im Haushalt mit ihren Quellen; Unbekannte im Haus.
-- **Haus** – live: Stockwerke und Bereiche aus Home Assistant, was gerade auslöst, der letzte Weg durchs Haus, Lücken. *Technisch* zeigt zusätzlich Entity-IDs, wer geschaltet hat, gelernte Verbindungen, Eingänge, Ausnahmen und den Grundriss.
-- **Mustererkennung** – Bausteine · Personen · Abläufe, selbst gelernt. Jedes Muster öffnen, Unter-Muster auf- und zuklappen.
-- **Abweichungen** – was nicht gepasst hat (offen / erklärt).
-- **Fragen** – wenn Bifrost unsicher ist, fragt es (max. 3 Fragen und 5 Vorschläge pro Tag). Antworten mit *Ja / Nein / Vielleicht / Weiss nicht*, optional mit Grund.
-- **Kalender** – Wörter, die Bifrost aus deinen Kalendern gelernt hat (nie ganze Titel).
-- **Verlauf**, **Dashboard**, **Bilanz**, **Setup** (mit der Anleitung „Welche Kategorie wofür?“ und Filtern).
+- **Status** – das Ergebnis mit Prozent für Daheim, Schläft und Weg (und wie Bifrost gerechnet hat), Gründe, „Liegt Bifrost falsch?“ direkt darunter, Checkliste „Darf das Haus leer sein?“, Personen, verdächtiger Eintritt, Gästemodus.
+- **Personen** – alle im Haushalt mit ihren Quellen und wie sichtbar sie sind; Unbekannte im Haus.
+- **Haus** – Räume pro Stockwerk: Bifrost legt jeden Bereich auf ein Raster; **Räume bearbeiten**, Raum wählen und Felder malen (jede Form). **Grundriss laden** legt dein eigenes Bild darunter (eines pro Stockwerk). Räume leuchten nach dem, was passiert; Personen mit Raum-Quelle erscheinen in ihrem Raum. Darunter: Live-Signale, letzter Weg, Lücken.
+- **Mustererkennung** – Lernfortschritt, dann Bausteine · Personen · Abläufe. Ein Muster öffnen: eine Kette mit Linien, ODER-/UND-Gruppen, Begleitern und Unter-Mustern, die direkt aufklappen; *Einfach* oder *Technisch*. **Als Entität in Home Assistant** einschalten, um es in eigenen Automationen zu nutzen. Am Ende Detektoren (Grundlinie, Wege) und Kalenderwörter.
+- **Vorfälle** – was nicht passte, gebündelt zu einer Kette Annäherung → Zugang → drinnen → Identität mit Score. Fragen und Vorschläge beantwortest du hier (*Ja / Nein / Vielleicht / Weiss nicht*, optional mit Namen).
+- **Bilanz** – Kennzahlen, Rückblick, Kalibrierung und die Freigabe. **Setup** – Sprache, was Bifrost bei dir sieht, Anleitung, Optimierungen, Bluetooth-Hilfe, Filter und alle Entitäten.
 
 ### Zugangssystem (optional)
 Code-Tastatur, NFC, Fingerabdruck oder smartes Schloss: Gib der Entität, die meldet, wer aufgeschlossen hat, im Setup die Kategorie **Zutritt** (smarte Schlösser liest Bifrost automatisch). Die gemeldeten Benutzer erscheinen direkt darunter; ordne jeden einer Person zu, markiere ihn als **Familien-Code**, ignoriere ihn – oder lass ihn offen (zählt trotzdem als „jemand mit Berechtigung“). „Verweigert“ erklärt nie einen Eintritt.

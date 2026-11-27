@@ -17,12 +17,14 @@ pytest -q                      # tests (demo household in tests/demo.py)
 ruff check . && ruff format --check .
 bandit -q -r bifrost/app -c pyproject.toml
 PYTHONPATH=bifrost/app python3 tools/demo_server.py 8765   # demo UI with example data
-python3 tools/gui_check.py http://127.0.0.1:8765/ /tmp/gui # overflow, buttons, JS errors, English left in German UI
+python3 tools/gui_check.py http://127.0.0.1:8765/ /tmp/gui # overflow, buttons, JS errors, English left in German UI (BIFROST_CHROME=… for another browser)
+python3 tools/backtest.py /path/to/bifrost.db              # hindsight vs past decisions on a local copy of real data
 ```
 
 ## Architecture (bifrost/app/bifrost_app)
 - `service.py` – scan (registries incl. areas/floors), evaluate loop, live WebSocket stream, published entities, API views.
 - `engine.py` – rule decision with reasons; `guard.py` – fixed safety rules (Heimdall); `brain.py` – pattern recognition (Muninn) + inbox.
-- `preprocess.py` (edges), `live.py` (origin person/app/automation/timer, numeric events, live board), `blocks.py` (neighbours, inside/outside, entrances, door roles, sensor doctor), `routines.py`, `calwords.py`, `timing.py`, `location.py`, `balance.py` (release gate), `people.py` (people, access system, shared codes), `questions.py`, `optimize.py` (Setup suggestions), `i18n.py`.
+- `hindsight.py` – labels the past (certainly empty / home / unclear); all learning uses it, never the live decision. `evidence.py` – learned weight per signal, probabilities, calibration. `baseline.py` – rarity per hour of week, path matrix. `house.py` – room grid per floor, avatars, incidents, pattern entities.
+- `preprocess.py` (edges), `live.py` (origin person/app/automation/timer, numeric events, live board), `blocks.py` (neighbours, inside/outside, entrances, door roles, sensor doctor), `routines.py`, `calwords.py`, `timing.py`, `floorplan.py`, `balance.py` (release gate), `people.py` (people, visibility from source_type, access system, shared codes), `questions.py`, `optimize.py` (Setup suggestions), `i18n.py`.
 - `web.py` – HTTP API; POSTs need header `X-Bifrost-Request: 1`, bodies are size-limited and validated.
-- `static/index.html` – the whole UI (one file).
+- `static/index.html` – the whole UI (one file); tabs Status · People · House · Patterns · Incidents · Balance · Setup.

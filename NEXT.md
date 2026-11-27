@@ -71,7 +71,9 @@ In parallel the guard watches entries: an entry nothing explains becomes a hint 
 - Signal "house empty confirmed" and "suspicion" as entities ✅ (off by default); ⏳ wiring to the alarm system in Loxone. **Never disarm.**
 
 
-### Next versions · Plan 0.7 – 0.9 from the full review and proposal v2 (agreed 27.11.)
+### Done in 0.7.0 – 0.9.0 · Plan from the full review and proposal v2 (agreed 27.11., built 27.11.)
+Open from this plan: an event lane per area (replaces timeline/dashboard – the views are gone, the lane is not built yet); real-data backtest and tuning of the hindsight thresholds; old pattern-chain CSS (`.cy`) and the unused 0.3 views in index.html can be deleted.
+
 Mockup: proposal page "Bifrost Vorschlag" (private artifact, example data). Decisions of the maintainer: avatars in rooms yes, one floor plan per floor, status shows Home / Asleep / Away + "in progress", Bifrost's own IRK store goes away (IRKs live in HA's Private BLE Device).
 
 **Core idea:** Bifrost must not learn from its own decisions. Truth comes from hindsight facts, "That's wrong" and answers. Several detectors (like a security operations centre) check each other; Heimdall keeps the last word for "empty".
@@ -100,7 +102,7 @@ Mockup: proposal page "Bifrost Vorschlag" (private artifact, example data). Deci
 #### Tests (all versions)
 Guard failure fails closed; guard state survives restart; exit/unknown counting; visibility from `source_type`; IRK migration banner and delete; source catalogue counts; chain rendering (OR/AND/companion lines, expand, simple/technical); hindsight labels on synthetic days; evidence weights and calibration; probabilities sum to 100; cell painting, floor plan validation (type, size); avatars only with a room source; GUI check light/dark/390 px, DE/EN.
 
-### Next version · Recognised patterns as HA entities (requested 27.11.)
+### Done in 0.9.0 · Recognised patterns as HA entities (requested 27.11.) – REST entities, MQTT later
 Goal: every pattern Bifrost recognises (blocks, people, routines) can be published as its own Home Assistant entity, so owners can use it in their own automations (e.g. "departure in progress" → turn off the heating early, "entry via garage" → light in the hallway).
 
 **Setup**
@@ -133,7 +135,7 @@ Goal: every pattern Bifrost recognises (blocks, people, routines) can be publish
 
 **Tests:** slug stability on re-learning, unavailable when pattern disappears, switch off removes entity, migration of 0.3 patterns, validation of the slug input, UI check (light/dark, 390 px, DE/EN).
 
-### Idea · Safety fixes from the review (27.11.)
+### Done in 0.7.0 · Safety fixes from the review (27.11.)
 Found in a code review; recommended **before** new features:
 1. Guard fail-open: if `brain.tick()` raises, the plain rule decision is used and `guard_ok = all([])` is True → must be Unknown + guard not ok.
 2. Guard state (`unknown_min`, last entry/exit, suspicion) is in memory only → persist it; after a restart Unknown – collecting for N minutes (promised in §6.3, not built).
