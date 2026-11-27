@@ -87,3 +87,15 @@ def test_min_people_from_fast_far_apart_sensors():
     d.feed({"ts": t.isoformat(), "entity_id": "binary_sensor.motion_upstairs", "kind": "on"})
     d.feed({"ts": (t + timedelta(seconds=1)).isoformat(), "entity_id": "binary_sensor.motion_cloakroom", "kind": "on"})
     assert d.people_inside_min(t + timedelta(seconds=5)) == 2
+
+
+def test_quiet_after_a_door_is_no_exit_without_confirmation():
+    m, s = model()
+    d = Detector()
+    d.model = m
+    t1 = s.t + timedelta(days=2)
+    # inside, door, then silence – but nothing outside: somebody may just sit in a room without a sensor
+    for eid, sec in [("binary_sensor.motion_cloakroom", 0), ("binary_sensor.garage_door", 8)]:
+        d.feed({"ts": (t1 + timedelta(seconds=sec)).isoformat(), "entity_id": eid, "kind": "on"})
+    out = d.tick(t1 + timedelta(seconds=blocks.EXIT_SILENCE + 30))
+    assert out[0]["result"] == blocks.DOOR_USED

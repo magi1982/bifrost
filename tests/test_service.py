@@ -49,8 +49,15 @@ def test_scan_classifies_and_skips_own_entities(tmp_path):
     assert view["total"] == 4 and view["disabled_in_ha"] == 1
 
 
+def make_warm(tmp_path, **opts):
+    """A service that has been running for a while (past the guard's start-up hold)."""
+    svc, client = make(tmp_path, **opts)
+    svc.brain.started_at -= timedelta(hours=1)
+    return svc, client
+
+
 def test_evaluate_publishes_entities(tmp_path):
-    svc, client = make(tmp_path)
+    svc, client = make_warm(tmp_path)
     svc.scan()
     d = svc.evaluate()
     assert d.state == "away"
@@ -202,3 +209,34 @@ def test_calendar_learning_can_be_switched_off(tmp_path):
     client.calendar_entries = [{"summary": "x", "start": {"dateTime": "2026-01-01T08:00:00+00:00"}, "end": {"dateTime": "2026-01-01T09:00:00+00:00"}}]
     svc.learn_job(datetime.now(UTC))
     assert svc.store.get_calendar_stats() == {}
+
+
+def test_right_after_start_bifrost_never_says_empty(tmp_path):
+    svc, client = make(tmp_path)
+    svc.scan()
+    d = svc.evaluate()
+    assert d.state == "unknown" and any("just started" in r for r in d.reasons)
+    assert client.published["binary_sensor.bifrost_house_empty"][0] == "off"
+
+
+def test_guard_failure_fails_closed(tmp_path, monkeypatch):
+    svc, client = make_warm(tmp_path, alarm_signal=True)
+    svc.scan()
+
+    def boom(*a, **k):
+        raise RuntimeError("guard broke")
+
+    monkeypatch.setattr(svc.brain, "tick", boom)
+    d = svc.evaluate()
+    assert d.state == "unknown" and "Safety check failed" in d.reasons[0]
+    assert svc.extra["checks"][0] == {"id": "guard_error", "ok": False, "detail": None, "active": True}
+    assert client.published["binary_sensor.bifrost_empty_confirmed"][0] == "off"
+
+
+def test_guard_state_survives_a_restart(tmp_path):
+    svc, _ = make_warm(tmp_path)
+    svc.scan()
+    svc.brain.gs.unknown_min = 2
+    svc.evaluate()
+    again = BifrostService(FakeClient(), svc.store, {})
+    assert again.brain.gs.unknown_min == 2
