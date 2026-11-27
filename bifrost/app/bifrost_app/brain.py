@@ -90,7 +90,7 @@ class Brain:
     def tick(self, d: Decision, states: dict[str, dict], now: datetime, guest_mode: bool) -> tuple[Decision, dict]:
         with self._lock:
             openings = self.detector.tick(now)
-            level = int(self.options.get("suspicious_entry_level", 1))
+            level = int(self.options.get("suspicious_entry_level", 2))
             new_susp = []
             for o in openings:
                 ts = _p(o["ts"])
@@ -336,6 +336,7 @@ class Brain:
                     "status": "suggestion",
                     "steps": [{"t": "step", "label": "motion inside"}, {"t": "step", "label": nm(door), "entity": door}, {"t": "step", "label": "motion inside"}],
                 }
+        dist_counts = {d["sensor"]: d["count"] for d in m.get("disturbances", [])}
         for x in self.inbox.exceptions():
             items["dist_" + x["sensor"]] = {
                 "id": "dist_" + x["sensor"],
@@ -343,7 +344,7 @@ class Brain:
                 "goal": "house",
                 "title": f"Disturbance: {x.get('label')} at {nm(x['sensor'])}",
                 "who": "house",
-                "seen": 0,
+                "seen": dist_counts.get(x["sensor"], 0),
                 "status": "active",
                 "steps": [{"t": "step", "label": nm(x["sensor"]) + " alone", "entity": x["sensor"]}, {"t": "not", "label": "no door, no neighbour", "minutes": 2}],
             }

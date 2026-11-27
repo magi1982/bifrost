@@ -219,6 +219,7 @@ def classify_opening(model: dict, door: str, t: datetime, motion_on: list[dict])
     sides = model.get("sides", {})
     en = next((e for e in model.get("entrances", []) if e["door"] == door), None)
     inside_s = {s for s, v in sides.items() if v["side"] == "inside"}
+
     def fired(sensors: set[str], a: float, b: float) -> bool:
         return any(m["entity_id"] in sensors and a <= (m["_t"] - t).total_seconds() <= b for m in motion_on)
 

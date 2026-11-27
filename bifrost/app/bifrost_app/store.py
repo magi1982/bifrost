@@ -123,8 +123,7 @@ class Store:
         now = datetime.now(UTC).isoformat()
         with self._lock, self._db:
             self._db.execute(
-                "INSERT INTO objects(kind, id, data, updated) VALUES (?,?,?,?) "
-                "ON CONFLICT(kind, id) DO UPDATE SET data=excluded.data, updated=excluded.updated",
+                "INSERT INTO objects(kind, id, data, updated) VALUES (?,?,?,?) ON CONFLICT(kind, id) DO UPDATE SET data=excluded.data, updated=excluded.updated",
                 (kind, oid, json.dumps(data, ensure_ascii=False), now),
             )
 

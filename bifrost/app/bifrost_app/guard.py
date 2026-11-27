@@ -111,4 +111,3 @@ def apply(d: Decision, ledger: dict, gs: GuardState, now: datetime, can_see_dire
 
 def suspicion_active(gs: GuardState) -> bool:
     return gs.suspicion is not None
-

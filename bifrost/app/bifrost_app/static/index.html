@@ -97,6 +97,86 @@ input[type=search]{width:100%;margin-bottom:10px}
 @media (max-width:640px){.cy .metrics{grid-template-columns:repeat(2,1fr)}}
 .kw{display:inline-block;margin:3px 4px 3px 0;padding:3px 9px;border-radius:999px;font-size:12px;background:var(--chip)}
 .kw.away{background:var(--away);color:#fff}
+/* ---- 0.4 design system: one look for icons, buttons, chips and cards ---- */
+:root{--pri:var(--primary);--in:#12924A;--out:#E06C00;--unc:#9e9e9e;--blk:#2E7D32;--per:#00897B;--rou:#E8337F;--then:#0A6FE6;--and:#7B2FF0;--or:#E8337F;--comp:#00897B;--opt:#8D6E00;--not:#C62828;--panel:#f5f5f5}
+[data-theme=dark]{--in:#2FC46A;--out:#FFA040;--blk:#7BD88F;--per:#1FD1C4;--rou:#FF4D9A;--then:#3D96FF;--and:#A66BFF;--or:#FF4D9A;--comp:#1FD1C4;--opt:#E0C04A;--not:#FF6B6B;--panel:#242424}
+.ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto;vertical-align:-3px}
+.ic.l{width:22px;height:22px}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:6px 14px;border-radius:999px;border:1px solid var(--div);background:var(--card);color:var(--text);font:inherit;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;max-width:100%}
+.b:hover{border-color:var(--pri)}.b:focus-visible,.ch:focus-visible,.pc:focus-visible,.tg:focus-visible{outline:2px solid var(--pri);outline-offset:2px}
+.b.p{background:var(--pri);border-color:var(--pri);color:#fff}
+.b.ok{border-color:var(--in);color:var(--in)}.b.ok.p{background:var(--in);color:#fff}
+.b.no{border-color:var(--err);color:var(--err)}
+.b.ghost{border-color:transparent;background:transparent;color:var(--pri)}
+.b.sm{min-height:30px;padding:4px 10px;font-size:12px}
+.b[disabled]{opacity:.5;cursor:default}
+.bs{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ch{display:inline-flex;align-items:center;gap:5px;min-height:30px;padding:3px 11px;border-radius:999px;border:1px solid var(--div);background:var(--card);color:var(--text);font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
+.ch.on{border-color:var(--c,var(--pri));background:color-mix(in srgb,var(--c,var(--pri)) 14%,var(--card));color:var(--c,var(--pri));font-weight:500}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:1px 8px;border-radius:999px;border:1px solid color-mix(in srgb,var(--c,var(--sec)) 55%,transparent);color:var(--c,var(--sec));white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.pill.f{background:var(--c);border-color:var(--c);color:#fff}[data-theme=dark] .pill.f{color:#111}
+.frow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+.frow>.lab{font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--sec);min-width:56px}
+.sec{font-size:13px;font-weight:700;letter-spacing:.6px;color:var(--sec);margin:18px 2px 8px;text-transform:uppercase}
+.av{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;background:var(--c,var(--pri));flex:0 0 auto}
+[data-theme=dark] .av{color:#111}
+.prow{display:flex;gap:12px;align-items:flex-start}
+.prow .grow h3{font-size:15px;font-weight:500;margin:0}
+.meta{font-size:12px;color:var(--sec)}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.field label{font-size:12px;color:var(--sec);font-weight:500}
+.field input[type=text],.field input[type=password],.field select,.inp{border:1px solid var(--div);background:var(--card);color:var(--text);border-radius:10px;padding:8px 10px;font:inherit;min-height:38px;width:100%}
+.picks{max-height:200px;overflow:auto;border:1px solid var(--div);border-radius:10px;padding:4px}
+.picks label{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:8px;font-size:13px;cursor:pointer;min-width:0}
+.picks label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.picks label:hover{background:var(--panel)}
+.check{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--div)}.check:first-child{border-top:0}
+.check .dot{width:22px;height:22px;border-radius:50%;flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;background:var(--c)}
+[data-theme=dark] .check .dot{color:#111}
+.prog{height:8px;border-radius:4px;background:var(--bar);overflow:hidden}.prog i{display:block;height:100%;background:var(--c,var(--pri));border-radius:4px}
+.empty2{padding:24px;text-align:center;color:var(--sec)}
+.qcard{border-left:4px solid var(--c,var(--pri))}
+.qcard h3{font-size:15px;font-weight:500;margin:0 0 4px}
+.qfacts{font-size:13px;color:var(--sec);margin:4px 0 10px}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--err);color:#fff;font-size:11px;font-weight:700;margin-left:4px}
+/* pattern recognition */
+.list2{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
+.pc{display:grid;grid-template-columns:42px minmax(0,1fr);gap:10px;text-align:left;border:1px solid var(--div);border-left:5px solid var(--c);border-radius:12px;padding:10px;background:var(--card);color:var(--text);font:inherit;cursor:pointer;width:100%}
+.pc .i{width:40px;height:40px;border-radius:12px;background:var(--c);color:#fff;display:flex;align-items:center;justify-content:center}
+[data-theme=dark] .pc .i{color:#111}
+.pc .nm{display:block;font-weight:500;line-height:1.3;overflow-wrap:anywhere}
+.pc .pv{display:block;font-size:12px;color:var(--sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:2px;font-size:13px;margin-bottom:8px}
+.crumbs .b{min-height:28px;padding:2px 8px}
+.st{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;padding:7px 10px;border-radius:12px;border:1.5px solid color-mix(in srgb,var(--c) 55%,transparent);background:color-mix(in srgb,var(--c) 6%,var(--card))}
+.st>div{min-width:0}.st .i{width:32px;height:32px;border-radius:10px;background:var(--c);color:#fff;display:flex;align-items:center;justify-content:center}
+[data-theme=dark] .st .i{color:#111}
+.st .nm{font-weight:500;overflow-wrap:anywhere}.st .tech{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--sec);overflow-wrap:anywhere}
+.st.opt{border-style:dashed}
+.lnk{display:flex;align-items:center;gap:8px;margin:0 0 0 16px;padding:3px 0 3px 18px;border-left:2px solid var(--then);font-size:12px;color:var(--sec);min-height:24px;flex-wrap:wrap}
+.lnk b{color:var(--then)}
+.grp{position:relative;border:2px solid var(--g);border-radius:14px;padding:22px 8px 8px;margin:2px 0;background:color-mix(in srgb,var(--g) 4%,transparent)}
+.grp>.gl{position:absolute;top:-1px;left:12px;transform:translateY(-50%);font-size:11px;font-weight:700;letter-spacing:.6px;color:#fff;background:var(--g);padding:2px 10px;border-radius:999px}
+[data-theme=dark] .grp>.gl{color:#111}
+.grp>.gs{display:grid;gap:6px}
+.sp{border:2px solid var(--c);border-radius:12px;background:color-mix(in srgb,var(--c) 6%,var(--card));overflow:hidden}
+.sp>.hd{display:grid;grid-template-columns:auto 32px minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 10px}
+.tg{border:0;background:transparent;color:var(--c);font-size:15px;cursor:pointer;width:30px;height:30px;border-radius:8px;transition:transform .15s}
+.tg[aria-expanded=true]{transform:rotate(90deg)}
+.sp>.bd{display:none;padding:6px 10px 10px 16px;margin-left:14px;border-left:2px solid color-mix(in srgb,var(--c) 50%,transparent)}
+.sp.open>.bd{display:grid;gap:0}
+.comps{border:2px dashed var(--comp);border-radius:14px;padding:8px;margin-top:8px}
+.comps>.t{font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--comp);margin-bottom:6px}
+.tech{display:none}.tech-on .tech{display:block}
+/* house map */
+.map{width:100%;height:auto;display:block}
+.map text{font-size:11px;fill:var(--text)}.map .s{fill:var(--sec)}
+.map .lk{stroke:var(--blk);stroke-width:2}.map .ld{stroke:var(--then);stroke-width:2;stroke-dasharray:4 3}
+@media(max-width:640px){.list2{grid-template-columns:1fr}.sp>.hd{grid-template-columns:auto 32px minmax(0,1fr)}.sp>.hd .b{grid-column:3;justify-self:start}.frow>.lab{width:100%}.prow{flex-wrap:wrap}
+.prow>.grow{flex:1 1 220px;min-width:0}
+.prow>.bs{margin-left:auto}}
+
 </style>
 </head>
 <body>
@@ -293,6 +373,306 @@ function theme(){var m=modes[mi],dark=m==="dark"||(m==="auto"&&matchMedia("(pref
 document.getElementById("themeBtn").onclick=function(){mi=(mi+1)%3;theme();};
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change",theme);
 theme();load();setInterval(function(){if(S.view==="status")api("api/status").then(function(s){S.status=s;render();}).catch(function(){});},30000);
+</script>
+<script>
+"use strict";
+/* ---- 0.4–1.0 UI: people, house, pattern recognition, deviations, questions, balance ---- */
+var LANG=(navigator.language||"en").toLowerCase().indexOf("de")===0?"de":"en";
+var TX={
+ de:{status:"Status",people:"Personen",house:"Haus",recog:"Mustererkennung",dev:"Abweichungen",questions:"Fragen",calendars:"Kalender",signals:"Signale",timeline:"Verlauf",dashboard:"Dashboard",balance:"Bilanz",setup:"Setup",
+  add_person:"Person hinzufügen",edit:"Bearbeiten",del:"Löschen",save:"Speichern",cancel:"Abbrechen",name:"Name",kind:"Art",household:"Haushalt",visitor:"Regelmässiger Besuch",may_alone:"Darf allein daheim sein",
+  trackers:"Handys / Tracker",calendars_l:"Kalender",nfc:"NFC-Benutzer am Code Touch",irk:"iPhone-IRK (Bluetooth)",irk_hint:"32 Zeichen. Leer lassen = gespeicherten Schlüssel behalten. Wird nie angezeigt.",
+  home:"daheim",away:"weg",unclear:"unklar",unknown_people:"Unbekannte im Haus",unknown_hint:"Eintritte, die nichts erklärt – mindestens so viele Personen sind unbekannt.",no_people:"Noch keine Personen. Lege alle an, die hier wohnen – auch Kinder ohne Handy.",
+  no_source:"keine Quelle",typical_arrival:"Meist daheim um",search:"Suchen …",nothing:"Nichts gefunden.",
+  may_empty:"Darf das Haus leer sein?",chk_entry:"Kein frischer Eintritt",chk_people:"Alle Personen verbucht",chk_unknown:"Keine Unbekannten im Haus",chk_last_out:"Letzter raus erkannt",chk_data:"Genug Daten",
+  wrong:"Stimmt nicht",wrong_q:"Was stimmt wirklich?",thanks:"Danke – wird als Lernfall gespeichert",learning:"Lernphase",learning_hint:"Bifrost lernt dein Haus kennen. In dieser Zeit gelten nur die Sicherheitsregeln.",
+  l_days:"Tage Daten",l_entrances:"Eingänge mit Richtung",l_people:"Personen mit Quelle",l_neighbours:"Nachbar-Melder",suspicion:"Verdächtiger Eintritt",suspicion_hint:"Tür von aussen geöffnet und nichts erklärt es.",in_progress:"Läuft gerade",
+  capability:"Was dein Haus kann",map:"Hauskarte",map_hint:"Gelernt aus der Reihenfolge der Melder – ohne Grundriss. Grün: Nachbarn, blau: Eingang.",entrances:"Eingänge",inside:"innen",outside:"aussen",direction:"Richtung",
+  role_entrance:"Eingang",role_inside_only:"nur von innen",role_unknown:"unklar",doctor:"Sensor-Doktor",exceptions:"Bekannte Ausnahmen",floorplan:"Grundriss (optional)",upload:"Bild hochladen",remove:"Entfernen",
+  dead:"löst nie aus",chatty:"löst sehr oft aus",never_home:"nie daheim",gaps:"oft nicht verfügbar",missing:"Fehlt noch",ok_all:"Alles da",
+  m_door_contacts:"Türkontakte",m_inside_motion_near_doors:"Melder innen bei den Türen",m_outside_motion:"Melder aussen",m_people:"Personen",m_people_sources:"Quellen für alle Personen",
+  blocks:"Bausteine",persons:"Personen",routines:"Abläufe",type:"Typ",goal:"Ziel",all:"Alle",arriving:"Heimkommen",leaving:"Weggehen",sleep:"Schlafen",house_g:"Haus",
+  seen:"gesehen",not_seen:"noch nicht gesehen",step:"Schritt",steps:"Schritte",sensors:"Sensoren",subs:"Unter-Muster",open_:"Öffnen",expand_all:"Alle aufklappen",collapse_all:"Alle zuklappen",back:"Mustererkennung",
+  THEN:"DANN",AND:"UND · Reihenfolge egal",OR:"ODER · einer davon",COMP:"BEGLEITER · irgendwann im Zeitfenster",NOT:"NICHT",optional:"optional",typical:"meist",when:"Wann",
+  no_patterns:"Noch keine Muster. Bifrost braucht ein paar Tage Daten – und Türkontakte mit Meldern innen und aussen.",learn_now:"Jetzt lernen",
+  d_expected_missing:"Erwartet, aber fehlt",d_unexplained:"Unerklärt",d_rare:"Selten",d_contradiction:"Widerspruch",open:"offen",explained:"erklärt",no_dev:"Keine Abweichungen – alles passt zu den gelernten Mustern.",
+  qs:"Fragen",sugg:"Vorschläge",done:"Beantwortet",yes:"Ja",no:"Nein",maybe:"Vielleicht",dontknow:"Weiss nicht",label_opt:"Name (optional), z. B. „Ratten“",no_q:"Keine offenen Fragen.",
+  q_suspicious_entry:"Warst du das?",q_duplicate:"Doppelter Sensor?",q_door_role:"Gartentür?",q_disturbance:"Tier oder Störung?",q_sensor_problem:"Sensor-Problem",q_deviation:"Abweichung",
+  kpi_wrong:"Falsch „leer“ (30 Tage)",kpi_empty:"Erkannte leere Zeit",kpi_sus:"Verdachte",kpi_fsus:"davon Fehlalarm",gate:"Freigabe für das Alarm-Signal",gate_hint:"Erst wenn alles grün ist UND du die Option einschaltest, meldet Bifrost „Haus leer bestätigt“. Unscharf schaltet Bifrost nie.",
+  g_shadow_days:"Tage im Schattenmodus",g_departures:"Erkannte Abfahrten",g_wrong_empty:"Falsch „leer“",g_health:"Datengesundheit",signal_on:"Option eingeschaltet",signal_off:"Option aus (ab Werk)",need:"nötig"},
+ en:{status:"Status",people:"People",house:"House",recog:"Pattern recognition",dev:"Deviations",questions:"Questions",calendars:"Calendars",signals:"Signals",timeline:"Timeline",dashboard:"Dashboard",balance:"Balance",setup:"Setup",
+  add_person:"Add person",edit:"Edit",del:"Delete",save:"Save",cancel:"Cancel",name:"Name",kind:"Kind",household:"Household",visitor:"Regular visitor",may_alone:"May be home alone",
+  trackers:"Phones / trackers",calendars_l:"Calendars",nfc:"NFC user at the keypad",irk:"iPhone IRK (Bluetooth)",irk_hint:"32 characters. Leave empty to keep the stored key. Never shown.",
+  home:"home",away:"away",unclear:"unclear",unknown_people:"Unknown people inside",unknown_hint:"Entries nothing explains – at least this many people are unknown.",no_people:"No people yet. Add everybody who lives here – children without phones too.",
+  no_source:"no source",typical_arrival:"Usually home at",search:"Search …",nothing:"Nothing found.",
+  may_empty:"May the house be empty?",chk_entry:"No fresh entry",chk_people:"Everybody accounted for",chk_unknown:"No unknown people inside",chk_last_out:"Last one out detected",chk_data:"Enough data",
+  wrong:"That's wrong",wrong_q:"What is really true?",thanks:"Thanks – stored as a label",learning:"Learning phase",learning_hint:"Bifrost is getting to know your home. Meanwhile only the safety rules apply.",
+  l_days:"days of data",l_entrances:"entrances with direction",l_people:"people with a source",l_neighbours:"neighbouring sensors",suspicion:"Suspicious entry",suspicion_hint:"A door was opened from outside and nothing explains it.",in_progress:"In progress",
+  capability:"What your home can do",map:"House map",map_hint:"Learned from the order of sensors – no floor plan needed. Green: neighbours, blue: entrance.",entrances:"Entrances",inside:"inside",outside:"outside",direction:"Direction",
+  role_entrance:"entrance",role_inside_only:"inside only",role_unknown:"unclear",doctor:"Sensor doctor",exceptions:"Known exceptions",floorplan:"Floor plan (optional)",upload:"Upload picture",remove:"Remove",
+  dead:"never fires",chatty:"fires very often",never_home:"never home",gaps:"often unavailable",missing:"Missing",ok_all:"Everything there",
+  m_door_contacts:"door contacts",m_inside_motion_near_doors:"inside motion near doors",m_outside_motion:"outside motion",m_people:"people",m_people_sources:"sources for every person",
+  blocks:"Blocks",persons:"People",routines:"Routines",type:"Type",goal:"Goal",all:"All",arriving:"Arriving",leaving:"Leaving",sleep:"Going to sleep",house_g:"House",
+  seen:"seen",not_seen:"not seen yet",step:"step",steps:"steps",sensors:"sensors",subs:"sub-patterns",open_:"Open",expand_all:"Expand all",collapse_all:"Collapse all",back:"Pattern recognition",
+  THEN:"THEN",AND:"AND · any order",OR:"OR · one of",COMP:"COMPANION · any time in the window",NOT:"NOT",optional:"optional",typical:"typically",when:"When",
+  no_patterns:"No patterns yet. Bifrost needs a few days of data – and door contacts with motion sensors inside and outside.",learn_now:"Learn now",
+  d_expected_missing:"Expected but missing",d_unexplained:"Unexplained",d_rare:"Rare",d_contradiction:"Contradiction",open:"open",explained:"explained",no_dev:"No deviations – everything fits the learned patterns.",
+  qs:"Questions",sugg:"Suggestions",done:"Answered",yes:"Yes",no:"No",maybe:"Maybe",dontknow:"Don't know",label_opt:"Name (optional), e.g. “animals”",no_q:"No open questions.",
+  q_suspicious_entry:"Was that you?",q_duplicate:"Duplicate sensor?",q_door_role:"Garden door?",q_disturbance:"Animal or disturbance?",q_sensor_problem:"Sensor problem",q_deviation:"Deviation",
+  kpi_wrong:"Wrong “empty” (30 days)",kpi_empty:"Empty time detected",kpi_sus:"Suspicions",kpi_fsus:"false alarms",gate:"Release for the alarm signal",gate_hint:"Only when everything is green AND you switch the option on does Bifrost report “house empty confirmed”. Bifrost never disarms.",
+  g_shadow_days:"days in shadow mode",g_departures:"detected departures",g_wrong_empty:"wrong “empty”",g_health:"data health",signal_on:"Option on",signal_off:"Option off (default)",need:"needed"}};
+function t(k){return (TX[LANG]&&TX[LANG][k])||TX.en[k]||k;}
+var ICON={
+ home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
+ person:'<circle cx="12" cy="8" r="3.5"/><path d="M4.5 20c0-4 3.4-6.5 7.5-6.5s7.5 2.5 7.5 6.5"/>',
+ people:'<circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 20c0-3.5 2.5-6 5.5-6s5.5 2.5 5.5 6M14 14.5c3.2-.6 6.5 1.3 6.5 5"/>',
+ block:'<rect x="3" y="12" width="8" height="8" rx="1.5"/><rect x="13" y="12" width="8" height="8" rx="1.5"/><rect x="8" y="4" width="8" height="8" rx="1.5"/>',
+ routine:'<path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v4h-4"/>',
+ door:'<path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17"/><path d="M3 21h18"/><circle cx="14.5" cy="12" r=".8"/>',
+ motion:'<circle cx="13" cy="4.5" r="1.8"/><path d="M9 21l2.5-6 3 2.5V21M8 11l3-3 3.5 2 2.5 3M11.5 8l-1 4"/>',
+ phone:'<rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/>',
+ cal:'<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+ key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l2 2M15 8l2 2"/>',
+ nfc:'<path d="M6 8a8 8 0 0 1 0 8M9.5 6a12 12 0 0 1 0 12M13 4a16 16 0 0 1 0 16"/>',
+ warn:'<path d="M12 3l9.5 17h-19z"/><path d="M12 10v4"/><circle cx="12" cy="17" r=".6"/>',
+ check:'<path d="M5 12.5l4.5 4.5L19 7"/>',
+ x:'<path d="M6 6l12 12M18 6L6 18"/>',
+ q:'<circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.6 2.3c-.8.4-1.2 1-1.2 1.9"/><circle cx="12" cy="16.8" r=".6"/>',
+ plus:'<path d="M12 5v14M5 12h14"/>',
+ edit:'<path d="M4 20h4L19 9l-4-4L4 16z"/>',
+ trash:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+ bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"/>',
+ scale:'<path d="M12 3v17M7.5 20.5h9M4.5 7h15"/><path d="M4.5 7l-2.5 6a2.5 2.5 0 0 0 5 0zM19.5 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/>',
+ map:'<path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>',
+ dev:'<path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/>',
+ shield:'<path d="M12 3l8 3v6c0 4.8-3.4 8-8 9-4.6-1-8-4.2-8-9V6z"/>',
+ open:'<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+ upload:'<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>'};
+function ic(n,cls){return '<svg class="ic'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" aria-hidden="true">'+(ICON[n]||"")+'</svg>';}
+function btn(label,attrs,cls,icon){return '<button type="button" class="b'+(cls?' '+cls:'')+'" '+(attrs||"")+'>'+(icon?ic(icon):"")+'<span>'+esc(label)+'</span></button>';}
+function pill(text,c,fill){return '<span class="pill'+(fill?' f':'')+'" style="--c:'+(c||"var(--sec)")+'">'+esc(text)+'</span>';}
+function nm(id,names){return (names&&names[id])||id;}
+var SC={home:"var(--in)",away:"var(--away)",unclear:"var(--unc)"};
+var V4={people:null,house:null,recog:null,dev:null,qs:null,bal:null,edit:null,path:[],openS:{},flt:{type:"all",goal:"all",q:""},tech:false,wrongOpen:false};
+
+/* ---------- Status additions ---------- */
+var _viewStatus=viewStatus;
+viewStatus=function(){
+  var st=S.status,h="";
+  if(!st)return _viewStatus();
+  var g=st.guard||{},L=g.learning;
+  if(g.suspicion)h+='<div class="card qcard" style="--c:var(--err)"><div class="prow">'+ic("warn","l")+'<div class="grow"><h3>'+t("suspicion")+'</h3><div class="meta">'+esc(nm(g.suspicion.door,S.ents&&S.ents.names))+' · '+new Date(g.suspicion.ts).toLocaleTimeString()+' – '+t("suspicion_hint")+'</div></div>'+btn(t("questions"),'data-go="questions"','p sm')+'</div></div>';
+  if(L&&L.active)h+='<div class="card"><div class="prow">'+ic("bulb","l")+'<div class="grow"><h3>'+t("learning")+'</h3><div class="meta">'+t("learning_hint")+'</div>'+L.items.map(function(it){var v=Math.min(1,it.value/Math.max(1,it.need));return '<div style="margin-top:8px"><div class="meta">'+it.value+' / '+it.need+' '+t("l_"+it.id)+'</div><div class="prog" style="--c:'+(v>=1?"var(--in)":"var(--pri)")+'"><i style="width:'+Math.round(v*100)+'%"></i></div></div>';}).join("")+'</div></div></div>';
+  var base=_viewStatus();
+  var add="";
+  if(g.checks&&g.checks.length){
+    add+='<div class="card"><h2>'+t("may_empty")+'</h2><div class="hint">'+ic("shield")+' Heimdall</div>'+g.checks.filter(function(c){return c.active!==false;}).map(function(c){return '<div class="check"><span class="dot" style="--c:'+(c.ok?"var(--in)":"var(--err)")+'">'+(c.ok?"✓":"!")+'</span><div class="grow"><div>'+t("chk_"+c.id)+'</div>'+(c.detail!=null&&!c.ok?'<div class="meta">'+esc(c.detail)+'</div>':"")+'</div></div>';}).join("")+'</div>';
+  }
+  var led=st.ledger;
+  if(led&&led.people&&led.people.length){
+    add+='<div class="card"><h2>'+t("people")+'</h2><div class="chips">'+led.people.map(function(r){return pill(r.name+' · '+t(r.state),SC[r.state]);}).join("")+(led.unknown_min?pill(t("unknown_people")+': '+led.unknown_min,"var(--err)",true):"")+'</div></div>';
+  }
+  if(g.in_progress&&g.in_progress.length)add+='<div class="card"><h2>'+t("in_progress")+'</h2>'+g.in_progress.map(function(p){return '<div class="meta">'+ic("routine")+' '+t(p.goal==="departure"?"leaving":p.goal==="arrival"?"arriving":"sleep")+' · '+Math.round(p.progress*100)+' %</div>';}).join("")+'</div>';
+  var wrong='<div class="card"><div class="prow"><div class="grow"><h2>'+t("wrong")+'</h2><div class="meta">'+t("wrong_q")+'</div></div>'+(V4.wrongOpen?'<div class="bs">'+btn(t("home"),'data-wrong="home"','sm')+btn(t("away"),'data-wrong="away"','sm')+btn(t("sleep"),'data-wrong="asleep"','sm')+'</div>':btn(t("wrong"),'id="wrongBtn"','no sm','x'))+'</div></div>';
+  var i=base.indexOf('<div class="card"><div style="display:flex;align-items:center;gap:10px"><div class="grow"><h2>Guest mode');
+  return h+(i>0?base.slice(0,i)+add+wrong+base.slice(i):base+add+wrong);
+};
+
+/* ---------- People ---------- */
+function viewPeople(){
+  var d=V4.people;if(!d)return '<div class="empty2">…</div>';
+  var h='<div class="card"><div class="prow"><div class="av" style="--c:var(--err)">'+(d.unknown_min||0)+'</div><div class="grow"><h3>'+t("unknown_people")+'</h3><div class="meta">'+t("unknown_hint")+'</div></div></div></div>';
+  h+='<div class="bs" style="margin:4px 0 12px">'+btn(t("add_person"),'id="addPerson"','p','plus')+'</div>';
+  if(V4.edit)h+=personForm(V4.edit,d);
+  if(!d.people.length&&!V4.edit)h+='<div class="card empty2">'+ic("people","l")+'<div style="margin-top:6px">'+t("no_people")+'</div></div>';
+  d.people.forEach(function(p){
+    var now=p.now||{state:"unclear"},c=SC[now.state]||"var(--unc)",tm=(d.timing||{})[p.name];
+    var srcs=p.trackers.map(function(x){return pill(trName(x,d),"var(--pri)");}).join("")+p.tags.map(function(x){return pill(x,"var(--pri)");}).join("")+p.calendars.map(function(x){return pill("📅 "+calName(x,d),"var(--opt)");}).join("")+(p.nfc_user?pill("NFC · "+p.nfc_user,"var(--in)"):"")+(p.has_irk?pill("IRK "+p.irk,"var(--and)"):"");
+    var arr=tm&&tm.arrive?Object.keys(tm.arrive).map(function(k){return ["Mo","Di","Mi","Do","Fr","Sa","So"][k]+" "+tm.arrive[k].typical;}).join(" · "):"";
+    h+='<div class="card"><div class="prow"><div class="av" style="--c:'+c+'">'+esc(p.name.charAt(0).toUpperCase())+'</div><div class="grow"><h3>'+esc(p.name)+'</h3><div class="chips">'+pill(t(now.state),c,true)+pill(t(p.kind))+(p.may_be_alone?"":pill("✕ "+t("may_alone")))+'</div><div class="chips">'+(srcs||pill(t("no_source")))+'</div>'+(arr?'<div class="meta" style="margin-top:6px">'+t("typical_arrival")+': '+esc(arr)+'</div>':"")+'</div><div class="bs">'+btn(t("edit"),'data-pedit="'+esc(p.id)+'"','sm','edit')+btn(t("del"),'data-pdel="'+esc(p.id)+'"','sm no','trash')+'</div></div></div>';
+  });
+  return h;
+}
+function trName(id,d){var x=(d.trackers||[]).filter(function(t){return t.entity_id===id;})[0];return x?x.name:id;}
+function calName(id,d){var x=(d.calendars||[]).filter(function(t){return t.entity_id===id;})[0];return x?x.name:id;}
+function personForm(p,d){
+  var isNew=!p.id;
+  function picks(list,sel,name){return '<div class="picks">'+(list.length?list.map(function(x){return '<label><input type="checkbox" name="'+name+'" value="'+esc(x.entity_id)+'"'+(sel.indexOf(x.entity_id)>=0?" checked":"")+'><span>'+esc(x.name)+' <span class="meta">'+esc(x.entity_id)+'</span></span></label>';}).join(""):'<div class="meta" style="padding:6px">–</div>')+'</div>';}
+  return '<div class="card" id="pform"><h2>'+(isNew?t("add_person"):esc(p.name))+'</h2>'+
+   '<div class="field"><label for="pf_name">'+t("name")+'</label><input id="pf_name" type="text" maxlength="40" value="'+esc(p.name||"")+'"></div>'+
+   '<div class="field"><label for="pf_kind">'+t("kind")+'</label><select id="pf_kind"><option value="household"'+(p.kind!=="visitor"?" selected":"")+'>'+t("household")+'</option><option value="visitor"'+(p.kind==="visitor"?" selected":"")+'>'+t("visitor")+'</option></select></div>'+
+   '<div class="field"><label><input id="pf_alone" type="checkbox"'+(p.may_be_alone!==false?" checked":"")+'> '+t("may_alone")+'</label></div>'+
+   '<div class="field"><label>'+t("trackers")+'</label>'+picks(d.trackers||[],p.trackers||[],"pf_tr")+'</div>'+
+   '<div class="field"><label>'+t("calendars_l")+'</label>'+picks(d.calendars||[],p.calendars||[],"pf_cal")+'</div>'+
+   '<div class="field"><label for="pf_nfc">'+t("nfc")+'</label><input id="pf_nfc" type="text" maxlength="40" value="'+esc(p.nfc_user||"")+'"></div>'+
+   '<div class="field"><label for="pf_irk">'+t("irk")+'</label><input id="pf_irk" type="password" autocomplete="off" maxlength="47" placeholder="'+(p.has_irk?esc(p.irk):"")+'"><div class="meta">'+t("irk_hint")+'</div></div>'+
+   '<div class="bs">'+btn(t("save"),'id="pfSave"','p','check')+btn(t("cancel"),'id="pfCancel"','ghost')+'</div></div>';
+}
+function bindPeople(){
+  var a=document.getElementById("addPerson");if(a)a.onclick=function(){V4.edit={};render();};
+  var c=document.getElementById("pfCancel");if(c)c.onclick=function(){V4.edit=null;render();};
+  var s=document.getElementById("pfSave");if(s)s.onclick=function(){
+    function vals(n){return Array.prototype.map.call(document.querySelectorAll('input[name="'+n+'"]:checked'),function(x){return x.value;});}
+    var body={name:document.getElementById("pf_name").value,kind:document.getElementById("pf_kind").value,may_be_alone:document.getElementById("pf_alone").checked,trackers:vals("pf_tr"),calendars:vals("pf_cal"),nfc_user:document.getElementById("pf_nfc").value,irk:document.getElementById("pf_irk").value};
+    if(V4.edit.id)body.id=V4.edit.id;
+    s.disabled=true;api("api/person",body).then(function(){V4.edit=null;toast(t("save")+" ✓");return api("api/people");}).then(function(d){V4.people=d;render();}).catch(function(e){s.disabled=false;toast(t("save")+" ✗ ("+e.message+")",true);});};
+  document.querySelectorAll("[data-pedit]").forEach(function(b){b.onclick=function(){V4.edit=V4.people.people.filter(function(p){return p.id===b.dataset.pedit;})[0];render();window.scrollTo(0,0);};});
+  document.querySelectorAll("[data-pdel]").forEach(function(b){b.onclick=function(){if(!confirm(t("del")+"?"))return;api("api/person/delete",{id:b.dataset.pdel}).then(function(){return api("api/people");}).then(function(d){V4.people=d;render();});};});
+}
+
+/* ---------- House ---------- */
+function houseMap(d){
+  var nodes=d.map.nodes||[],links=d.map.links||[];if(!nodes.length)return '<div class="empty2">'+t("no_patterns")+'</div>';
+  var col={outside:[],between:[],inside:[],unknown:[]};nodes.forEach(function(n){(col[n.side]||col.unknown).push(n);});
+  var X={outside:70,between:250,inside:470,unknown:650},pos={},H=Math.max(160,40+46*Math.max(col.outside.length,col.between.length,col.inside.length,col.unknown.length));
+  Object.keys(col).forEach(function(k){col[k].forEach(function(n,i){pos[n.id]=[X[k],30+i*46];});});
+  var s='<svg class="map" viewBox="0 0 760 '+H+'" role="img" aria-label="'+t("map")+'">';
+  ["outside","between","inside","unknown"].forEach(function(k){if(col[k].length)s+='<text class="s" x="'+X[k]+'" y="14" text-anchor="middle">'+(k==="between"?t("entrances"):k==="unknown"?"?":t(k))+'</text>';});
+  links.forEach(function(l){var a=pos[l.a],b=pos[l.b];if(a&&b)s+='<line class="'+(l.kind==="walk"?"lk":"ld")+'" x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'"/>';});
+  nodes.forEach(function(n){var p=pos[n.id],c=n.type==="door"?"var(--then)":n.side==="outside"?"var(--out)":n.side==="inside"?"var(--in)":"var(--unc)";var label=nm(n.id,d.names);if(label.length>22)label=label.slice(0,21)+"…";
+    s+='<g><rect x="'+(p[0]-62)+'" y="'+(p[1]-15)+'" width="124" height="30" rx="9" fill="var(--card)" stroke="'+c+'" stroke-width="2"/><text x="'+p[0]+'" y="'+(p[1]+4)+'" text-anchor="middle">'+esc(label)+'</text></g>';});
+  return s+'</svg>';
+}
+function viewHouse(){
+  var d=V4.house;if(!d)return '<div class="empty2">…</div>';
+  var c=d.capability||{},miss=c.missing||[];
+  var h='<div class="card"><h2>'+t("capability")+'</h2><div class="kpis" style="margin:8px 0">'+[["doors_with_direction",ic("door")+" "+t("direction")],["inside_sensors",ic("motion")+" "+t("inside")],["outside_sensors",ic("motion")+" "+t("outside")],["people_with_source",ic("person")+" "+t("people")]].map(function(k){return '<div class="kpi"><div class="l">'+k[1]+'</div><div class="v">'+(c[k[0]]==null?"–":c[k[0]])+(k[0]==="doors_with_direction"&&c.doors!=null?" / "+c.doors:k[0]==="people_with_source"&&c.people!=null?" / "+c.people:"")+'</div></div>';}).join("")+'</div>'+
+   (miss.length?'<div class="meta">'+t("missing")+': '+miss.map(function(m){return pill(t("m_"+m),"var(--warn)");}).join(" ")+'</div>':'<div class="meta">'+pill(t("ok_all"),"var(--in)")+'</div>')+'</div>';
+  h+='<div class="card"><h2>'+ic("map")+' '+t("map")+'</h2><div class="hint">'+t("map_hint")+'</div>'+(d.has_floorplan?'<img src="api/floorplan" alt="'+t("floorplan")+'" style="max-width:100%;border-radius:10px;margin-bottom:8px;opacity:.85">':"")+'<div style="overflow-x:auto">'+houseMap(d)+'</div>'+
+   '<div class="bs" style="margin-top:10px"><label class="b sm">'+ic("upload")+'<span>'+t("floorplan")+'</span><input id="fpFile" type="file" accept="image/png,image/jpeg" style="display:none"></label></div></div>';
+  h+='<div class="sec">'+t("entrances")+'</div><div class="list2">'+(d.entrances||[]).map(function(e){var r=(d.roles||{})[e.door]||{};
+    return '<div class="card" style="margin:0"><div class="prow"><div class="av" style="--c:var(--then)">'+ic("door")+'</div><div class="grow"><h3>'+esc(nm(e.door,d.names))+'</h3><div class="chips">'+pill(t("role_"+(r.role||"unknown")),r.role==="entrance"?"var(--in)":"var(--sec)")+pill(t("direction")+": "+(e.direction?"✓":"–"),e.direction?"var(--in)":"var(--warn)")+'</div><div class="meta" style="margin-top:6px">'+t("outside")+': '+esc(e.outside?nm(e.outside,d.names):"–")+'<br>'+t("inside")+': '+esc(e.inside?nm(e.inside,d.names):"–")+'<br>'+(r.entry!=null?ic("home")+" "+r.entry+" · "+ic("routine")+" "+r.exit+" · "+t("role_inside_only")+" "+r.inside_only:"")+'</div></div></div></div>';}).join("")+'</div>';
+  if((d.doctor||[]).length)h+='<div class="sec">'+t("doctor")+'</div><div class="card">'+d.doctor.map(function(p){return '<div class="check"><span class="dot" style="--c:var(--warn)">!</span><div class="grow"><div>'+esc(nm(p.entity_id,d.names))+' · '+t(p.problem)+'</div><div class="meta">'+esc(p.detail)+'</div></div></div>';}).join("")+'</div>';
+  h+='<div class="sec">'+t("exceptions")+'</div><div class="card">'+((d.exceptions||[]).length?d.exceptions.map(function(x){return '<div class="check"><span class="dot" style="--c:var(--blk)">✓</span><div class="grow"><div>'+esc(x.label)+'</div><div class="meta">'+esc(nm(x.sensor,d.names))+'</div></div>'+btn(t("remove"),'data-exdel="'+esc(x.sensor)+'"','sm no','trash')+'</div>';}).join(""):'<div class="meta">–</div>')+'</div>';
+  return h;
+}
+function bindHouse(){
+  document.querySelectorAll("[data-exdel]").forEach(function(b){b.onclick=function(){api("api/exception/delete",{sensor:b.dataset.exdel}).then(function(){return api("api/house");}).then(function(d){V4.house=d;render();});};});
+  var f=document.getElementById("fpFile");if(f)f.onchange=function(){var file=f.files[0];if(!file)return;if(file.size>2*1024*1024){toast("max 2 MB",true);return;}var r=new FileReader();r.onload=function(){var b64=String(r.result).split(",")[1];api("api/floorplan",{image:b64}).then(function(){return api("api/house");}).then(function(d){V4.house=d;render();toast("✓");}).catch(function(e){toast("✗ "+e.message,true);});};r.readAsDataURL(file);};
+}
+
+/* ---------- Pattern recognition ---------- */
+var TYPEC={block:"var(--blk)",person:"var(--per)",routine:"var(--rou)"},TYPEI={block:"block",person:"person",routine:"routine"};
+function stepNames(p){return (p.steps||[]).map(function(s){if(s.items)return s.items.map(function(x){return x.ref?((V4.byId[x.ref]||{}).title||x.ref):x.label;}).join(" / ");if(s.ref)return (V4.byId[s.ref]||{}).title||s.ref;return s.label;}).filter(Boolean);}
+function counts(p){var r={steps:0,sens:{},subs:{},and:0,or:0,comp:0,opt:0};(function walk(q,top){(q.steps||[]).forEach(function(s){
+  if(top)r.steps+=1;if(s.t==="and")r.and++;if(s.t==="or")r.or++;if(s.t==="opt")r.opt++;
+  var its=s.items||[s];its.forEach(function(x){if(x.ref&&V4.byId[x.ref]&&!r.subs[x.ref]){r.subs[x.ref]=1;walk(V4.byId[x.ref],false);}else if(x.entity)r.sens[x.entity]=1;});});
+  (q.companions||[]).forEach(function(c){r.comp++;if(c.entity)r.sens[c.entity]=1;});})(p,true);
+  return r.steps+" "+t(r.steps===1?"step":"steps")+" · "+Object.keys(r.sens).length+" "+t("sensors")+(Object.keys(r.subs).length?" · "+Object.keys(r.subs).length+" "+t("subs"):"")+(r.and?" · "+r.and+" UND":"")+(r.or?" · "+r.or+" "+(LANG==="de"?"ODER":"OR"):"")+(r.comp?" · "+r.comp+" "+(LANG==="de"?"Begleiter":"companion"):"");}
+function goalName(g){return t(g==="arriving"?"arriving":g==="leaving"?"leaving":g==="sleep"?"sleep":g==="house"?"house_g":g==="home"?"home":g);}
+function title(p){if(p.type==="routine")return (p.who&&p.who!=="family"?p.who+" · ":"")+goalName(p.goal)+(p.conditions&&p.conditions.time?" · "+p.conditions.time.typical:"");return p.title;}
+function viewRecog(){
+  var d=V4.recog;if(!d)return '<div class="empty2">…</div>';
+  V4.byId={};d.items.forEach(function(p){V4.byId[p.id]=p;});
+  if(V4.path.length)return recogDetail();
+  var f=V4.flt,items=d.items.filter(function(p){var txt=(title(p)+" "+stepNames(p).join(" ")).toLowerCase();return (f.type==="all"||p.type===f.type)&&(f.goal==="all"||p.goal===f.goal)&&(!f.q||txt.indexOf(f.q.toLowerCase())>=0);});
+  var n={block:0,person:0,routine:0};d.items.forEach(function(p){n[p.type]++;});
+  var h='<div class="kpis">'+["block","person","routine"].map(function(k){return '<div class="kpi" style="border-left:4px solid '+TYPEC[k]+'"><div class="l">'+ic(TYPEI[k])+' '+t(k==="block"?"blocks":k==="person"?"persons":"routines")+'</div><div class="v">'+n[k]+'</div></div>';}).join("")+'</div>';
+  if(d.in_progress&&d.in_progress.length)h+='<div class="banner">'+ic("routine")+' '+t("in_progress")+': '+d.in_progress.map(function(p){return goalName(p.goal==="departure"?"leaving":p.goal==="arrival"?"arriving":"sleep")+" "+Math.round(p.progress*100)+" %";}).join(", ")+'</div>';
+  h+='<div class="card"><input id="rq" class="inp" type="search" placeholder="'+t("search")+'" value="'+esc(f.q)+'">'+
+   '<div class="frow"><span class="lab">'+t("type").toUpperCase()+'</span>'+[["all",t("all")],["block",t("blocks")],["person",t("persons")],["routine",t("routines")]].map(function(o){return '<button type="button" class="ch'+(f.type===o[0]?" on":"")+'" data-ft="'+o[0]+'" style="--c:'+(TYPEC[o[0]]||"var(--pri)")+'">'+(TYPEI[o[0]]?ic(TYPEI[o[0]]):"")+esc(o[1])+'</button>';}).join("")+'</div>'+
+   '<div class="frow"><span class="lab">'+t("goal").toUpperCase()+'</span>'+[["all",t("all")],["arriving",t("arriving")],["leaving",t("leaving")],["sleep",t("sleep")],["home",t("home")],["house",t("house_g")]].map(function(o){return '<button type="button" class="ch'+(f.goal===o[0]?" on":"")+'" data-fg="'+o[0]+'">'+esc(o[1])+'</button>';}).join("")+'</div></div>';
+  if(!d.items.length)return h+'<div class="card empty2">'+ic("routine","l")+'<div style="margin:6px 0 10px">'+t("no_patterns")+'</div>'+btn(t("learn_now"),'id="learn2"','p')+'</div>';
+  if(!items.length)return h+'<div class="empty2">'+t("nothing")+'</div>';
+  ["block","person","routine"].forEach(function(ty){var g=items.filter(function(p){return p.type===ty;});if(!g.length)return;
+    h+='<div class="sec" style="color:'+TYPEC[ty]+'">'+ic(TYPEI[ty])+' '+t(ty==="block"?"blocks":ty==="person"?"persons":"routines")+' · '+g.length+'</div><div class="list2">'+g.map(function(p){
+      return '<button type="button" class="pc" data-open="'+esc(p.id)+'" style="--c:'+TYPEC[p.type]+'"><span class="i">'+ic(TYPEI[p.type],"l")+'</span><span style="min-width:0;display:block"><span class="nm">'+esc(title(p))+'</span><span class="chips">'+pill(goalName(p.goal),TYPEC[p.type])+pill(p.who==="house"?t("house_g"):p.who||"")+pill(p.seen?p.seen+"× "+t("seen"):t("not_seen"))+(p.precision?pill(Math.round(p.precision*100)+" %","var(--in)"):"")+(p.status==="suggestion"?pill("?","var(--warn)"):"")+'</span><span class="pv">'+esc(counts(p))+'</span><span class="pv">'+esc(stepNames(p).join(" → "))+'</span></span></button>';}).join("")+'</div>';});
+  return h;
+}
+function stepEl(x,col,cls){var ent=x.entity||"";var icn=ent.indexOf("device_tracker.")===0?"phone":/door|tür|tor|gate/i.test(ent+" "+(x.label||""))?"door":ent.indexOf("calendar.")===0?"cal":"motion";
+  return '<div class="st'+(cls?" "+cls:"")+'" style="--c:'+col+'"><span class="i">'+ic(icn)+'</span><div><div class="nm">'+esc(x.label||ent)+'</div>'+(x.window?'<div class="meta">'+esc(x.window)+'</div>':"")+'<div class="tech">'+esc(ent)+'</div></div><div class="meta">'+(cls==="opt"?t("optional"):"")+'</div></div>';}
+function subEl(id,key,depth){var p=V4.byId[id];if(!p)return stepEl({label:id},"var(--sec)");var o=!!V4.openS[key];
+  return '<div class="sp'+(o?" open":"")+'" style="--c:'+TYPEC[p.type]+'"><div class="hd"><button type="button" class="tg" data-tg="'+esc(key)+'" aria-expanded="'+o+'" aria-label="toggle">▸</button><span class="i" style="width:32px;height:32px;border-radius:10px;background:var(--c);color:#fff;display:flex;align-items:center;justify-content:center">'+ic(TYPEI[p.type])+'</span><div style="min-width:0"><div class="nm" style="font-weight:500;overflow-wrap:anywhere">'+esc(title(p))+'</div><div class="meta" style="overflow-wrap:anywhere">'+esc(counts(p))+'</div></div>'+btn(t("open_"),'data-open="'+esc(id)+'"','sm','open')+'</div><div class="bd">'+(o&&depth<4?steps(p,key,depth+1):"")+'</div></div>';}
+function span(s){return s?" · "+s.min+"–"+s.max+" s · "+t("typical")+" "+s.typical+" s":"";}
+function steps(p,base,depth){var h="";(p.steps||[]).forEach(function(s,i){var key=base+"/"+i;
+  if(i>0)h+='<div class="lnk"><b>'+t("THEN")+'</b>'+esc(span(s.span))+'</div>';
+  if(s.t==="and"||s.t==="or"){var g=s.t==="and"?"var(--and)":"var(--or)";h+='<div class="grp" style="--g:'+g+'"><span class="gl">'+t(s.t.toUpperCase())+'</span><div class="gs">'+(s.items||[]).map(function(x,j){return x.ref?subEl(x.ref,key+"."+j,depth):stepEl(x,g);}).join("")+'</div></div>';}
+  else if(s.t==="not")h+=stepEl({label:t("NOT")+": "+(s.label||"")+" ≥ "+s.minutes+" min"},"var(--not)");
+  else if(s.ref)h+=subEl(s.ref,key,depth);
+  else h+=stepEl(s,s.t==="opt"?"var(--opt)":"var(--then)",s.t==="opt"?"opt":"");});
+  if((p.companions||[]).length)h+='<div class="comps"><div class="t">'+t("COMP")+'</div><div style="display:grid;gap:6px">'+p.companions.map(function(c){return stepEl(c,"var(--comp)");}).join("")+'</div></div>';
+  return h;}
+function recogDetail(){var id=V4.path[V4.path.length-1],p=V4.byId[id];if(!p){V4.path=[];return viewRecog();}
+  var cr='<div class="crumbs">'+btn(t("back"),'data-home="1"','ghost sm')+V4.path.map(function(x,i){return i===V4.path.length-1?'<span>›</span><b style="padding:0 6px">'+esc(title(V4.byId[x]||{title:x}))+'</b>':'<span>›</span>'+btn(title(V4.byId[x]||{title:x}),'data-back="'+i+'"','ghost sm');}).join("")+'</div>';
+  var c=p.conditions||{};
+  var head='<div class="card" style="border:2px solid '+TYPEC[p.type]+'"><div class="chips">'+pill(t(p.type==="block"?"blocks":p.type==="person"?"persons":"routines"),TYPEC[p.type],true)+pill(goalName(p.goal))+pill(p.who==="house"?t("house_g"):p.who||"")+'</div><h2 style="margin-top:6px">'+esc(title(p))+'</h2><div class="kpis" style="margin:8px 0 0">'+
+   '<div class="kpi"><div class="l">'+t("seen")+'</div><div class="v">'+(p.seen?p.seen+"×":"–")+'</div></div>'+(p.precision?'<div class="kpi"><div class="l">%</div><div class="v">'+Math.round(p.precision*100)+'</div></div>':"")+(c.time?'<div class="kpi"><div class="l">'+t("when")+'</div><div class="v" style="font-size:16px">'+esc((c.weekdays||[]).join(" ")+" "+c.time.from+"–"+c.time.to)+'</div></div>':"")+'</div><div class="meta" style="margin-top:8px">'+esc(counts(p))+'</div>'+
+   (c.calendar?'<div class="chips">'+c.calendar.map(function(w){return pill("📅 "+w.word,"var(--opt)");}).join("")+'</div>':"")+'</div>';
+  return cr+head+'<div class="bs" style="margin-bottom:8px">'+btn(t("expand_all"),'data-all="1"','sm')+btn(t("collapse_all"),'data-all="0"','sm')+'<label class="ch'+(V4.tech?" on":"")+'"><input id="techSw" type="checkbox" style="display:none"'+(V4.tech?" checked":"")+'>Tech</label></div><div class="card'+(V4.tech?" tech-on":"")+'">'+steps(p,id,1)+'</div>';}
+function expandAll(p,base,on,depth){(p.steps||[]).forEach(function(s,i){var key=base+"/"+i;if(s.ref){V4.openS[key]=on;if(on&&depth<4&&V4.byId[s.ref])expandAll(V4.byId[s.ref],key,on,depth+1);}(s.items||[]).forEach(function(x,j){if(x.ref){var k=key+"."+j;V4.openS[k]=on;if(on&&depth<4&&V4.byId[x.ref])expandAll(V4.byId[x.ref],k,on,depth+1);}});});}
+function bindRecog(){
+  var q=document.getElementById("rq");if(q)q.oninput=function(){V4.flt.q=q.value;var pos=q.selectionStart;render();var n=document.getElementById("rq");n.focus();n.setSelectionRange(pos,pos);};
+  document.querySelectorAll("[data-ft]").forEach(function(b){b.onclick=function(){V4.flt.type=b.dataset.ft;render();};});
+  document.querySelectorAll("[data-fg]").forEach(function(b){b.onclick=function(){V4.flt.goal=b.dataset.fg;render();};});
+  document.querySelectorAll("[data-open]").forEach(function(b){b.onclick=function(e){e.stopPropagation();if(V4.path.length)V4.path.push(b.dataset.open);else V4.path=[b.dataset.open];V4.openS={};render();window.scrollTo(0,0);};});
+  document.querySelectorAll("[data-tg]").forEach(function(b){b.onclick=function(){V4.openS[b.dataset.tg]=!V4.openS[b.dataset.tg];render();};});
+  document.querySelectorAll("[data-back]").forEach(function(b){b.onclick=function(){V4.path=V4.path.slice(0,+b.dataset.back+1);V4.openS={};render();};});
+  document.querySelectorAll("[data-home]").forEach(function(b){b.onclick=function(){V4.path=[];render();};});
+  document.querySelectorAll("[data-all]").forEach(function(b){b.onclick=function(){var id=V4.path[V4.path.length-1];expandAll(V4.byId[id],id,b.dataset.all==="1",1);render();};});
+  var ts=document.getElementById("techSw");if(ts)ts.onchange=function(){V4.tech=ts.checked;render();};
+  var l=document.getElementById("learn2");if(l)l.onclick=function(){l.disabled=true;api("api/learn",{}).then(function(){return api("api/recognition");}).then(function(d){V4.recog=d;render();});};
+}
+
+/* ---------- Deviations & questions ---------- */
+var DEVC={expected_missing:"var(--warn)",unexplained:"var(--err)",rare:"var(--and)",contradiction:"var(--or)"};
+function factText(o,names){var f=o.facts||{};var parts=[];
+  if(f.door)parts.push(ic("door")+" "+esc(nm(f.door,names)));
+  if(f.sensor)parts.push(ic("motion")+" "+esc(nm(f.sensor,names)));
+  if(f.entity_id)parts.push(esc(nm(f.entity_id,names))+(f.detail?" · "+esc(f.detail):""));
+  if(f.a&&f.b)parts.push(esc(nm(f.a,names))+" = "+esc(nm(f.b,names))+(f.ratio?" ("+Math.round(f.ratio*100)+" %)":""));
+  if(f.count)parts.push(f.count+"×");
+  if(f.goal)parts.push(goalName(f.goal==="departure"?"leaving":f.goal==="arrival"?"arriving":"sleep"));
+  if(f.window&&f.window.from)parts.push(esc(f.window.from+"–"+f.window.to));
+  if(f.state_before)parts.push((LANG==="de"?"vorher: ":"before: ")+t(f.state_before==="asleep"?"sleep":f.state_before));
+  if(f.too_weak)parts.push(LANG==="de"?"nur schwache Erklärung (Bluetooth/WLAN)":"only a weak explanation (Bluetooth/Wi-Fi)");
+  if(f.ts)parts.push(new Date(f.ts).toLocaleString());
+  return parts.join(" · ");}
+function viewDev(){var d=V4.dev;if(!d)return '<div class="empty2">…</div>';if(!d.items.length)return '<div class="card empty2">'+ic("check","l")+'<div style="margin-top:6px">'+t("no_dev")+'</div></div>';
+  return d.items.map(function(x){var c=DEVC[x.kind]||"var(--sec)";return '<div class="card qcard" style="--c:'+c+'"><div class="chips">'+pill(t("d_"+x.kind),c,true)+pill(t(x.status),x.status==="open"?"var(--warn)":"var(--in)")+(x.label?pill(x.label,"var(--blk)"):"")+'<span class="meta">'+new Date(x.ts).toLocaleString()+'</span></div><div class="qfacts">'+factText(x,d.names)+'</div></div>';}).join("");}
+var QC={suspicious_entry:"var(--err)",duplicate:"var(--and)",door_role:"var(--then)",disturbance:"var(--blk)",sensor_problem:"var(--warn)",deviation:"var(--or)"};
+function qCard(q,names){var c=QC[q.type]||"var(--pri)",needLabel=q.type==="disturbance"||q.type==="suspicious_entry"||q.type==="deviation";
+  return '<div class="card qcard" style="--c:'+c+'"><div class="chips">'+pill(q.category==="suggestion"?t("sugg"):t("qs"),c,true)+(q.safety?pill("!","var(--err)"):"")+(q.count>1?pill(q.count+"×"):"")+(q.status==="waiting"?pill(t("dontknow"),"var(--sec)"):"")+'</div><h3 style="margin-top:6px">'+t("q_"+q.type)+'</h3><div class="qfacts">'+factText(q,names)+'</div>'+
+   (needLabel?'<input class="inp" data-lab="'+esc(q.id)+'" type="text" maxlength="40" placeholder="'+esc(t("label_opt"))+'" style="margin-bottom:8px">':"")+
+   '<div class="bs">'+btn(t("yes"),'data-ans="yes" data-q="'+esc(q.id)+'"','ok p','check')+btn(t("no"),'data-ans="no" data-q="'+esc(q.id)+'"','no','x')+btn(t("maybe"),'data-ans="maybe" data-q="'+esc(q.id)+'"','')+btn(t("dontknow"),'data-ans="dontknow" data-q="'+esc(q.id)+'"','ghost','q')+'</div></div>';}
+function viewQuestions(){var d=V4.qs;if(!d)return '<div class="empty2">…</div>';
+  var qs=d.items.filter(function(q){return q.category==="question";}),sg=d.items.filter(function(q){return q.category==="suggestion";});
+  var h='<div class="sec">'+t("qs")+' · '+qs.length+'</div>'+(qs.length?qs.map(function(q){return qCard(q,d.names);}).join(""):'<div class="card empty2">'+t("no_q")+'</div>');
+  h+='<div class="sec">'+t("sugg")+' · '+sg.length+'</div>'+(sg.length?sg.map(function(q){return qCard(q,d.names);}).join(""):'<div class="card empty2">–</div>');
+  if(d.done.length)h+='<div class="sec">'+t("done")+'</div><div class="card">'+d.done.map(function(q){return '<div class="check"><span class="dot" style="--c:var(--in)">✓</span><div class="grow"><div>'+t("q_"+q.type)+' · '+t(q.answer)+(q.label?' · '+esc(q.label):"")+'</div><div class="meta">'+factText(q,d.names)+'</div></div></div>';}).join("")+'</div>';
+  return h;}
+function bindQuestions(){document.querySelectorAll("[data-ans]").forEach(function(b){b.onclick=function(){var id=b.dataset.q,inp=document.querySelector('[data-lab="'+id+'"]');var body={id:id,answer:b.dataset.ans};if(inp&&inp.value)body.label=inp.value;
+  document.querySelectorAll('[data-q="'+id+'"]').forEach(function(x){x.disabled=true;});api("api/answer",body).then(function(){toast(t("thanks"));return Promise.all([api("api/questions"),api("api/status")]);}).then(function(r){V4.qs=r[0];S.status=r[1];renderTabs();render();}).catch(function(e){toast("✗ "+e.message,true);document.querySelectorAll('[data-q="'+id+'"]').forEach(function(x){x.disabled=false;});});};});}
+
+/* ---------- Balance ---------- */
+function viewBalance(){var d=V4.bal;if(!d)return '<div class="empty2">…</div>';var k=d.kpis;
+  var h='<div class="kpis">'+[["kpi_wrong",k.wrong_empty,k.wrong_empty?"var(--err)":"var(--in)"],["kpi_empty",k.empty_hours+" h","var(--away)"],["kpi_sus",k.suspicions,"var(--warn)"],["kpi_fsus",k.false_suspicions,"var(--sec)"]].map(function(x){return '<div class="kpi" style="border-left:4px solid '+x[2]+'"><div class="l">'+t(x[0])+'</div><div class="v">'+x[1]+'</div></div>';}).join("")+'</div>';
+  h+='<div class="card"><h2>'+ic("shield")+' '+t("gate")+'</h2><div class="hint">'+t("gate_hint")+'</div>'+d.gate.checks.map(function(c){return '<div class="check"><span class="dot" style="--c:'+(c.ok?"var(--in)":"var(--warn)")+'">'+(c.ok?"✓":"…")+'</span><div class="grow"><div>'+c.value+' '+t("g_"+c.id)+'</div><div class="meta">'+t("need")+': '+(c.id==="wrong_empty"?"0":"≥ "+c.need)+'</div></div></div>';}).join("")+
+   '<div class="chips" style="margin-top:8px">'+pill(d.signal_option?t("signal_on"):t("signal_off"),d.signal_option?"var(--in)":"var(--sec)",true)+'</div></div>';
+  return h;}
+
+/* ---------- Tabs & dispatch ---------- */
+var TABS=[["status","home"],["people","people"],["house","map"],["recog","routine"],["dev","dev"],["questions","q"],["calendars","cal"],["signals","motion"],["timeline","routine"],["dashboard","scale"],["balance","shield"],["setup","edit"]];
+var LOADERS={people:"api/people",house:"api/house",recog:"api/recognition",dev:"api/deviations",questions:"api/questions",balance:"api/balance",dashboard:"api/dashboard",timeline:"api/timeline",calendars:"api/calendars"};
+var KEYS={people:"people",house:"house",recog:"recog",dev:"dev",questions:"qs",balance:"bal"};
+function renderTabs(){var nav=document.getElementById("tabs"),q=S.status&&S.status.guard&&S.status.guard.questions;var nq=q?(q.question||0)+(q.suggestion||0):0;
+  nav.innerHTML=TABS.map(function(x){return '<button type="button" data-v="'+x[0]+'"'+(S.view===x[0]?' class="active"':'')+'>'+t(x[0])+(x[0]==="questions"&&nq?'<span class="badge">'+nq+'</span>':"")+'</button>';}).join("");
+  nav.querySelectorAll("button").forEach(function(b){b.onclick=function(){go(b.dataset.v);};});}
+function go(v){S.view=v;V4.path=[];render();var u=LOADERS[v];if(u)api(u).then(function(d){if(KEYS[v])V4[KEYS[v]]=d;else if(v==="dashboard")S.dash=d;else if(v==="timeline")S.tl=d;else if(v==="calendars")S.cals=d;render();}).catch(function(){});}
+var _render=render;
+render=function(){
+  renderTabs();
+  var v=S.view,m=document.getElementById("main");
+  var f={people:viewPeople,house:viewHouse,recog:viewRecog,dev:viewDev,questions:viewQuestions,balance:viewBalance}[v];
+  if(!f){_render();bindStatus();return;}
+  m.innerHTML=f();
+  ({people:bindPeople,house:bindHouse,recog:bindRecog,questions:bindQuestions}[v]||function(){})();
+};
+function bindStatus(){if(S.view!=="status")return;
+  document.querySelectorAll("[data-go]").forEach(function(b){b.onclick=function(){go(b.dataset.go);};});
+  var w=document.getElementById("wrongBtn");if(w)w.onclick=function(){V4.wrongOpen=true;render();};
+  document.querySelectorAll("[data-wrong]").forEach(function(b){b.onclick=function(){api("api/correct",{actual:b.dataset.wrong}).then(function(){V4.wrongOpen=false;toast(t("thanks"));render();}).catch(function(e){toast("✗ "+e.message,true);});};});}
+document.documentElement.lang=LANG;
+
 </script>
 </body>
 </html>
