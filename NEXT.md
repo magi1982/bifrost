@@ -101,6 +101,15 @@ Goal: with Shelly proxies, Private BLE Device, Bermuda or iBeacon a house quickl
 
 **Tests**: classification of Bermuda / Private BLE / iBeacon entity names and attributes, co-occurrence suggestion on the simulator, stationary and flapping devices, room ping-pong, GUI check.
 
+**Extension (27.11.) · Raw devices the Shellys hear – "what is that?"**
+Most devices the Shelly proxies hear never become an entity. Home Assistant still sees their advertisements (Settings → Bluetooth → advertisement monitor). Bifrost reads them read-only over the WebSocket (`bluetooth/subscribe_advertisements` – to be verified on the maintainer's HA version) and shows them in a Setup card **"Bluetooth devices nearby"**:
+- **What it is** – from public identifiers, no guessing of persons: manufacturer from the company ID in the manufacturer data (e.g. 0x004C Apple, 0x0075 Samsung, 0x0006 Microsoft, 0x00E0 Google), service UUIDs (Fast Pair, Find My, Tile, BTHome, Xiaomi), Apple message type (iPhone/Watch "nearby", AirPods, Find My tag), the advertised name if any, TX power.
+- **Where** – which Shelly hears it best and the signal strength (≈ room), how stable that is.
+- **How often** – first/last seen, share of the day present, home/away rhythm compared with the phones; random-address devices are grouped ("12 changing Apple addresses") instead of listed one by one.
+- **Verdict and action** – stationary (TV, speaker, neighbour) / moves with a person → "belongs to …?" / passer-by. If a device is useful, Bifrost says how to turn it into an entity (iBeacon, Private BLE Device with IRK, BTHome, Bermuda).
+- **Privacy** – addresses stay in the app's own storage, are shown shortened, never exported or logged; devices seen < 3 times in a week are forgotten.
+Limits: iPhones and modern Android phones rotate their address every ~15 min – without an IRK they can be counted and typed ("an Apple phone"), not identified. Needs the Bluetooth integration in HA with the Shellys as proxies (active scanning gives names).
+
 ### Done in 0.10.0 · Signal value – which sensors help, which are useless (requested 27.11.)
 Decisions: only suggest switching off; useless/slow signals disappear from the House tab, a separate button shows the archived ones.
 Goal: Bifrost reads every entity and learns by itself which signals help to tell "home" from "empty" – and which bring nothing (e.g. aggregated presence zones from another system that stay "on" for a long time, sensors that hardly change). Filterable in Setup.
@@ -382,3 +391,17 @@ Limits: security value is a judgement of **coverage**, not a learned intrusion d
 - Upper floors: reported as a normal incident, not as an alarm.
 Open questions: security coverage as its own card (house outline) or a list? Window alarm also while *leaving* (last person just went out)? Ignore a window that was opened from inside shortly before everybody fell asleep (tilted for the night)?
 Tests: window contact = presence little / security valuable; outdoor motion = security valuable; summary zone = presence slow; "off" suggestion only if weak everywhere; GUI check light/dark/390 px.
+
+### Idea · Free patterns – more than arriving, leaving and sleeping (27.11.) – waiting for "mach es"
+Today Bifrost only searches patterns **for a goal** (arrival, departure, bedtime): it looks at the hour before each one. Everything else that repeats in the house is not looked for.
+
+Proposal: a second, **goal-free** search over the same facts (edges, block events, person events, energy/water jumps):
+- **Recurring sequences** – chains that happen again and again in the same order, e.g. *coffee machine → kitchen light → blinds up* (morning), *TV off → hallway light → bathroom* (evening).
+- **Weekly rhythms** – something that happens on fixed days/times, e.g. *cleaner: Tuesday 09:00–12:00, door code + motion everywhere*, *washing machine mostly Saturday*, *children home Wednesday 11:45*.
+- **Machines and timers** – things that repeat to the minute without a person (pool pump, robot, timer lights) → marked as "machine", so they never count as activity.
+- **Habits that break** – a learned rhythm that does not happen today (*the coffee machine did not run this morning although somebody is home*) or a device left on (*basement light on for 3 h, usually 10 min*).
+
+Every found pattern gets a plain name proposal, how often it was seen, when, and how precise it is; the owner can rename it, keep it as `binary_sensor.bifrost_<slug>` or hide it. Patterns that predict a state (e.g. "coffee machine = somebody is awake") also feed the evidence scale.
+Limits: needs ≥ 2 weeks; at most ~20 proposals, sorted by how often and how regular; energy/water only as jumps.
+Open questions: show free patterns in the Patterns tab as their own section ("Everyday life") or mixed with the routines? Push message for "habit broke" (e.g. light left on) – yes/no, or only on the Status page?
+Tests: simulator with a weekly cleaner visit, a morning chain and a pool timer → three patterns found with the right kind; machine detection; "habit broke"; GUI check.
