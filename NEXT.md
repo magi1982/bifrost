@@ -458,6 +458,12 @@ Floors damp Bluetooth strongly (a concrete slab ~10–20 dB), which helps:
 3. *Stairs*: if two floors are almost equal, the device is "on the stairs / between floors" – not guessed.
 4. *Calibration*: placed stationary devices (TV, BTHome sensors) give each scanner a per-floor offset; motion in a single room gives fingerprint samples.
 Needs ≥ 1 scanner per floor (better 2–3); the floor plan heights are not needed.
+*Light construction (timber houses, wooden ceilings)*: a wooden ceiling damps only ~3–6 dB, so "strongest floor wins" is not reliable. Bifrost therefore does not hard-code the damping – it **learns per house** how well floors separate (from placed stationary devices and calibration samples) and picks the method:
+- *Floors separate well* (concrete): floor first, then room (as above).
+- *Floors separate poorly* (wood): one fingerprint over **all** scanners of the house (3D), so the floor comes out of the whole pattern, not from one scanner; the floor needs a confirmation (motion on that floor, stairs) before it changes; otherwise it says "in the house".
+- *Scanner placement hint*: scanners stacked straight above each other cannot tell floors apart – Bifrost suggests offsets ("move the Shelly upper floor towards the other end of the house").
+- *Calibration walk* (optional, 5 min): in the House tab the owner walks through the rooms with a known device (phone with the HA app or a placed Bluetooth tag) and taps "I am here" for ~30 s per room – gives clean fingerprints, especially where floors separate poorly.
+- Bluetooth also travels further through wooden walls: more neighbours and passers-by are heard, so the "outside" zone and the passer-by filter matter more.
 
 **Limits**: room-level accuracy; rotating phones are only placed while their address lasts (~15 min); everything stays local.
 **Open questions**: retention 14 days and Bluetooth off by default – ok? Push for named visitors? Anonymous phone count only displayed or as weak evidence? Design proposals for the map editor first (2–3 variants) or straight to building?
