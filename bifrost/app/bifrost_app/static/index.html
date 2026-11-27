@@ -266,6 +266,7 @@ table.pm td{padding:4px 6px;white-space:nowrap;border:1px solid var(--div);backg
 .ldot.auto{background:transparent;border:2px solid var(--c);box-shadow:none}.ldot.away{border-radius:2px}
 .lmarks{border-bottom:0}.lmark{position:absolute;top:-2px;bottom:0;width:0;border-left:2px solid var(--c)}.lmark.lr span{left:auto;right:3px}.lmark span{position:absolute;top:2px;left:3px;font-size:10px;font-weight:600;color:var(--c);white-space:nowrap}
 .laxis{border-bottom:0;min-height:18px}.laxis em{position:absolute;font-style:normal;font-size:10px;color:var(--sec);transform:translateX(-50%);white-space:nowrap}.laxis em:first-child{transform:none}.laxis em:last-child{transform:translateX(-100%)}
+.fixin{margin:10px auto 4px;max-width:520px;text-align:left}.fixin .sec{text-align:center}
 </style>
 </head>
 <body>
@@ -468,8 +469,8 @@ viewStatus=function(){
   if(g.in_progress&&g.in_progress.length)add+='<div class="card"><h2>'+t("in_progress")+'</h2>'+g.in_progress.map(function(p){return '<div class="meta">'+ic("routine")+' '+t(p.goal==="departure"?"leaving":p.goal==="arrival"?"arriving":"sleep")+' · '+Math.round(p.progress*100)+' %</div>';}).join("")+'</div>';
   var wrong='';
   var i=base.indexOf('<div class="card"><div style="display:flex;align-items:center;gap:10px"><div class="grow"><h2>Guest mode');
-  var hero=base.indexOf('<div class="card hero">');var after=hero>=0?base.indexOf('<div class="card',hero+10):-1;
-  if(after>0)base=base.slice(0,after)+fixPanel()+base.slice(after);else base=base+fixPanel();
+  var hero=base.indexOf('<div class="card hero">');var sub=hero>=0?base.indexOf('<div class="sub">',hero):-1;var subEnd=sub>=0?base.indexOf('</div>',sub)+6:-1;
+  if(subEnd>5)base=base.slice(0,subEnd)+fixPanel()+base.slice(subEnd);else base=fixPanel()+base;
   i=base.indexOf('<div class="card"><div style="display:flex;align-items:center;gap:10px"><div class="grow"><h2>Guest mode');
   return h+(i>0?base.slice(0,i)+add+base.slice(i):base+add);
 };
@@ -887,11 +888,13 @@ render=function(){
 };
 var FIX={step:0,actual:null,cands:null};
 function fixPanel(){var st=S.status&&S.status.decision;if(!st)return "";
-  var h='<div class="card" id="fixCard"><div class="prow"><div class="grow"><h3>'+t("fix_q")+'</h3><div class="meta">'+t("fix_hint")+'</div></div>'+(FIX.step?btn(t("cancel"),'data-fix="cancel"','sm ghost'):btn(t("wrong"),'data-fix="open"','sm no','x'))+'</div>';
-  if(FIX.step===1)h+='<div class="sec">'+t("fix_actual")+'</div><div class="bs">'+[["home","home"],["away","away"],["asleep","sleep"]].map(function(o){return btn(t(o[1]),'data-fixa="'+o[0]+'"','');}).join("")+'</div>';
+  // sits right under the state in the result card: "That's wrong" → what is really true (the other states) → what fooled Bifrost
+  var said={arriving:"home",leaving:"home",home:"home",asleep:"asleep",away:"away"}[st.state];
+  var h='<div id="fixCard" class="fixin">'+(FIX.step?"":'<div class="bs" style="justify-content:center">'+btn(t("wrong"),'data-fix="open"','sm no','x')+'</div>');
+  if(FIX.step===1)h+='<div class="sec">'+t("fix_actual")+'</div><div class="bs" style="justify-content:center">'+["home","away","asleep"].filter(function(k){return k!==said;}).map(function(k){return btn(trText(STATE[k][0]),'data-fixa="'+k+'"','p');}).join("")+btn(t("cancel"),'data-fix="cancel"','sm ghost')+'</div>';
   if(FIX.step===2){h+='<div class="sec">'+t("fix_culprit")+'</div><div class="meta" style="margin-bottom:6px">'+t("fix_culprit_hint")+'</div>';
     var c=FIX.cands;if(!c)h+='<div class="meta">…</div>';else{h+=c.items.length?c.items.map(function(x){return '<div class="check"><span class="dot" style="--c:var(--warn)">'+ic(CATI[x.category]||"motion","s")+'</span><div class="grow"><div>'+esc(x.name)+'</div><div class="meta">'+esc(trText(x.state||""))+' · '+ago(x.ts)+'</div></div>'+btn(t("fix_this"),'data-fixc="'+esc(x.entity_id)+'"','sm')+'</div>';}).join(""):'<div class="meta">'+t("fix_none_changed")+'</div>';}
-    h+='<div class="bs" style="margin-top:8px">'+btn(t("fix_unknown"),'data-fixc=""','ghost sm')+'</div>';}
+    h+='<div class="bs" style="margin-top:8px">'+btn(t("fix_unknown"),'data-fixc=""','ghost sm')+btn(t("cancel"),'data-fix="cancel"','sm ghost')+'</div>';}
   return h+'</div>';}
 function fixLearned(r){var l=r.learned||[],out=[];
   l.forEach(function(k){if(k==="balance:wrong_empty")out.push(t("fl_wrong_empty"));else if(k==="balance:wrong_home")out.push(t("fl_wrong_home"));else if(k.indexOf("trust:")===0)out.push(t("fl_trust"));else if(k.indexOf("question:")===0)out.push(t("fl_question"));else if(k.indexOf("tracker:")===0&&out.indexOf(t("fl_tracker"))<0)out.push(t("fl_tracker"));});
