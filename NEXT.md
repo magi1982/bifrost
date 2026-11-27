@@ -46,6 +46,8 @@ One pattern engine, used on several levels – higher levels use the events of l
 - Safety rules (last out, family balance) use only levels 2–3, never habits.
 - **Patterns consist of facts only, never of opinions:** steps may be raw signals, house building blocks or person events; expert outputs (e.g. "85 % empty") are never steps – avoids circular learning.
 - **Drill-down UI:** a sub-pattern inside a pattern is a clickable card (level, count, preview of its steps); opening it shows its own chain; a breadcrumb leads back.
+- **Patterns overview:** speaking names ("Person A · weekday evening arrival by car"), owner (person, family, house), type (arriving, leaving, at home, going to sleep, getting up, house building block), level and status (active, suggestion, changed); filter chips, search, counters; grouped by type.
+- **Collapsible sub-patterns:** inside a pattern every sub-pattern can be expanded/collapsed inline (nested), "expand all / collapse all", and "Open ↗" jumps into the sub-pattern's own page with breadcrumb.
 - **Asymmetry:** a recognised entry (level 2) sets "not empty" immediately via the gate – no vote needed. A 99 % departure pattern is only a loud Muninn vote inside the capped habit group; "empty" still needs the family balance and the last-out rule.
 
 ### Must-have: calendar learning 2.0 (Mímir · calendar)
