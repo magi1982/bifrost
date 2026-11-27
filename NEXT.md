@@ -475,6 +475,11 @@ Needs ≥ 1 scanner per floor (better 2–3); the floor plan heights are not nee
 - *Calibration walk* (optional, 5 min): in the House tab the owner walks through the rooms with a known device (phone with the HA app or a placed Bluetooth tag) and taps "I am here" for ~30 s per room – gives clean fingerprints, especially where floors separate poorly.
 - Bluetooth also travels further through wooden walls: more neighbours and passers-by are heard, so the "outside" zone and the passer-by filter matter more.
 
+**4b · Map tabs and motion correlation (decided 27.11.)**
+- The House map gets three tabs: **Live** (default – family phones with names, visitors, active motion sensors, occupied zones), **Configuration** (place gateways, motion sensors, doors, windows, zones; list of unplaced devices) and **Signal** (accuracy map, start calibrating). Calibration runs from the Signal tab.
+- Motion sensors are placed on the map and used for calibration-free learning: a placed motion sensor that fires while a known device is heard gives a sample "device near this sensor / in this room". This is the main way floor changes are learned in a timber house – motion on the upper floor + device heard = sample for the upper floor.
+- Look and icons: round 2 proposals (artifact "Bifrost Kartenstudio": 5 looks × 5 icon sets) – waiting for the maintainer's choice.
+
 **5 · Calibration walk ("Einmessen", maintainer's idea 27.11.)** – after the map is drawn and the gateways are placed:
 - Button **Calibrate** in the House tab. Bifrost proposes measuring points on the map – about one per 6–10 m², at least one per room, plus near stairs and entrances – floor by floor, shown as numbered dots.
 - *Which device is measured*: the owner picks it once – best a phone that Bifrost can recognise (HA app with BLE transmitter on Android, an iPhone with its IRK in Private BLE Device) or any small Bluetooth tag with a fixed address carried in the hand. Bifrost checks before starting that the device is heard.
