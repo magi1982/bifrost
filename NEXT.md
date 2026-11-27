@@ -51,6 +51,8 @@ Example to support: car arrives → garage gate → outside motion at garage →
 - **Alternative steps (OR):** "hallway or storeroom" merged into one pattern instead of two weak ones.
 - **Longer chains:** more than 5 steps when the evidence supports it.
 - **Rare but strong tokens** (car, gate) are not dropped by the "top 10 most frequent" limit; selection by information value, not only frequency.
+- **Building blocks:** THEN (order, learned time span min–typical–max), AND (all, any order, within a window), OR (one of), COMPANION (any time in a window), OPTIONAL (usually present). Similar chains are merged into one process plan instead of hundreds of chains.
+- **Review in the chain view:** new patterns appear as a suggestion ("does not vote yet") with Yes / No / Adjust / Later; "No" also suppresses similar suggestions; drift ("fits worse since 2 weeks") asks again.
 - **Early detection:** a partially completed chain already says "arrival in progress" / "departure in progress".
 - **What it teaches the other layers:** door direction and entrance geometry (Yggdrasil), who arrived via phone/BLE (Frigg), arrival times (Skuld). A pattern cannot count how many people arrived without phones or tags.
 
