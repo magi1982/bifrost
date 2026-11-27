@@ -65,6 +65,15 @@ One pattern engine, used on several levels – higher levels use the events of l
 - **Contradictions** (e.g. "arriving" and "leaving" at once) lower the confidence and lead to Unknown; facts from the gate (entry detected) always win.
 - **Whole-day routines (later):** daily logic may contain other daily logic (e.g. "normal weekday" = getting up + leaving + coming home + going to sleep); no pattern may contain itself.
 
+### Deviation check ("Loki") – how it stays fast with many patterns
+- **Event-driven, indexed:** every new event is looked up in an index "event → patterns that contain it"; only running candidates are updated (like autocomplete), never all patterns.
+- **Expectation list:** only patterns whose time window is open right now are watched; if a window closes without the pattern starting → "expected but missing" (e.g. school morning did not happen).
+- **Absorption:** every event must be explained by a running pattern, a person event, NFC, guest mode or a known routine; an event nothing absorbs → "unexplained".
+- **Rarity:** frequency tables per door/sensor × time of day give a surprise score (−log p) in O(1).
+- **Never-seen patterns (learned negatives):** combinations that never happened in N observations ("entry through door B at night: 0 of 400") become taboo patterns whose strength grows with N.
+- **Contradictions (fixed logic, not learned):** indoor motion while the house is confirmed empty and no entry before; motion in a room not reachable from any entrance on the room map; a window opened from inside while everyone is away.
+- Weak in the first weeks (small N); contradictions work from day one.
+
 ### Entry guard (suspicious entries) – idea
 - **Every entry must be explained:** known phone/BLE arriving, NFC disarm at the keypad, somebody was already inside (inside motion before), a learned pattern (e.g. regular visitor), or guest mode. Otherwise: unexplained entry.
 - **Door profiles learned by Yggdrasil (no names needed):** per door/window how often it is used as entry from outside, as exit, or only opened from inside (ventilation, garden), by time of day. The entity name and HA device class are only a first hint; the role comes from behaviour and is shown as a suggestion ("door X is almost only opened from inside – garden door?").
