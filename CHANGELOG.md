@@ -2,6 +2,20 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.9.0] – 2026-11-27
+
+### Added
+- **House: rooms on your floor plan.** Per Home Assistant floor every area is a room on a fine grid. Bifrost suggests a first layout (rooms people walk between sit next to each other); you pick a room and paint its cells – any shape, also L-shaped or slanted. Each room is coloured by what happens: grey quiet/no signal, green motion, orange window/door open, yellow light, magenta media. **One floor plan picture per floor** can lie underneath (PNG/JPEG, max. 2 MB, stored locally).
+- **People in their room** when a room source (e.g. Bermuda) is clear and steady for 2 minutes – otherwise shown as “in the house”.
+- **Incidents** (tab *Incidents*): deviations that belong together are bundled into one chain – approach → access → inside → identity – with a score, and can be answered right there.
+- **Two more detectors**: a **baseline** per signal and hour of the week (a firing at an hour where it never fires becomes the deviation *rare*) and a **path matrix** between areas; indoor motion while the house is empty without any door becomes a *contradiction*.
+- **Routines per habit**: departures, arrivals and bedtimes are grouped by time of day and working day/weekend first, so one goal can have several plans (e.g. work in the morning, shopping at noon); the same habit on other days is merged.
+- **Patterns as entities**: switch single patterns on as `binary_sensor.bifrost_<slug>` for your own automations (routines on when complete, entry/exit as a short pulse). The slug survives re-learning; a pattern that disappears becomes *unavailable*. Information only – never used for “house empty confirmed”.
+- **Learning progress** card on the patterns tab: what is learned, what is almost there, newly found patterns, “Learn now”.
+
+### Changed
+- **7 tabs instead of 11**: Status · People · House · Patterns (with calendar words and the detectors) · Incidents (deviations and questions) · Balance · Setup. Timeline and dashboard are gone; the last 24 hours stay on Status.
+
 ## [0.8.0] – 2026-11-27
 
 ### Changed

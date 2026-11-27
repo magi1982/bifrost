@@ -14,19 +14,7 @@ from playwright.sync_api import sync_playwright
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8765/"
 OUT = Path(sys.argv[2] if len(sys.argv) > 2 else tempfile.mkdtemp(prefix="bifrost-gui-"))
 OUT.mkdir(parents=True, exist_ok=True)
-TABS = [
-    "status",
-    "people",
-    "house",
-    "recog",
-    "dev",
-    "questions",
-    "calendars",
-    "timeline",
-    "dashboard",
-    "balance",
-    "setup",
-]
+TABS = ["status", "people", "house", "recog", "dev", "balance", "setup"]
 
 OVERFLOW_JS = """() => {
   const bad = [];
@@ -87,7 +75,7 @@ def run() -> int:
                     problems.append({"where": tag, **res})
                 pg.screenshot(path=str(OUT / f"{tag}.png"), full_page=True)
             # buttons: click every visible, non-destructive button on the interactive tabs
-            for tab in ("recog", "people", "questions", "status", "house"):
+            for tab in ("recog", "people", "dev", "status", "house"):
                 pg.click(f'#tabs button[data-v="{tab}"]')
                 pg.wait_for_timeout(400)
                 n = pg.evaluate("() => document.querySelectorAll('main button:not([data-pdel]):not([data-exdel]):not([data-ans]):not([data-wrong])').length")
