@@ -2,6 +2,12 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.15.3] – 2026-11-28
+
+### Fixed
+- **Finer drawing grid**: rooms, doors and devices snap to **0.25 m** instead of 0.5 m (switch the grid off for 5 cm steps). The grid lines (every 0.5 m, stronger every metre) are now drawn over the rooms so you can line them up.
+- **Rooms stay on the grid after saving**: the map was stored rounded to 0.1 m, which moved edges like 3.25 m off the grid; it is now stored to the centimetre.
+
 ## [0.15.2] – 2026-11-28
 
 ### Fixed

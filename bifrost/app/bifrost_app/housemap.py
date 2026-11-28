@@ -35,7 +35,7 @@ def _num(v: object, lo: float, hi: float, what: str) -> float:
         raise ValueError(f"{what}: number expected")
     if not lo <= v <= hi:
         raise ValueError(f"{what}: out of range")
-    return round(float(v), 1)
+    return round(float(v), 2)  # centimetres: the drawing grid is 0.25 m
 
 
 def _rect(r: object, w: float, h: float) -> list[float]:
