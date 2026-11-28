@@ -2,6 +2,12 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.19.2] – 2026-11-28
+
+### Fixed
+- **Doors and windows stay in the wall**: they only snapped to a wall when placed within 0.8 m of it, and moving them did not snap at all. Now placing and moving always puts them on the nearest wall, and they turn with it (vertical wall = 90°); a diagonal direction set by hand (45°/135°) is kept.
+- **Older doors and windows turn by themselves**: ones saved before 0.18.1 on a vertical wall are drawn vertical and get the direction stored with the next save.
+
 ## [0.19.1] – 2026-11-28
 
 ### Fixed
