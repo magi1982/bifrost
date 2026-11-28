@@ -307,6 +307,8 @@ table.dtt{border-collapse:collapse;font-size:13px;width:100%}table.dtt th{text-a
 .hmroom.out .rf{fill:var(--hm-out);stroke-dasharray:calc(7 * var(--u)) calc(5 * var(--u));filter:none}
 .hmroom.grey .rf{fill:var(--hm-grey);stroke:var(--hm-greyline)!important;filter:none}
 .hmroom.dim{opacity:.55}
+/* while editing every room shows its exact frame: square corners, no gap, so edges can be laid onto each other */
+.hmroom .rf.sq{filter:none;stroke-width:calc(2.2 * var(--u))}.hmroom.dim .rf.sq{stroke-opacity:1}
 .hmhit{fill:transparent;stroke:none}.hmsvg.tool-select .hmhit{cursor:move}.hmsvg.tool-erase .hmhit{cursor:pointer}
 .hmhit.hull{stroke:var(--hm-hull);stroke-width:calc(1.5 * var(--u));stroke-dasharray:6 4}
 .hmhit.sel{stroke:var(--text);stroke-width:calc(2 * var(--u));stroke-dasharray:6 4}
@@ -801,7 +803,7 @@ function hmSvg(d,F,fl,m,mode,E,px){var k=HM_PX,W=m.w*k,H=m.h*k,names=fl.areas.ma
   m.rooms.forEach(function(r,ri){var out=!!r.outside,col=hgCol(names,r.area),sv=out&&names.indexOf(r.area)<0?"idle":(st[r.area]||"idle"),on=mode==="live"&&!E&&["motion","open","light","media","alarm"].indexOf(sv)>=0,selR=E&&((E.tool==="outside"&&E.oroom===r.area)||(E.tool!=="outside"&&E.room===r.area));
     if(out)col=["var(--n-teal)","var(--n-cyan)","var(--n-lime)","var(--n-yellow)","var(--n-violet)","var(--n-mag)"][ri%6];
     var gid="hmg"+hmFid(fl)+"_"+ri;defs+='<linearGradient id="'+gid+'" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:'+(on?"var("+HSC[sv]+")":col)+'"/><stop offset="1" style="stop-color:var(--hm-g2)"/></linearGradient>';
-    rooms+='<g class="hmroom'+(out?" out":"")+(on?" on":"")+(grey?" grey":"")+(E&&!selR?" dim":"")+'" style="--rc:'+(on?"var("+HSC[sv]+")":col)+'">'+(r.rects.length>1&&!E?'<path class="rf" d="'+hmOutline(r.rects,k,3,10)+'" stroke="url(#'+gid+')"/>':hmRects(r.rects,"rf",k,3,' rx="10" stroke="url(#'+gid+')"'))+
+    rooms+='<g class="hmroom'+(out?" out":"")+(on?" on":"")+(grey?" grey":"")+(E&&!selR?" dim":"")+'" style="--rc:'+(on?"var("+HSC[sv]+")":col)+'">'+(E?hmRects(r.rects,"rf sq",k,0,' stroke="url(#'+gid+')"'):r.rects.length>1?'<path class="rf" d="'+hmOutline(r.rects,k,3,10)+'" stroke="url(#'+gid+')"/>':hmRects(r.rects,"rf",k,3,' rx="10" stroke="url(#'+gid+')"'))+
       (E?r.rects.map(function(q,qi){var isSel=E.sel&&E.sel.t==="r"&&E.sel.a===r.area&&E.sel.i===qi;return '<rect class="hmhit'+(isSel?" sel":"")+'" data-r="'+ri+':'+qi+'" x="'+q[0]*k+'" y="'+q[1]*k+'" width="'+q[2]*k+'" height="'+q[3]*k+'"/>'+(isSel?'<rect class="hmhandle" data-hd="1" x="'+((q[0]+q[2])*k-7)+'" y="'+((q[1]+q[3])*k-7)+'" width="14" height="14" rx="3"/>':"");}).join(""):"")+'</g>';
     var c=hmCenter(r.rects),wl=r.area.length*(out?6.2:7.2)+18;
     labels+='<g class="hmlab'+(out?" out":"")+(grey?" grey":"")+'" style="transform:translate('+c[0]+'px,'+c[1]+'px) scale(var(--u))"><rect x="'+(-wl/2)+'" y="-10.5" width="'+wl+'" height="21" rx="10.5"/><text y="4.2" text-anchor="middle">'+esc(r.area)+'</text></g>';});
