@@ -717,3 +717,57 @@ Every sub-section gets its own address (`#house/signal`), so a link or a notific
 **Includes** (already proposed): floor plan *Measure* line, map ± per side.
 **Open questions**: which variant? Pinch-zoom/pan on the phone needed from the start? Keep "Cancel" or only undo + Done?
 **Tests**: every current tool reachable (no lost function), add device per kind and one by one, inspector shows name/area/state and turn/delete, wizard ticks, undo/redo across all actions, GUI check light/dark/390 px incl. sheets above the tool bar, no overlap of icons and labels.
+
+### Idea · A Bluetooth device moves inside while Bifrost says "all away" (28.11.) – waiting for "mach es"
+**Question**: Bifrost says the house is empty, and a Bluetooth device moves on the house map. What should happen?
+**Four cases**, decided per device:
+- **(a) Fixed device with a noisy signal** (TV, sensor, speaker; fixed address, heard for days at the same spot): the position jitters but does not really move → **ignore**. After 24 h at one spot, a device is learned as stationary. A device flagged "stationary" never raises anything, even if its position jumps.
+- **(b) A household device moves** (phone or watch resolved by IRK or a fixed address, bound to a person):
+  - Either a phone was forgotten, or someone is home after all.
+  - The live state becomes **Unclear**, so `binary_sensor.bifrost_house_empty` turns off and *empty confirmed* is withdrawn.
+  - Push: "Phone of X moves in the house although everyone is away".
+  - Hindsight learns from it: "forgotten at home" or "was home".
+- **(c) An unknown device with a fixed address appears inside, first heard outside, then inside**:
+  - An incident chain **approach (outside gateway) → inside (inside gateway)**, high level, with a push.
+  - It switches on `binary_sensor.bifrost_suspicious_entry`, with the attribute `source: bluetooth` (see the open questions).
+  - Rotating addresses (iPhones without an IRK, Find My) cannot be followed: they count only as "unknown device inside", at a low level, as info only.
+- **(d) A named visitor** (for example the cleaner with a known tag or watch, or a calendar entry): an **expected visit**, info only, no push unless "push for named visitors" is on.
+
+**Protection against false alarms** – a move counts only if all of these hold:
+- the room changes over **≥ 2 position fixes and ≥ 30 s** (with the Calmness smoother, not raw values);
+- an **inside gateway holds most of the signal** (more than half of the weighted RSSI), so a phone passing on the street does not count;
+- the device was heard by **≥ 2 gateways**, so one Shelly at the edge is not enough;
+- a **cross-check with motion sensors**:
+  - motion in the same or a neighbouring room within ±60 s raises the level;
+  - no motion lowers case (b) to "possibly forgotten" and case (c) to a medium level;
+  - an area without motion sensors (for example a child's room) keeps the level but says "no motion sensor here".
+- A **known disturbance** (rats in the hall) matters only for motion, not for Bluetooth; it is never used as a reason to drop a Bluetooth move.
+
+**Never**: Bifrost never disarms anything, never arms anything itself and never switches the alarm. It only withdraws *empty confirmed* or reports a suspicion.
+
+**Entities / UI**:
+- the attribute `moving_devices` on the state;
+- incident cards "Bluetooth device moved while away" with a path on the map (room → room, times);
+- the setting "React to Bluetooth moves while away": off / info / normal (default normal), with a description.
+
+**Limits**:
+- Wooden ceilings separate floors badly, so a floor change alone never counts as a move.
+- Without placed inside gateways, this does nothing.
+- A device seen only for a few minutes (a visitor at the door) does not start case (c) until it is heard inside.
+
+**Open questions**:
+1. Use the existing `binary_sensor.bifrost_suspicious_entry` (recommended, fewer entities), or a new `binary_sensor.bifrost_intrusion_suspect`?
+2. Case (b): set the state to Unclear right away, or only after a second confirmation (motion or a second room change)?
+3. Push for case (d), yes or no?
+4. Learn "stationary" automatically after 24 h, or only by a tap ("this device does not move")?
+
+**Tests**:
+- A jittering TV never raises anything.
+- An IRK phone that changes room twice in 40 s makes the state Unclear and sends one push, not one per fix.
+- An unknown fixed address heard outside → inside, with motion, gives a high level and switches the entity on.
+- The same without an outside first gives a medium level.
+- A rotating address gives info only.
+- A named visitor gives info only.
+- A floor change alone does nothing.
+- Only one gateway does nothing.
+- The setting "off" turns everything off.
