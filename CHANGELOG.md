@@ -7,8 +7,10 @@ All notable changes to Bifrost are documented here. The format follows [Keep a C
 ### Changed
 - **Rooms of several rectangles merge into one shape** on the map (Live, Configuration, Signal): touching or overlapping rectangles of the same room are drawn as one area with one outline and rounded corners – no more inner borders in an L-shaped hall. While editing, the rectangles stay separate so each one can be selected, moved and resized; they merge after *Save*.
 
+- **A room can be shown as an outside area**: *Edit map → Draw room*, pick the room, tick *Show as outside area on the map* – e.g. a terrace that is a room in Home Assistant. It stays the HA area (its sensors and activity still show), but the map draws it dashed, leaves it out of the house outline (so the house has its real size) and never counts it as inside.
+
 ### Fixed
-- **House outline (hull) only around the outside**: the hull was drawn as a thick border around every rectangle, so rooms drawn with small gaps between them (walls) got dark lines everywhere. It is now one outline around the whole floor; gaps up to about 0.7 m are closed.
+- **House outline (hull) only around the outside**: the hull was drawn as a thick border around every rectangle; with a floor plan picture (see-through fills) or gaps between rooms these borders showed as dark lines between all rooms. It is now one outline around the whole floor; gaps up to about 0.7 m are closed.
 
 ## [0.15.3] – 2026-11-28
 
