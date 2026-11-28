@@ -2,6 +2,18 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.19.0] – 2026-11-28
+
+### Changed
+- **Doors and windows are contacts on a wall**: a door/window sensor is no longer a free device with the door icon but a contact on the wall of its room, with its kind from Home Assistant's `device_class` – door, garage door, window or opening. Contacts placed as devices before are moved onto walls automatically when the map is loaded (a new version "Contacts moved onto walls"; restore brings the old state back). Drawn doors and windows without a sensor stay as they are.
+- **Plan symbols in neon**: door = leaf with a quarter arc (orange), garage door = segmented bar (violet), window = double line (cyan), opening = bar (teal); they turn with the wall. On the live map a contact shows **open** (leaf swung open, glowing, "open") and *unavailable* (dashed).
+- **Doors & windows go to the right wall**: windows and garage doors only on outer walls, entrance doors on an outer wall, other doors on the wall to the neighbour room Bifrost has learned paths to; several contacts of a room are spread over its walls, at least 0.75 m apart, never on the same point.
+
+### Added
+- **Info strip for the selected device**: name, entity, HA area, kind, state and since when, the room it stands in on the map – with a hint when that is not its HA area. Every symbol also has a tooltip.
+- **Show names** (on while editing, remembered): a short name under every device and contact on the map.
+- **List of the devices on this map** below the editor, grouped by kind with their room: a click selects the device on the map, a selection on the map highlights its row; devices of this floor that are not placed yet are listed with *Place*.
+
 ## [0.18.1] – 2026-11-28
 
 ### Added

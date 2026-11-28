@@ -1026,6 +1026,8 @@ class BifrostService:
             names_f = [a["name"] for a in f["areas"]]
             saved = (self.store.get_obj("layout", key) or {}).get("cells")
             cells = {k: v for k, v in (saved or {}).items() if v in names_f} if saved else house_mod.auto_layout(names_f, self.brain.paths)
+            if self.migrate_contacts(f["name"] or ""):
+                LOG.info("Door/window contacts of %s are now contacts on walls", f["name"])
             stored = self.store.get_obj("map", key)
             hmap = _clean_map(stored, names_f) if stored else _housemap.from_cells(cells)
             layouts[f["name"] or ""] = {
@@ -1049,6 +1051,7 @@ class BifrostService:
             "now": now.isoformat(),
             "floors": floor_list,
             "layouts": layouts,
+            "devinfo": self.device_info(),
             "lane": lane,
             "avatars": house_mod.avatars(self.brain.people.all(), room_src, self._states, known_areas, now),
             "unassigned": areas.get(None, []),
@@ -1270,17 +1273,129 @@ class BifrostService:
         items = [{"id": eid, "kind": "sensor", "area": e.info.area, "name": e.info.name or eid} for eid, e in ents if match(e)]
         return sorted(items, key=lambda x: x["name"]), kind in ("openings", "covers")
 
+    def _contacts(self) -> list[dict]:
+        """Door/window contacts in use: id, area, contact kind (from device_class), name."""
+        with self._lock:
+            ents = [(eid, e) for eid, e in self.snap.entities.items() if e.status == STATUS_INCLUDED]
+        out = []
+        for eid, e in ents:
+            dom = e.info.domain
+            if (e.category == "openings" and dom in ("binary_sensor", "sensor", "event")) or (dom == "cover" and (e.info.device_class or "") in ("garage", "gate")):
+                out.append({"id": eid, "area": e.info.area, "contact": _mv.contact_kind(dom, e.info.device_class), "name": e.info.name or eid})
+        return sorted(out, key=lambda x: x["name"])
+
+    def _wall_hints(self) -> tuple[set[str], dict[str, list[str]]]:
+        """Entrance doors (learned) and, per room, the neighbours with the most learned paths."""
+        model = self.brain.detector.model or {}
+        entrances = {e.get("door") for e in model.get("entrances", []) if e.get("door")}
+        paths = self.brain.paths or {}
+        areas, cells = paths.get("areas") or [], paths.get("cells") or []
+        prefer = {}
+        for i, a in enumerate(areas):
+            row = cells[i] if i < len(cells) else []
+
+            def n(c) -> int:  # noqa: ANN001 – a path cell is {"n": count, "s": seconds}
+                return int(c.get("n") or 0) if isinstance(c, dict) else int(c or 0)
+
+            score = {areas[j]: n(row[j] if j < len(row) else 0) + n(cells[j][i] if j < len(cells) and i < len(cells[j]) else 0) for j in range(len(areas)) if j != i}
+            prefer[a] = [b for b, v in sorted(score.items(), key=lambda kv: -kv[1]) if v]
+        return entrances, prefer
+
+    def _place_contacts(self, cur: dict, floor: str, replace_placed: bool, ids: set[str] | None = None) -> dict:
+        items = [c for c in self._contacts() if ids is None or c["id"] in ids]
+        here = set(self._floor_areas().get(floor, [])) | {r["area"] for r in cur.get("rooms", [])}
+        maps = self._maps()
+        elsewhere = {k.get("entity_id") for f, mm in maps.items() if f != floor for k in mm.get("marks", [])}
+        mine = [i for i in items if i["id"] not in elsewhere and (not i.get("area") or i["area"] in here)]
+        entrances, prefer = self._wall_hints()
+        res = _mv.place_contacts(cur, mine, entrances, prefer, replace_placed)
+        res["other_floor"] = sum(1 for i in items if i.get("area") and i["area"] not in here)
+        return res
+
+    def migrate_contacts(self, floor: str) -> bool:
+        """Before 0.19 placed door/window contacts were free devices – turn them into contacts on a wall (new version)."""
+        key = _house.floor_key(floor)
+        stored = self.store.get_obj("map", key)
+        if not stored:
+            return False
+        contact_ids = {c["id"] for c in self._contacts()}
+        old = {d["id"] for d in stored.get("devices", [])} & contact_ids
+        if not old:
+            return False
+        cur = _clean_map(stored, self._floor_areas().get(floor, []))
+        res = self._place_contacts({**cur, "devices": [d for d in cur["devices"] if d["id"] not in old]}, floor, False, old)
+        new = {**cur, "marks": res["marks"], "devices": [d for d in cur["devices"] if d["id"] not in old]}
+        try:
+            _, new = _housemap.validate_map({"floor": floor, **new}, self._floor_areas())
+        except ValueError:
+            LOG.warning("Could not move door/window contacts of %s onto walls", floor)
+            return False
+        self._save_map(floor, new, "migrate")
+        return True
+
+    def device_info(self) -> dict:
+        """Name, entity, HA area, kind and state of everything placed on a map – for the info strip and the list."""
+        names = self._names()
+        contacts = {c["id"]: c["contact"] for c in self._contacts()}
+        with self._lock:
+            ents = dict(self.snap.entities)
+            scanners = {c["id"]: c for c in self.scanners}
+        out = {}
+        placeable = [eid for eid, e in ents.items() if e.status == STATUS_INCLUDED and (e.category in ("motion", "openings", "manual", "access", "media", "climate") or e.info.domain == "cover")]
+        on_maps = [i for m in self._maps().values() for i in [d["id"] for d in m.get("devices", [])] + [k["entity_id"] for k in m.get("marks", []) if k.get("entity_id")]]
+        for eid in on_maps + list(scanners) + placeable:  # also what is not placed yet – the editor names it right away
+            if eid in out:
+                continue
+            if eid in scanners:
+                c = scanners[eid]
+                out[eid] = {"name": c.get("name") or eid, "entity": eid, "area": c.get("area"), "kind": "gateway", "state": None, "since": None}
+                continue
+            e = ents.get(eid)
+            st = self._states.get(eid) or {}
+            out[eid] = {
+                "name": names.get(eid) or (e.info.name if e else None) or eid,
+                "entity": eid,
+                "area": e.info.area if e else None,
+                "kind": contacts.get(eid) or (e.category if e else "device"),
+                "state": st.get("state"),
+                "since": st.get("last_changed"),
+            }
+        return out
+
     def place_devices(self, body: object) -> dict:
         """Put the devices of one kind into the room of their HA area on this floor's map (preview by default)."""
         if not isinstance(body, dict):
             raise ValueError("invalid body")
         floor = self._floor(body.get("floor"))
         kind = body.get("kind")
+        if kind == "auto":  # single devices from the list: find their kind
+            ids = body.get("ids")
+            if not isinstance(ids, list) or not ids or len(ids) > 50 or not all(isinstance(x, str) for x in ids):
+                raise ValueError("ids: list of entity ids")
+            contact_ids = {c["id"] for c in self._contacts()}
+            if all(i in contact_ids for i in ids):
+                return self.place_devices({**body, "kind": "openings"})
+            for k in self.PLACE_KINDS:
+                if k != "openings" and {i["id"] for i in self._place_items(k)[0]} & set(ids):
+                    return self.place_devices({**body, "kind": k})
+            raise ValueError("cannot place these devices")
         if kind not in self.PLACE_KINDS:
             raise ValueError("unknown kind")
         replace_placed = body.get("replace_placed", False) is True
         cur = self._base_map(floor, body)
+        only = body.get("ids")
+        if only is not None and (not isinstance(only, list) or len(only) > 200 or not all(isinstance(x, str) for x in only)):
+            raise ValueError("ids: list of entity ids")
+        if kind == "openings":
+            res = self._place_contacts(cur, floor, replace_placed, set(only) if only else None)
+            if body.get("preview", True) is not False:
+                return {"floor": floor, "kind": kind, **res, "preview": True}
+            new = {**cur, "marks": res["marks"], "devices": res["devices"]}
+            _, new = _housemap.validate_map({"floor": floor, **new}, self._floor_areas())
+            return {"floor": floor, "kind": kind, **res, "version": self._save_map(floor, new, "auto_place")}
         items, wall = self._place_items(kind)
+        if only:
+            items = [i for i in items if i["id"] in set(only)]
         here = set(self._floor_areas().get(floor, [])) | {r["area"] for r in cur.get("rooms", [])}
         maps = self._maps()
         elsewhere = {d["id"] for f, m in maps.items() if f != floor for d in m.get("devices", [])}
