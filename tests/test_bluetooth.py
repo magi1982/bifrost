@@ -131,6 +131,10 @@ def test_service_bluetooth_zones_and_person_location(tmp_path):
     v = svc.bluetooth_view()
     phone = next(r for r in v["devices"] if r["address"] == IRK_ADDR)
     assert phone["irk"] and phone["person"] == "Person A" and phone["pos"] and phone["room"]
+    # every gateway that hears the phone, strongest first; never grouped with other devices
+    assert len(phone["seen"]) == phone["scanners"] >= 2 and phone["seen"][0]["rssi"] == phone["rssi"]
+    assert [s["rssi"] for s in phone["seen"]] == sorted((s["rssi"] for s in phone["seen"]), reverse=True)
+    assert len({r["address"] for r in v["devices"]}) == len(v["devices"])
     assert all(s["placed"] for s in v["scanners"])
     pub = svc.client.published
     assert "binary_sensor.bifrost_zone_sofa" in pub and pub["binary_sensor.bifrost_zone_sofa"][1]["device_class"] == "occupancy"

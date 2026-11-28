@@ -334,6 +334,8 @@ table.dtt{border-collapse:collapse;font-size:13px;width:100%}table.dtt th{text-a
 .hmsliders{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 14px;margin:8px 0}
 .hmbox.hmscaled{margin-left:0}
 .hmgrid line.mn{opacity:.2}
+/* gateways that hear one device: name and dBm on one line, bar below */
+#bleCard .blesub{max-width:360px}#bleCard .blesubrow{grid-template-columns:minmax(0,1fr) auto;gap:2px 8px}#bleCard .blesubrow .blebar{max-width:none}#bleCard .blesubrow .blebar{grid-column:1/-1;grid-row:2;margin-top:0}#bleCard .blesubrow .blerssi{grid-column:2;grid-row:1}#bleCard .blesubrow .meta:first-child{overflow-wrap:anywhere}
 .hmszn{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--sec)}.hmszn input{width:78px;padding:4px 6px}
 .hmsl{display:grid;grid-template-columns:80px minmax(0,1fr) 46px;gap:6px;align-items:center;font-size:13px;color:var(--sec)}.hmsl input{width:100%}.hmsl output{font-variant-numeric:tabular-nums;color:var(--text)}
 .hmleg{display:inline-flex;align-items:center;gap:5px}.hmleg svg{width:20px;height:20px}
@@ -1073,14 +1075,17 @@ function bleCard(){var b=V4.ble;if(!b)return "";var st=b.status||{},c=b.counts||
   if((b.scanners||[]).length)h+='<details class="phow"><summary>'+t("ble_scanners")+'</summary>'+b.scanners.map(function(s){return '<div class="check"><span class="dot" style="--c:'+(s.recent?"var(--n-blue)":"var(--sec)")+'"></span><div class="grow"><div>'+esc(s.name)+'</div><div class="meta"><code>'+esc(s.source)+'</code> · '+t(s.placed?"ble_placed":"ble_unplaced")+'</div></div></div>';}).join("")+'</details>';
   if((b.missing||[]).length)h+='<details class="phow"'+(V4.bleMissOpen?" open":"")+' id="bleMiss"><summary style="color:var(--n-orange)">'+fmtK("ble_missing",{n:b.missing.length})+'</summary><div class="hint">'+t("ble_missing_hint")+'</div>'+b.missing.map(function(x){return '<div class="check"><span class="dot" style="--c:'+(x.reason==="no_ble"?"var(--sec)":"var(--n-orange)")+'"></span><div class="grow"><div>'+esc(x.name)+(x.model?' <span class="meta">'+esc(x.model)+'</span>':"")+'</div><div class="meta">'+t("ble_why_"+x.reason)+'</div></div></div>';}).join("")+'</details>';
   h+='<div class="chips">'+[["all","ble_f_all"],["irk","ble_f_irk"],["fixed","ble_f_fixed"],["rot","ble_f_rot"],["hidden","ble_f_hidden"]].map(function(x){return '<button type="button" class="ch'+(f===x[0]?" on":"")+'" data-blef="'+x[0]+'">'+t(x[1])+'</button>';}).join("")+'</div>';
-  var groups={},order=[];rows.forEach(function(r){var k=r.irk?"irk:"+r.address:(r.label+"|"+r.kind+"|"+(r.guess?1:0));if(!groups[k]){groups[k]=[];order.push(k);}groups[k].push(r);});
-  function sig(r){return r.rssi==null?0:Math.max(0,Math.min(100,Math.round((r.rssi+100)*1.6)));}
-  h+='<div class="oelist">'+order.map(function(k){var g=groups[k],r0=g[0],best=g.reduce(function(a,x){return (x.rssi||-100)>(a.rssi||-100)?x:a;},r0),open=V4.bleOpen&&V4.bleOpen[k];
-    var head='<span class="blei" style="--c:'+(r0.irk?"var(--n-teal)":"var(--sec)")+'">'+ic(BLE_KIND[r0.kind]||"dev")+'</span><div class="grow"><div><b>'+esc(r0.label)+(r0.guess?' <span title="'+esc(t("ble_guess"))+'">≈</span>':"")+'</b>'+(g.length>1?' <span class="blecnt">× '+g.length+'</span>':"")+' '+(r0.person?pill(r0.person,"var(--n-teal)"):"")+(r0.house?pill(t("ble_house"),"var(--sec)"):"")+'</div>';
-    if(g.length===1)return '<div class="oerow">'+head+'<div class="meta"><code>…'+esc(r0.short)+'</code> · '+t(r0.fixed?"ble_fixed":"ble_rotating")+(r0.room?' · '+esc(r0.room):"")+(r0.best?' · '+esc(r0.best):"")+'</div><div class="blebar"><i style="width:'+sig(r0)+'%"></i></div><span class="meta blerssi">'+(r0.rssi==null?"–":r0.rssi+" dBm")+'</span></div>'+(r0.fixed?'<button type="button" class="ch sm" data-blehide="'+esc(r0.address)+'" data-h="'+(r0.hidden?0:1)+'">'+t(r0.hidden?"ble_show":"ble_hide")+'</button>':"")+'</div>';
-    return '<div class="oerow blegrp">'+head+'<div class="meta">'+fmtK("ble_grp",{n:g.length,b:esc(best.best||"–"),r:best.rssi==null?"–":best.rssi})+'</div>'+
-      '<button type="button" class="ch sm" data-blegrp="'+esc(k)+'" aria-expanded="'+(open?"true":"false")+'">'+t(open?"ble_less":"ble_more")+'</button>'+
-      (open?'<div class="blesub">'+g.map(function(r){return '<div class="blesubrow"><code>…'+esc(r.short)+'</code><span class="meta">'+(r.room?esc(r.room)+' · ':"")+esc(r.best||"–")+'</span><span class="blebar"><i style="width:'+sig(r)+'%"></i></span><span class="meta blerssi">'+(r.rssi==null?"–":r.rssi+" dBm")+'</span>'+(r.fixed?'<button type="button" class="ch sm" data-blehide="'+esc(r.address)+'" data-h="'+(r.hidden?0:1)+'">'+t(r.hidden?"ble_show":"ble_hide")+'</button>':"")+'</div>';}).join("")+'</div>':"")+'</div></div>';}).join("")+(rows.length?"":'<div class="meta">'+t("ble_none")+'</div>')+'</div>';
+  /* one row per device (never grouped by type – two iPhones are two devices); open a row to see every gateway that hears it */
+  function sig(v){return v==null?0:Math.max(0,Math.min(100,Math.round((v+100)*1.6)));}
+  var types={};rows.forEach(function(r){var k=r.label;types[k]=(types[k]||0)+1;});
+  var tl=Object.keys(types).sort(function(a,b){return types[b]-types[a];});
+  if(tl.length)h+='<div class="meta" style="margin:6px 0">'+t("ble_types")+': '+tl.map(function(k){return esc(k)+' '+types[k];}).join(" · ")+'</div>';
+  h+='<div class="oelist">'+rows.map(function(r){var open=V4.bleOpen&&V4.bleOpen[r.address],seen=r.seen||[];
+    return '<div class="oerow"><span class="blei" style="--c:'+(r.irk?"var(--n-teal)":"var(--sec)")+'">'+ic(BLE_KIND[r.kind]||"dev")+'</span><div class="grow"><div><b>'+esc(r.label)+(r.guess?' <span title="'+esc(t("ble_guess"))+'">≈</span>':"")+'</b> '+(r.person?pill(r.person,"var(--n-teal)"):"")+(r.house?pill(t("ble_house"),"var(--sec)"):"")+'</div>'+
+      '<div class="meta"><code>…'+esc(r.short)+'</code> · '+t(r.fixed?"ble_fixed":"ble_rotating")+(r.room?' · '+esc(r.room):"")+(r.best?' · '+esc(r.best):"")+'</div><div class="blebar"><i style="width:'+sig(r.rssi)+'%"></i></div><span class="meta blerssi">'+(r.rssi==null?"–":r.rssi+" dBm")+'</span>'+
+      (seen.length>1?'<div><button type="button" class="ch sm" data-blegrp="'+esc(r.address)+'" aria-expanded="'+(open?"true":"false")+'">'+fmtK(open?"ble_gw_less":"ble_gw_more",{n:seen.length})+'</button></div>':"")+
+      (open?'<div class="blesub">'+seen.map(function(x){return '<div class="blesubrow"><span class="meta">'+esc(x.name)+'</span><span class="blebar"><i style="width:'+sig(x.rssi)+'%"></i></span><span class="meta blerssi">'+x.rssi+' dBm</span></div>';}).join("")+'</div>':"")+
+      '</div>'+(r.fixed?'<button type="button" class="ch sm" data-blehide="'+esc(r.address)+'" data-h="'+(r.hidden?0:1)+'">'+t(r.hidden?"ble_show":"ble_hide")+'</button>':"")+'</div>';}).join("")+(rows.length?"":'<div class="meta">'+t("ble_none")+'</div>')+'</div>';
   return h+'</div>';}
 function bleReload(){return api("api/bluetooth").then(function(d){V4.ble=d;render();});}
 function bindBle(){if(S.view!=="house")return;
@@ -1607,6 +1612,7 @@ function bindFilters(){if(S.view!=="setup")return;
 document.documentElement.lang=LANG;
 
 /* ---------- 0.15 navigation: six areas, each with sub-tabs (#area/sub) ---------- */
+Object.assign(TX.de,{ble_types:"Typen",ble_gw_more:"Von {n} Gateways gehört",ble_gw_less:"Gateways zuklappen"});Object.assign(TX.en,{ble_types:"Types",ble_gw_more:"Heard by {n} gateways",ble_gw_less:"Hide gateways"});
 Object.assign(TX.de,{hm_as_out:"Auf der Karte als Aussenbereich",hm_as_out_short:"aussen",hm_as_out_hint:"Bleibt ein Raum in Home Assistant, wird auf der Karte aber wie ein Aussenbereich gezeichnet: gestrichelt, nicht Teil des Hausumrisses, und die Karte zählt ihn nie als drinnen."});
 Object.assign(TX.en,{hm_as_out:"Show as outside area on the map",hm_as_out_short:"outside",hm_as_out_hint:"Stays a room in Home Assistant but is drawn like an outside area: dashed, not part of the house outline, and the map never counts it as inside."});
 Object.assign(TX.de,{hm_stretch:"Zeichnung mitskalieren"});Object.assign(TX.en,{hm_stretch:"Stretch the drawing along"});

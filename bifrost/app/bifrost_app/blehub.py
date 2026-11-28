@@ -181,6 +181,8 @@ class BleHub:
                     "best": self.tracker.sources.get(best[0], {}).get("name", best[0]) if best[0] else None,
                     "rssi": round(best[1]) if best[1] is not None else None,
                     "scanners": len(vec),
+                    # every gateway that hears this device right now, strongest first
+                    "seen": [{"name": self.tracker.sources.get(s, {}).get("name", s), "rssi": round(r)} for s, r in sorted(vec.items(), key=lambda kv: -kv[1])],
                     "pos": pos,
                     "room": room,
                 }

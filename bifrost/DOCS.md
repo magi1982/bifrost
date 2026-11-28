@@ -98,7 +98,7 @@ With the **Mosquitto broker** installed, Bifrost publishes its entities via MQTT
 - **After the update to 0.12 – check in HA:** Settings → Devices → *Bifrost* shows all entities; old Bifrost states are removed automatically, leftovers are listed in Setup → *Bifrost entities* with a remove button; dashboards that used old entities may need the entity picked again.
 
 ### Bluetooth, calibration and zones (0.13)
-- **Setup → Bluetooth nearby** lists what your gateways hear. Give your phone's IRK to HA's *Private BLE Device* so it shows with your name.
+- **House → Bluetooth** lists what your gateways hear – one row per device; *Heard by n gateways* shows every Shelly/proxy that hears it with its own signal strength. Give your phone's IRK to HA's *Private BLE Device* so it shows with your name.
 - **House → Configuration → Edit map**: place every gateway exactly (*Place device*), draw **zones** (sofa, desk …).
 - **House → Signal → Start calibration**: choose your phone, walk to each numbered point, tap *Measure*. Afterwards positions use these fingerprints; the floor buttons show the expected accuracy.
 - Entities: `binary_sensor.bifrost_zone_<name>` (occupancy) and `sensor.bifrost_<person>_location`.
@@ -182,7 +182,7 @@ Mit dem **Mosquitto broker** veröffentlicht Bifrost seine Entitäten über MQTT
 - **Nach dem Update auf 0.12 – in HA prüfen:** Einstellungen → Geräte → *Bifrost* zeigt alle Entitäten; alte Bifrost-Zustände entfernt Bifrost selbst, Reste stehen im Setup unter *Bifrost-Entitäten* mit „Entfernen“; Dashboards mit alten Entitäten brauchen evtl. eine neue Auswahl.
 
 ### Bluetooth, Einmessen und Bereiche (0.13)
-- **Setup → Bluetooth in der Nähe** zeigt, was deine Gateways hören. Trag den IRK deines Handys in HA *Private BLE Device* ein, dann erscheint es mit deinem Namen.
+- **Haus → Bluetooth** zeigt, was deine Gateways hören – eine Zeile pro Gerät; *Von n Gateways gehört* zeigt jeden Shelly/Proxy, der es hört, mit eigener Signalstärke. Trag den IRK deines Handys in HA *Private BLE Device* ein, dann erscheint es mit deinem Namen.
 - **Haus → Konfiguration → Karte bearbeiten**: jeden Gateway genau setzen (*Gerät setzen*), **Bereiche** zeichnen (Sofa, Schreibtisch …).
 - **Haus → Signal → Einmessen starten**: Handy wählen, zu jedem nummerierten Punkt gehen, *Messen* tippen. Danach nutzen die Positionen diese Fingerabdrücke; die Stockwerk-Knöpfe zeigen die erwartete Genauigkeit.
 - Entitäten: `binary_sensor.bifrost_zone_<name>` (Präsenz) und `sensor.bifrost_<person>_location`.

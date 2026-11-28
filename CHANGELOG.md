@@ -10,6 +10,7 @@ All notable changes to Bifrost are documented here. The format follows [Keep a C
 - **A room can be shown as an outside area**: *Edit map → Draw room*, pick the room, tick *Show as outside area on the map* – e.g. a terrace that is a room in Home Assistant. It stays the HA area (its sensors and activity still show), but the map draws it dashed, leaves it out of the house outline (so the house has its real size) and never counts it as inside.
 
 ### Fixed
+- **Bluetooth list: one row per device again**: devices of the same type (e.g. several iPhones without IRK) were wrongly grouped into one row. Now every device has its own row, and *Heard by n gateways* opens every gateway that hears this device with its own signal strength, strongest first. A short line counts the types (e.g. iPhone 3 · AirPods 1).
 - **House outline (hull) only around the outside**: the hull was drawn as a thick border around every rectangle; with a floor plan picture (see-through fills) or gaps between rooms these borders showed as dark lines between all rooms. It is now one outline around the whole floor; gaps up to about 0.7 m are closed.
 
 ## [0.15.3] – 2026-11-28
