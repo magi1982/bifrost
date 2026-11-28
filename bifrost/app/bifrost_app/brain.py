@@ -20,7 +20,7 @@ from datetime import UTC, datetime, timedelta
 
 from . import balance, baseline, blocks, calwords, corrections, evidence, guard, hindsight, house, timing, value
 from . import routines as rt
-from .engine import ASLEEP, AWAY, LEAVING, UNKNOWN, Decision, parse_time
+from .engine import ASLEEP, AWAY, HOME, LEAVING, UNKNOWN, Decision, parse_time
 from .floorplan import validate_floorplan
 from .people import WEAK, PeopleStore, ledger, source_strength, visibility
 from .questions import Inbox
@@ -205,6 +205,7 @@ class Brain:
             can_dir = any(e.get("direction") for e in self.detector.model.get("entrances", []))
             prob = self.probabilities(d, states, now)
             d = self._apply_evidence(d, prob)
+            d = self._apply_certainty(d, prob)
             warming = now - self.started_at < guard.STARTUP_HOLD
             d2, checks = guard.apply(d, led, self.gs, now, can_dir, warming_up=warming)
             self.store.put_obj("guard", "state", self.gs.to_dict())
@@ -290,6 +291,20 @@ class Brain:
         if p_away < 70:
             return replace(d, state=UNKNOWN, confidence=min(d.confidence, 60), reasons=[f"Evidence scale is not sure: {p_away} % empty", *d.reasons])
         return replace(d, confidence=min(d.confidence, p_away))
+
+    SURE = 70  # % – below this Bifrost names no state: "unclear"
+
+    @classmethod
+    def _apply_certainty(cls, d: Decision, prob: dict) -> Decision:
+        """Home, asleep and away are only named when Bifrost is at least SURE % certain, otherwise the state is
+        "unknown" (also in Home Assistant). For "home" the certainty is that somebody is there (home + asleep).
+        Arriving/leaving are short transitions and stay as they are."""
+        if d.state not in (HOME, ASLEEP, AWAY) or not prob:
+            return d
+        sure = {HOME: prob.get("home", 0) + prob.get("asleep", 0), ASLEEP: prob.get("asleep", 0), AWAY: prob.get("away", 0)}[d.state]
+        if sure >= cls.SURE:
+            return d
+        return replace(d, state=UNKNOWN, confidence=min(d.confidence, sure), reasons=[f"Only {sure} % sure – below 70 % Bifrost says unclear", *d.reasons])
 
     def _store_block_event(self, o: dict, expl: dict) -> None:
         ts = _p(o["ts"])

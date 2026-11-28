@@ -633,7 +633,7 @@ viewStatus=function(){
 var PST={home:["home","var(--n-lime)"],asleep:["asleep","var(--n-violet)"],away:["away","var(--n-cyan)"]};
 function probBlock(st,d){var p=st.probabilities,keys=["home","asleep","away"],sorted=keys.slice().sort(function(a,b){return p[b]-p[a];}),top=sorted[0];
   var own={home:"home",arriving:"home",leaving:"home",asleep:"asleep",away:"away"}[d.state];
-  var sure=own?p[own]:p[top],unclear=d.state==="unknown"||(!own&&p[top]<70);
+  var sure=own==="home"?p.home+p.asleep:own?p[own]:p[top],unclear=d.state==="unknown"||(!own&&p[top]<70);
   var h='<div class="pblk"><div class="psure">'+(unclear?'<b style="color:var(--unc)">'+t("p_unclear")+'</b> · '+t("p_unclear_hint"):(sure<70?fmtK("p_weak",{p:sure}):fmtK("p_sure",{p:sure})))+'</div>';
   h+='<div class="pstack" aria-hidden="true">'+keys.map(function(k){return '<i style="width:'+p[k]+'%;background:'+PST[k][1]+'"></i>';}).join("")+'</div>';
   h+=sorted.map(function(k){return '<div class="prw'+(k===top?" top":"")+'" style="--c:'+PST[k][1]+'"><span class="pdot"></span><div><div class="pn">'+esc(trText(STATE[k][0]))+'</div><div class="pbar"><i style="width:'+p[k]+'%"></i></div></div><span class="pv">'+p[k]+' %</span></div>';}).join("");

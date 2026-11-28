@@ -2,6 +2,11 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.19.1] – 2026-11-28
+
+### Fixed
+- **"Home" with less than 70 %**: the result showed "Home" while the card said "only 66 % sure – below 70 % Bifrost stays careful". Now the rule holds everywhere: home, asleep and away are only named when Bifrost is at least 70 % sure; otherwise the state is **Unclear** – on the Overview and in Home Assistant (`sensor.bifrost_home_status`). For "home" the certainty is that somebody is there (home + asleep). Arriving and leaving stay as they are. Unclear never counts as empty.
+
 ## [0.19.0] – 2026-11-28
 
 ### Changed
