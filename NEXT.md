@@ -771,3 +771,29 @@ Every sub-section gets its own address (`#house/signal`), so a link or a notific
 - A floor change alone does nothing.
 - Only one gateway does nothing.
 - The setting "off" turns everything off.
+
+### Version 0.20.1 · Zoom, full screen and nudging in the plan editor (28.11., taken from the closed PR #17) – waiting for "mach es"
+**Why**: PR #17 (another session, based on an old main) is closed; most of it is already in 0.19/0.20. Three parts are still missing in the new editor.
+**Scope**
+- **Zoom and pan**:
+  - two fingers zoom and pan the map while editing (pinch); on a computer, the mouse wheel with Ctrl;
+  - buttons **+ / − / Fit** in the top bar's overflow or as small floating buttons at the map's corner;
+  - the zoom is kept per floor while editing and reset by *Fit*;
+  - snapping and the 0.25 m grid stay exact at every zoom;
+  - targets stay ≥ 44 px on screen.
+- **Full screen**:
+  - a button ⛶ in the top bar makes the editor use the whole screen (top bar, map, tool bar, sheet);
+  - ✕ / Esc / *Save* leave full screen;
+  - falls back to a CSS full-page view where the browser refuses the Fullscreen API (HA app on iOS).
+- **Nudge arrows** in the inspector for a selected room, door/window or device:
+  - ← ↑ → ↓ move it by 0.25 m (0.05 m with the grid off);
+  - each step is one undo step, merged when tapped quickly;
+  - doors and windows stay on their wall: arrows along the wall move them, arrows across it do nothing.
+
+**Limits**: one-finger drag keeps moving the selected item (pan only with two fingers or on empty map space after a long press); no rotation gesture.
+**Tests**:
+- the zoom keeps the grid exact (a screen-to-metre round trip at several zoom levels);
+- nudging a door along its wall changes x or y only along the wall; across the wall nothing changes;
+- undo/redo across nudges;
+- the GUI check in light/dark/390 px with zoom 2×; full-screen enter/leave;
+- no JS errors.
