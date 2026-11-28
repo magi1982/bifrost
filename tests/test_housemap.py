@@ -213,3 +213,13 @@ def test_quarter_metre_grid_survives_saving():
     assert m["rooms"][0]["rects"] == [[0.25, 0.75, 3.25, 2.5]]
     assert m["rooms"][1]["rects"] == [[3.5, 0.75, 2.75, 2.5]]
     assert m["devices"][0]["x"] == 1.25 and m["devices"][0]["y"] == 8.75
+
+
+def test_ha_room_can_be_shown_as_outside_area():
+    """A room that is an HA area of this floor (e.g. a terrace) may be flagged outside: it stays the HA area, the map treats it as outside."""
+    body = {"floor": "Ground floor", "w": 12, "h": 9, "rooms": [{"area": "Living", "rects": [[0, 0, 6, 3]], "outside": True}, {"area": "Hall", "rects": [[0, 3, 6, 6]]}]}
+    _, m = hm.validate_map(body, FA)
+    assert m["rooms"][0] == {"area": "Living", "rects": [[0, 0, 6, 3]], "outside": True}
+    assert "outside" not in m["rooms"][1]
+    assert hm.room_at(m, 3, 1) is None  # outside areas never count as a room inside
+    assert hm.room_at(m, 3, 5) == "Hall"

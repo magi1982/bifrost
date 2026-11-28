@@ -28,6 +28,9 @@ PRESENT_S = 120  # seen within the last 2 minutes = present
 ROTATING_KEEP = timedelta(minutes=15)
 FIXED_KEEP = timedelta(days=90)
 MIN_RSSI = -100.0
+WINDOW_S = 10.0  # median window per scanner
+HOLD_S = 8.0  # a scanner keeps its value this long after the last advert …
+FADE_S = 30.0  # … then fades to MIN_RSSI over this time
 CAL_SECONDS = 20
 MAX_DEVICES = 1500
 MAX_SAMPLES = 400
@@ -137,7 +140,7 @@ def _short(name: str) -> str:
 
 
 class Device:
-    __slots__ = ("address", "label", "kind", "guess", "name", "rotating", "first", "last", "rssi", "seen", "hidden", "irk")
+    __slots__ = ("address", "label", "kind", "guess", "name", "rotating", "first", "last", "rssi", "seen", "hidden", "irk", "win")
 
     def __init__(self, address: str, now: float) -> None:
         self.address, self.first, self.last = address, now, now
@@ -145,6 +148,7 @@ class Device:
         self.rotating = is_rotating(address)
         self.rssi: dict[str, float] = {}  # source → smoothed rssi
         self.seen: dict[str, float] = {}  # source → last time
+        self.win: dict[str, list[tuple[float, float]]] = {}  # source → raw readings of the last WINDOW_S seconds
         self.hidden = False
         self.irk: str | None = None  # tracker entity id when resolved by Private BLE Device
 
@@ -182,8 +186,7 @@ class Tracker:
                     d.label, d.kind, d.guess = label, kind, guess
                 if a.get("name"):
                     d.name = str(a["name"])[:40]
-                prev = d.rssi.get(src)
-                d.rssi[src] = rssi if prev is None or now - d.seen.get(src, 0) > 30 else 0.7 * prev + 0.3 * rssi
+                d.rssi[src] = _filtered(d, src, rssi, now)
                 d.seen[src] = now
                 s = self.sources.setdefault(src, {"name": src, "last": now, "count": 0})
                 s["last"], s["count"] = now, s["count"] + 1
@@ -216,9 +219,30 @@ class Tracker:
             return [d for d in self.devices.values() if now - d.last <= PRESENT_S]
 
     def vector(self, d: Device, now: float | None = None) -> dict[str, float]:
-        """Current signal strength per scanner (only scanners that heard it in the last minute)."""
+        """Current signal strength per scanner. A scanner that stops hearing the device fades towards −100 dBm
+        over FADE_S seconds instead of dropping out at once (a missed advert must not move the dot)."""
         now = time.time() if now is None else now
-        return {s: r for s, r in d.rssi.items() if now - d.seen.get(s, 0) <= 60}
+        out = {}
+        for s, r in d.rssi.items():
+            age = now - d.seen.get(s, 0)
+            if age <= HOLD_S:
+                out[s] = r
+            elif age <= HOLD_S + FADE_S:
+                out[s] = r + (MIN_RSSI - r) * (age - HOLD_S) / FADE_S
+        return out
+
+
+def _filtered(d: Device, src: str, rssi: float, now: float) -> float:
+    """Median of the last WINDOW_S seconds (single outliers – a body between phone and Shelly – do not count),
+    then a light exponential filter. After a long silence the filter starts fresh."""
+    win = [(t, v) for t, v in d.win.get(src, []) if now - t <= WINDOW_S]
+    win.append((now, rssi))
+    d.win[src] = win[-20:]
+    med = statistics.median(v for _, v in d.win[src])
+    prev = d.rssi.get(src)
+    if prev is None or now - d.seen.get(src, 0) > HOLD_S + FADE_S:
+        return med
+    return prev + 0.4 * (med - prev)
 
 
 # --- positions -------------------------------------------------------------------------------
@@ -247,18 +271,31 @@ def _dist(a: dict[str, float], b: dict[str, float]) -> float:
     return math.sqrt(sum((a.get(k, MIN_RSSI) - b.get(k, MIN_RSSI)) ** 2 for k in keys) / len(keys))
 
 
-def knn(vec: dict[str, float], samples: list[dict], k: int = 3) -> dict | None:
-    """Fingerprint match over all scanners of the house: floor by majority of the k nearest, position = their mean."""
+def knn(vec: dict[str, float], samples: list[dict], k: int | None = None) -> dict | None:
+    """Fingerprint match over all scanners of the house: floor by weighted majority of the k nearest calibration
+    points, position = their mean weighted by closeness (lands between points instead of snapping to one)."""
     if len(samples) < 3 or not vec:
         return None
-    near = sorted(samples, key=lambda s: _dist(vec, s["vec"]))[:k]
-    floors = [s["floor"] for s in near]
-    floor = max(set(floors), key=floors.count)
-    same = [s for s in near if s["floor"] == floor]
-    x = statistics.fmean(s["x"] for s in same)
-    y = statistics.fmean(s["y"] for s in same)
-    spread = max(math.hypot(s["x"] - x, s["y"] - y) for s in same)
-    return {"floor": floor, "x": round(x, 1), "y": round(y, 1), "err": round(max(1.0, spread), 1), "method": "fingerprint", "floor_sure": floors.count(floor) == len(floors)}
+    k = k or max(3, min(5, len(samples) // 4))
+    near = sorted(((_dist(vec, s["vec"]), s) for s in samples), key=lambda x: x[0])[:k]
+    wts = [(1.0 / (d + 1.0) ** 2, s) for d, s in near]
+    score: dict[str, float] = {}
+    for w, s in wts:
+        score[s["floor"]] = score.get(s["floor"], 0.0) + w
+    floor = max(score, key=score.get)
+    same = [(w, s) for w, s in wts if s["floor"] == floor]
+    tw = sum(w for w, _ in same)
+    x = sum(w * s["x"] for w, s in same) / tw
+    y = sum(w * s["y"] for w, s in same) / tw
+    spread = math.sqrt(sum(w * ((s["x"] - x) ** 2 + (s["y"] - y) ** 2) for w, s in same) / tw)
+    return {
+        "floor": floor,
+        "x": round(x, 2),
+        "y": round(y, 2),
+        "err": round(max(1.0, 1.5 * spread), 1),
+        "method": "fingerprint",
+        "floor_sure": score[floor] >= 0.75 * sum(score.values()),
+    }
 
 
 def locate(vec: dict[str, float], scanners: dict[str, dict], samples: list[dict]) -> dict | None:
@@ -368,3 +405,64 @@ class Calibration:
         spread = statistics.fmean(statistics.pstdev(v) for v in buf.values() if len(v) >= 2) if vec else 99
         quality = "good" if len(vec) >= 3 and spread < 6 else "weak" if vec else "none"
         return {"floor": a["floor"], "x": a["x"], "y": a["y"], "vec": vec, "quality": quality, "scanners": len(vec), "at": datetime.now(UTC).isoformat(timespec="seconds")}
+
+
+# --- calm positions ----------------------------------------------------------------------------
+CALM = {
+    # alpha: low-pass of the measured position per step · dead: dead band in m · speed: max m/s · hold/agree: floor change
+    "calm": {"alpha": 0.25, "dead": 0.8, "speed": 1.0, "hold": 20.0, "agree": 3},
+    "normal": {"alpha": 0.4, "dead": 0.5, "speed": 1.5, "hold": 15.0, "agree": 2},
+    "fast": {"alpha": 0.7, "dead": 0.3, "speed": 3.0, "hold": 6.0, "agree": 1},
+}
+
+
+class Smoother:
+    """Keeps the shown position of each device calm: walking-speed limit, dead band, and a floor change only
+    after agreeing results (or when the old floor's scanners no longer hear the device)."""
+
+    FORGET_S = 300.0
+
+    def __init__(self) -> None:
+        self.state: dict[str, dict] = {}
+        self._lock = threading.Lock()
+
+    def update(self, key: str, raw: dict | None, now: float, mode: str = "normal", old_floor_heard: bool = True) -> dict | None:
+        p = CALM.get(mode, CALM["normal"])
+        with self._lock:
+            for k in [k for k, v in self.state.items() if now - v["t"] > self.FORGET_S]:
+                del self.state[k]
+            if raw is None:
+                return None
+            st = self.state.get(key)
+            if st is None:
+                st = self.state[key] = {"floor": raw["floor"], "x": raw["x"], "y": raw["y"], "fx": raw["x"], "fy": raw["y"], "t": now, "cand": None, "since": now, "n": 0, "err": raw.get("err", 2.0)}
+                return self._out(st, raw)
+            dt = max(0.0, min(30.0, now - st["t"]))
+            st["t"] = now
+            if raw["floor"] != st["floor"]:
+                if st["cand"] != raw["floor"]:
+                    st["cand"], st["since"], st["n"] = raw["floor"], now, 0
+                st["n"] += 1
+                if not old_floor_heard or st["n"] >= p["agree"] or now - st["since"] >= p["hold"]:
+                    st.update(floor=raw["floor"], x=raw["x"], y=raw["y"], fx=raw["x"], fy=raw["y"], cand=None, n=0, err=raw.get("err", 2.0))
+                return self._out(st, raw)
+            st["cand"], st["n"] = None, 0
+            st["err"] = 0.7 * st["err"] + 0.3 * raw.get("err", st["err"])
+            # 1. low-pass of the measured position (noise), 2. the shown dot follows it outside the dead band at walking speed
+            st["fx"] += p["alpha"] * (raw["x"] - st["fx"])
+            st["fy"] += p["alpha"] * (raw["y"] - st["fy"])
+            dx, dy = st["fx"] - st["x"], st["fy"] - st["y"]
+            dist = math.hypot(dx, dy)
+            # the dead band only decides when the dot starts moving; once it moves it goes all the way (no lag)
+            if dist <= (0.1 if st.get("moving") else max(p["dead"], st["err"] / 2)):
+                st["moving"] = False
+                return self._out(st, raw)
+            st["moving"] = True
+            step = min(dist, p["speed"] * max(dt, 1.0))
+            st["x"] += dx / dist * step
+            st["y"] += dy / dist * step
+            return self._out(st, raw)
+
+    @staticmethod
+    def _out(st: dict, raw: dict) -> dict:
+        return {**raw, "floor": st["floor"], "x": round(st["x"], 2), "y": round(st["y"], 2), "err": round(st["err"], 1), "raw": {"x": raw["x"], "y": raw["y"], "floor": raw["floor"]}}

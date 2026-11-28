@@ -49,10 +49,11 @@ class BleHub:
         self.tracker = bt.Tracker()
         self.cal = bt.Calibration(self.tracker)
         self.zones = bt.Hysteresis(20, 60)
+        self.smooth = bt.Smoother()
         self.status = {"connected": False, "supported": None, "error": None, "since": None}
         self._lock = threading.Lock()
         self.hidden: set[str] = set(self._load("ble_hidden", []))
-        self.settings = {"on": True, "hide_house": False, **self._load("ble_settings", {})}
+        self.settings = {"on": True, "hide_house": False, "calm": "normal", **self._load("ble_settings", {})}
         self.samples: list[dict] = self._load("calib_samples", [])
         self.cal_device: str | None = self.store.get_value("calib_device")
         self.moves: dict[str, list[dict]] = self._load("ble_moves", {})
@@ -103,6 +104,10 @@ class BleHub:
             if not isinstance(body["hide_house"], bool):
                 raise ValueError("hide_house: true/false")
             self.settings["hide_house"] = body["hide_house"]
+        if "calm" in body:
+            if body["calm"] not in bt.CALM:
+                raise ValueError("calm: calm, normal or fast")
+            self.settings["calm"] = body["calm"]
         if "address" in body:
             addr = str(body.get("address") or "").upper()
             if not bt.ADDR.match(addr) or not isinstance(body.get("hidden"), bool):
@@ -154,8 +159,11 @@ class BleHub:
         for d in self.tracker.present(now):
             vec = self.tracker.vector(d, now)
             best = max(vec.items(), key=lambda kv: kv[1]) if vec else (None, None)
-            pos = bt.locate(vec, scanners, self.samples) if vec else None
             info = irk.get(d.address)
+            key = info["entity_id"] if info else d.address  # an IRK phone keeps its calm position across address changes
+            cur = self.smooth.state.get(key, {}).get("floor")
+            heard = cur is None or any(scanners.get(s, {}).get("floor") == cur for s, r in vec.items() if r > bt.MIN_RSSI + 5)
+            pos = self.smooth.update(key, bt.locate(vec, scanners, self.samples) if vec else None, now, self.settings.get("calm", "normal"), heard)
             person = person_of.get(info["entity_id"]) if info else None
             room = None
             if pos and pos["floor"] in maps:
@@ -169,6 +177,7 @@ class BleHub:
             rows.append(
                 {
                     "address": d.address,
+                    "key": key,
                     "short": d.address[-5:],
                     "label": info["name"] if info else d.label,
                     "kind": "phone" if info else d.kind,
@@ -181,6 +190,8 @@ class BleHub:
                     "best": self.tracker.sources.get(best[0], {}).get("name", best[0]) if best[0] else None,
                     "rssi": round(best[1]) if best[1] is not None else None,
                     "scanners": len(vec),
+                    # every gateway that hears this device right now, strongest first
+                    "seen": [{"name": self.tracker.sources.get(s, {}).get("name", s), "rssi": round(r)} for s, r in sorted(vec.items(), key=lambda kv: -kv[1])],
                     "pos": pos,
                     "room": room,
                 }
