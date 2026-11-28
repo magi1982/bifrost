@@ -584,3 +584,20 @@ Problem: seven flat tabs (Status, People, House, Patterns, Incidents, Balance, S
 Every sub-section gets its own address (`#house/signal`), so a link or a notification can open it directly; the last opened sub-section per area is remembered.
 **Open questions**: which variant? Keep "Balance" visible at top level until the alarm signal is released, or move it under Safety right away?
 **Tests**: every former card reachable (no orphan), deep links, back/forward, GUI check of all sub-sections light/dark/390 px.
+
+### Idea · Bluetooth positions: as exact as possible, without flicker (28.11.) – waiting for "mach es"
+**Today**: RSSI per gateway is smoothed with a simple average (70 % old / 30 % new, reset after 30 s silence); shown as whole dBm (BLE only reports whole dBm). The position is computed fresh on every evaluation – 3 nearest calibration points, plain mean, or the weighted centre of the gateways – with no smoothing over time. A gateway that misses one advert drops out after 60 s and counts as −100 dBm in the match, so the dot jumps.
+**Exact**
+- RSSI per gateway: median of the last ~10 s, then a light Kalman/EMA filter (robust against single outliers, e.g. a body between phone and Shelly).
+- Gateway drop-outs: the last value fades towards −100 over ~30 s instead of falling at once.
+- Fingerprint match weighted by distance (nearer calibration points count more), k = 3–5 depending on how many points exist; a fit between points instead of snapping to one point.
+- The error radius (`err`) from the spread of the match, shown as a soft circle around the dot.
+**Calm**
+- Position filter with a walking-speed limit (max ~1.5 m/s): one noisy reading cannot throw the dot across the house.
+- Dead band: the dot only moves when the new position differs by more than ~0.5 m or half the error radius.
+- Floor change only after two agreeing results or ~15 s (stairs), unless the old floor's gateways no longer hear the device at all.
+- Room/zone change keeps the hysteresis (20 s in / 60 s out); the movement list only records rooms that held.
+- On the map the dot glides (CSS transition ~1 s) instead of jumping.
+**Limits**: phones without IRK change their address every ~15 min – a new address starts without history. In a timber house floors separate badly; more calibration points on the stairs help most.
+**Setting**: "Calmness" (calm / normal / fast) with a description – calm for the map, fast for automations that react quickly. (Decide with the maintainer.)
+**Tests**: synthetic walk with noisy RSSI (±6 dB) → spread of the shown position at standstill below 0.5 m, a real 3 m move followed within 10 s, no floor flip from a single outlier, drop-out of one gateway does not move the dot more than 1 m; existing calibration accuracy (leave-one-out) not worse.
