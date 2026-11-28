@@ -166,11 +166,21 @@ def test_corrections_teach_something(tmp_path):
     # whole house: Bifrost said away, somebody was home → wrong "empty" in the balance
     r = b.correct("away", "home", now)
     assert "balance:wrong_empty" in r["learned"]
-    # culprit: the hallway motion was the cat while nobody was home → counts less on the scale, disturbance question
-    r = b.correct("home", "away", now, culprit="binary_sensor.motion_hallway")
-    assert "trust:binary_sensor.motion_hallway" in r["learned"]
-    assert svc.store.get_obj("stats", "culprits")["binary_sensor.motion_hallway"] == 1
+    # one tap: Bifrost said home, nobody was there – it blames what pushed towards "home" itself (no culprit asked)
+    parts = [{"entity_id": "binary_sensor.motion_hallway", "weight": 1.5}, {"entity_id": "device_tracker.phone_a", "weight": -0.5}]
+    r = b.correct("home", "away", now, parts=parts)
+    assert "trust:binary_sensor.motion_hallway" in r["learned"] and r["blame"] == [{"entity_id": "binary_sensor.motion_hallway", "share": 1.0}]
+    assert b.corrections_effective(now)["culprits"]["binary_sensor.motion_hallway"] == 1.0
+    assert "question:binary_sensor.motion_hallway" not in r["learned"]  # once is not a pattern
+    # blamed again on two more days → now Bifrost asks
+    for d in (1, 2):
+        r = b.correct("home", "away", now + timedelta(days=d), parts=parts)
+    assert "question:binary_sensor.motion_hallway" in r["learned"]
     assert any(q["type"] == "disturbance" for q in b.inbox.all())
+    # the weight fades: after one half-life a correction counts half
+    hl = b.corrections_half_life()
+    later = b.corrections_effective(now + timedelta(days=hl + 2))["culprits"]["binary_sensor.motion_hallway"]
+    assert later < 2.0  # three corrections of weight 1 have faded
     # person: phone said home three times, person was away → that phone only counts as weak
     for _ in range(3):
         b.correct("home", "away", now, person="person_a", person_said="home")

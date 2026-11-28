@@ -18,7 +18,7 @@ from collections import deque
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
-from . import balance, baseline, blocks, calwords, evidence, guard, hindsight, house, timing, value
+from . import balance, baseline, blocks, calwords, corrections, evidence, guard, hindsight, house, timing, value
 from . import routines as rt
 from .engine import ASLEEP, AWAY, LEAVING, UNKNOWN, Decision, parse_time
 from .floorplan import validate_floorplan
@@ -88,11 +88,32 @@ class Brain:
         return out
 
     def strength(self, entity_id: str) -> str:
-        wrong = (self.store.get_obj("stats", "tracker_wrong") or {}).get(entity_id, 0)
+        wrong = self.corrections_effective()["trackers"].get(entity_id, 0)
         return WEAK if wrong >= 3 else source_strength(entity_id, self.meta.get(entity_id))
 
     def visibility(self, person) -> dict:  # noqa: ANN001
-        return visibility(person, self.meta, self.store.get_obj("stats", "tracker_wrong") or {})
+        return visibility(person, self.meta, self.corrections_effective()["trackers"])
+
+    # --- corrections that fade (0.17) ------------------------------------------------------------
+    def corrections_half_life(self) -> float:
+        return corrections.half_life(corrections.progress(self.learn_status()["items"]))
+
+    def corrections_effective(self, now: datetime | None = None) -> dict:
+        """Faded weight of every owner correction: per signal, per tracker, and the labels that still count."""
+        now = now or datetime.now(UTC)
+        key = int(now.timestamp() // 60)
+        if getattr(self, "_corr_cache", (None,))[0] == key:
+            return self._corr_cache[1]
+        trk = {p.id: list(p.trackers) for p in self.people.all()}
+        labels = [lab if not lab.get("person") or lab.get("trackers") else {**lab, "trackers": trk.get(lab["person"], [])} for lab in self.labels()]
+        eff = corrections.effective(labels, now, self.corrections_half_life(), _p)
+        self._corr_cache = (key, eff)
+        return eff
+
+    def corrections_view(self, names: dict[str, str], now: datetime | None = None) -> dict:
+        now = now or datetime.now(UTC)
+        people = {p.id: p.name for p in self.people.all()}
+        return corrections.view(self.labels(), now, self.corrections_half_life(), _p, names, people)
 
     def on_edge(self, edge: dict) -> None:
         """Called for every clean edge from the live stream."""
@@ -245,7 +266,7 @@ class Brain:
                     recent[r["entity_id"]] = r["_t"]
             trackers = {s: (states.get(s) or {}).get("state") for s, w in (self.evidence.get("weights") or {}).items() if "home" in w}
             trackers = {s: ("home" if v == "home" else "away" if v not in (None, "", "unavailable", "unknown") else None) for s, v in trackers.items()}
-            pr = evidence.predict(self.evidence, recent, trackers, now, self.store.get_obj("stats", "culprits") or {})
+            pr = evidence.predict(self.evidence, recent, trackers, now, self.corrections_effective(now)["culprits"])
             p_home, parts, source = pr["p_home"], pr["parts"], "evidence"
         else:
             c = d.confidence / 100
@@ -366,7 +387,7 @@ class Brain:
         # 0.8: the truth comes from hindsight facts and the owner – never from the live decision
         prev_sides = (self.detector.model or {}).get("sides", {})
         exceptions = {x["sensor"] for x in self.inbox.exceptions()}
-        hind = hindsight.label(events, self.meta, prev_sides, exceptions, self.labels())
+        hind = hindsight.label(events, self.meta, prev_sides, exceptions, self.corrections_effective(now)["labels"])
         pseudo = hindsight.to_decisions(hind)
         model = blocks.learn(events, self.meta, pseudo)
         days = max(0.0, (now - _p(events[0]["ts"])).total_seconds() / 86400) if events else 0.0
@@ -478,12 +499,25 @@ class Brain:
                 self.store.put_obj("door_role", f["door"], {"door": f["door"], "role": f.get("role")})
         return q
 
-    def correct(self, said: str, actual: str, now: datetime, culprit: str | None = None, person: str | None = None, person_said: str | None = None) -> dict:
-        """The owner says Bifrost was wrong. Every correction must teach something:
+    def correct(
+        self,
+        said: str,
+        actual: str,
+        now: datetime,
+        culprit: str | None = None,
+        person: str | None = None,
+        person_said: str | None = None,
+        parts: list[dict] | None = None,
+        changed: list[str] | None = None,
+    ) -> dict:
+        """The owner says Bifrost was wrong – and only what is true. Bifrost works out the reason itself:
 
-        * whole house: counted in the balance (wrong "empty" blocks the alarm signal),
-        * a culprit signal (e.g. motion from the cat) loses trust and – for motion – becomes a disturbance question,
-        * a person: the trackers that said otherwise lose reliability (after 3 mistakes they only count as weak).
+        * whole house: counted in the balance (a wrong "empty" blocks the alarm signal for 30 days),
+        * the signals that pushed the decision the wrong way share the blame by how strongly they pushed
+          (``parts`` – the evidence at that moment; without it the signals that just changed, ``changed``),
+        * a person: that person's trackers lose reliability,
+        * everything fades with time (see corrections.py) so Bifrost's own patterns take over.
+        A signal blamed again and again on different days becomes a question (motion: disturbance).
         """
         if actual not in ("home", "away", "asleep"):
             raise ValueError("actual must be home, away or asleep")
@@ -493,35 +527,36 @@ class Brain:
             p = self.people.get(person)
             if p is None:
                 raise ValueError("unknown person")
-            lab.update(person=p.id, said=person_said or said)
+            lab.update(person=p.id, said=person_said or said, trackers=list(p.trackers))
             if actual == "asleep":
                 actual = lab["actual"] = "home"
-            st = self.store.get_obj("stats", "tracker_wrong") or {}
-            for t in p.trackers:
-                st[t] = st.get(t, 0) + 1
-                learned.append(f"tracker:{t}")
-            self.store.put_obj("stats", "tracker_wrong", st)
+            learned += [f"tracker:{t}" for t in p.trackers]
         elif said == "away" and actual in ("home", "asleep"):
             learned.append("balance:wrong_empty")
         elif said in ("home", "asleep", "arriving") and actual == "away":
             learned.append("balance:wrong_home")
-        if culprit:
+        if culprit:  # older clients may still name one
             if not isinstance(culprit, str) or culprit not in self.meta:
                 raise ValueError("unknown signal")
-            cul = self.store.get_obj("stats", "culprits") or {}
-            cul[culprit] = cul.get(culprit, 0) + 1
-            self.store.put_obj("stats", "culprits", cul)
-            learned.append(f"trust:{culprit}")
-            lab["culprit"] = culprit
-            if self.meta[culprit].get("category") == "motion" and actual == "away":
-                self.inbox.ask("disturbance", culprit, {"sensor": culprit, "count": 1}, now, priority=2)
-                learned.append(f"question:{culprit}")
+            blame = [{"entity_id": culprit, "share": 1.0}]
+        elif person:
+            blame = []
+        else:
+            blame = corrections.blame(lab["said"], actual, parts, [c for c in changed or [] if c in self.meta])
+        if blame:
+            lab["blame"] = blame
+            learned += [f"trust:{b['entity_id']}" for b in blame]
         self.store.put_obj("label", f"{now.isoformat()}_{secrets.token_hex(3)}", {**lab, "learned": learned})
+        self._corr_cache = (None, None)
         if not person and said == AWAY and actual != AWAY:
             # Bifrost said "empty" but somebody was there: somebody it does not know about is inside
             self.gs.unknown_min = max(self.gs.unknown_min, 1)
             self.store.put_obj("guard", "state", self.gs.to_dict())
             learned.append("guard:unknown")
+        for eid in corrections.repeated(self.labels(), _p):
+            if self.meta.get(eid, {}).get("category") == "motion" and any(b["entity_id"] == eid for b in blame):
+                self.inbox.ask("disturbance", eid, {"sensor": eid, "count": corrections.ASK_TIMES}, now, priority=2)
+                learned.append(f"question:{eid}")
         return {**lab, "learned": learned}
 
     def labels(self) -> list[dict]:

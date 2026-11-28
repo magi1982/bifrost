@@ -2,6 +2,18 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.17.0] – 2026-11-28
+
+### Changed
+- **"That's wrong" in one tap**: the owner only says what is true – home, away or asleep. Bifrost no longer asks which signal fooled it.
+- **Bifrost finds the reason itself**: the signals that pushed the decision the wrong way at that moment share the blame by how strongly they pushed (without a learned evidence scale yet: the signals that changed just before). A signal blamed on three different days becomes a question (motion: disturbance?).
+- **Corrections fade**: a correction counts ½ after the half-life – about 30 days while Bifrost has learned little, down to 7 days once the learning progress is full; under 10 % it no longer counts and Bifrost's own patterns apply. This applies to the trust of signals and trackers and to hindsight (a faded correction is a weaker truth). The release gate stays strict: a wrong "empty" blocks for 30 days.
+
+### Added
+- **How often Bifrost was wrong** (Overview → Bifrost): number of corrections (total, last 30 days), each correction with the reason Bifrost found and how much it still counts, and the signals that fooled Bifrost most with their remaining weight.
+- API: `/api/corrections`.
+- **Assign devices from the person**: People → *Assign devices* on each person lists phones, trackers, calendars and Bluetooth devices with a tick box and a search. It is the same assignment as in Setup – change it in either place; a device that belongs to someone else says so, and assigning switches an unused signal on.
+
 ## [0.16.1] – 2026-11-28
 
 ### Changed

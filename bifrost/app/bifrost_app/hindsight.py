@@ -188,7 +188,7 @@ def label(  # noqa: C901
         actual = EMPTY if lab.get("actual") == "away" else HOME
         seg = next((s for s in segments if s["start"] <= t <= s["end"] and s["why"] != "activity"), None)
         if seg:
-            seg.update(label=actual, strength=STRONG, why="owner")
+            seg.update(label=actual, strength=STRONG if lab.get("_w", 1.0) >= 0.5 else MEDIUM, why="owner")
 
     stats = {k + "_h": round(sum((s["end"] - s["start"]).total_seconds() for s in segments if s["label"] == v) / 3600, 1) for k, v in (("home", HOME), ("empty", EMPTY), ("unclear", UNCLEAR))}
     return {"segments": segments, "disturbances": disturbances, "departures": departures, "arrivals": arrivals, "stats": stats}

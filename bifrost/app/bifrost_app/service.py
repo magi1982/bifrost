@@ -1236,7 +1236,13 @@ class BifrostService:
         if person:
             row = next((r for r in ((self.extra or {}).get("ledger") or {}).get("people", []) if r.get("id") == person), None)
             person_said = row.get("state") if row else None
-        return self.brain.correct(said, actual, datetime.now(UTC), culprit=culprit, person=person, person_said=person_said)
+        now = datetime.now(UTC)
+        parts = ((self.extra or {}).get("probabilities") or {}).get("parts") or []
+        changed = [c["entity_id"] for c in self.correct_candidates()["items"]] if not person and not culprit else None
+        return self.brain.correct(said, actual, now, culprit=culprit, person=person, person_said=person_said, parts=parts, changed=changed)
+
+    def corrections_view(self) -> dict:
+        return self.brain.corrections_view(self._names())
 
     def correct_candidates(self) -> dict:
         """Signals that may have fooled Bifrost: what changed in the last 30 minutes (newest first)."""

@@ -96,6 +96,7 @@ VIEWS = {
     "/api/everyday": "everyday_view",
     "/api/calib": "calib_view",
     "/api/incidents": "incidents_view",
+    "/api/corrections": "corrections_view",
 }
 
 ACTIONS = {
