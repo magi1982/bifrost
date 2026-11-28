@@ -1,3 +1,5 @@
+import statistics
+
 import pytest
 
 from bifrost_app import bluetooth as bt
@@ -161,3 +163,67 @@ def test_missing_gateways_with_reason():
         ]
     )
     assert {r["name"]: r["reason"] for r in rows} == {"Bath light": "no_ble", "Socket": "enable", "Proxy": "esphome"}
+
+
+# --- 0.15.4: exact and calm positions ------------------------------------------------------------
+def test_rssi_filter_ignores_single_outliers_and_fades_out():
+    tr = bt.Tracker()
+    for i in range(8):
+        tr.ingest([{"address": "C4:7D:CC:10:20:30", "source": "A", "rssi": -60}], now=100 + i)
+    tr.ingest([{"address": "C4:7D:CC:10:20:30", "source": "A", "rssi": -95}], now=108)  # a body between phone and Shelly
+    d = tr.devices["C4:7D:CC:10:20:30"]
+    assert -62 <= tr.vector(d, now=108)["A"] <= -59
+    assert tr.vector(d, now=108 + bt.HOLD_S)["A"] == tr.vector(d, now=108)["A"]  # a missed advert changes nothing
+    half = tr.vector(d, now=108 + bt.HOLD_S + bt.FADE_S / 2)["A"]
+    assert -85 < half < -70  # fades instead of dropping out
+    assert "A" not in tr.vector(d, now=108 + bt.HOLD_S + bt.FADE_S + 1)
+
+
+def test_weighted_fingerprint_lands_between_points():
+    samples = [{"floor": "EG", "x": 0, "y": 0, "vec": {"A": -50, "B": -80}}, {"floor": "EG", "x": 4, "y": 0, "vec": {"A": -80, "B": -50}}, {"floor": "EG", "x": 8, "y": 0, "vec": {"A": -95, "B": -40}}]
+    p = bt.knn({"A": -65, "B": -65}, samples)
+    assert p["floor"] == "EG" and 0.5 < p["x"] < 5  # between the first two points, not snapped to one
+
+
+def _walk(sm, points, mode="normal", t0=0.0, dt=2.0, heard=True):
+    out, t = [], t0
+    for x, y, fl in points:
+        out.append(sm.update("dev", {"floor": fl, "x": x, "y": y, "err": 1.0}, t, mode, heard))
+        t += dt
+    return out, t
+
+
+def test_smoother_standstill_is_calm_and_a_real_move_is_followed():
+    import random
+
+    rnd = random.Random(7)
+    sm = bt.Smoother()
+    noisy = [(5 + rnd.gauss(0, 0.6), 5 + rnd.gauss(0, 0.6), "EG") for _ in range(60)]  # ±6 dB ≈ ±0.6 m here
+    out, t = _walk(sm, noisy)
+    xs, ys = [p["x"] for p in out[5:]], [p["y"] for p in out[5:]]
+    assert max(xs) - min(xs) < 1.5 and max(ys) - min(ys) < 1.5  # raw readings spread over about 3.5 m
+    assert statistics.pstdev(xs) < 0.4 and statistics.pstdev(ys) < 0.4
+    moved, _ = _walk(sm, [(8, 5, "EG")] * 5, t0=t)  # a real 3 m move
+    assert abs(moved[-1]["x"] - 8) < 0.6  # followed within 10 s
+    assert all(b["x"] - a["x"] <= 1.5 * 2 + 1e-9 for a, b in zip(moved, moved[1:], strict=False))  # never faster than walking
+
+
+def test_smoother_floor_change_needs_agreement_unless_old_floor_is_silent():
+    sm = bt.Smoother()
+    _walk(sm, [(5, 5, "EG")] * 3)
+    one = sm.update("dev", {"floor": "OG", "x": 5, "y": 5, "err": 1.0}, 10, "normal")
+    back = sm.update("dev", {"floor": "EG", "x": 5, "y": 5, "err": 1.0}, 12, "normal")
+    assert one["floor"] == "EG" and back["floor"] == "EG"  # a single outlier does not flip the floor
+    sm.update("dev", {"floor": "OG", "x": 5, "y": 5, "err": 1.0}, 14, "normal")
+    two = sm.update("dev", {"floor": "OG", "x": 5, "y": 5, "err": 1.0}, 16, "normal")
+    assert two["floor"] == "OG"  # two agreeing results
+    gone = sm.update("dev", {"floor": "EG", "x": 1, "y": 1, "err": 1.0}, 18, "normal", old_floor_heard=False)
+    assert gone["floor"] == "EG" and gone["x"] == 1  # old floor no longer hears it → change at once
+
+
+def test_calm_setting_is_validated():
+    hub = BleHub(Store())
+    with pytest.raises(ValueError):
+        hub.set_settings({"calm": "turbo"})
+    hub.set_settings({"calm": "calm"})
+    assert hub.settings["calm"] == "calm"

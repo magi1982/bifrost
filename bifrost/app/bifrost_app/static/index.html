@@ -334,6 +334,10 @@ table.dtt{border-collapse:collapse;font-size:13px;width:100%}table.dtt th{text-a
 .hmsliders{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 14px;margin:8px 0}
 .hmbox.hmscaled{margin-left:0}
 .hmgrid line.mn{opacity:.2}
+.hmmov{will-change:transform}.hmerr{fill:var(--n-teal);fill-opacity:.08;stroke:var(--n-teal);stroke-opacity:.25;stroke-width:1}
+.hmmov.hmin{animation:hmIn .8s ease-out}.hmmov.hmghost{animation:hmOut .8s ease-in forwards;pointer-events:none}
+@keyframes hmIn{from{opacity:0}to{opacity:1}}@keyframes hmOut{from{opacity:1}to{opacity:0}}
+@media (prefers-reduced-motion:reduce){.hmmov.hmin,.hmmov.hmghost{animation:none}}
 /* gateways that hear one device: name and dBm on one line, bar below */
 #bleCard .blesub{max-width:360px}#bleCard .blesubrow{grid-template-columns:minmax(0,1fr) auto;gap:2px 8px}#bleCard .blesubrow .blebar{max-width:none}#bleCard .blesubrow .blebar{grid-column:1/-1;grid-row:2;margin-top:0}#bleCard .blesubrow .blerssi{grid-column:2;grid-row:1}#bleCard .blesubrow .meta:first-child{overflow-wrap:anywhere}
 .hmszn{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--sec)}.hmszn input{width:78px;padding:4px 6px}
@@ -718,6 +722,30 @@ var HM_GLYPH={phone:'<rect x="-4.2" y="-7" width="8.4" height="14" rx="2" fill="
 function hmIcon(kind,x,y,o){o=o||{};var col=kind==="phone"?"var(--n-teal)":kind==="gw"?"var(--n-blue)":kind==="door"?"var(--n-orange)":kind==="key"?"var(--n-cyan)":"var(--n-lime)";
   var inner=kind==="ble"?'<circle r="12" class="hmble"/>':'<circle r="12" style="fill:'+col+'"/>'+(HM_GLYPH[kind]||"");
   return '<g class="hmic'+(o.sel?" sel":"")+'"'+(o.id?' data-dv="'+esc(o.id)+'"':"")+' style="transform:translate('+x+'px,'+y+'px) scale(var(--u))">'+(o.sel?'<circle r="16" class="hmsel"/>':"")+inner+(o.name?'<text y="25" text-anchor="middle" class="hmname" style="fill:'+col+'">'+esc(o.name)+'</text>':"")+'</g>';}
+/* ---------- moving dots: they glide, never pop ---------- */
+/* a moving thing keeps a stable key; after every re-render it continues from where it was shown, eased, at walking pace */
+var HM_ANIM={},HM_RAF=null,HM_SPEED=1.5;/* m/s */
+/* a stable, unique id per floor (svg ids and gradients must not collide between floors) */
+function hmFid(fl){var n=String((fl&&fl.name)||"none");var h=0;for(var i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))|0;return "f"+(h>>>0).toString(36);}
+function hmMov(key,x,y,inner){return '<g class="hmmov" data-anim="'+esc(key)+'" data-tx="'+Math.round(x*10)/10+'" data-ty="'+Math.round(y*10)/10+'" style="transform:translate('+x+'px,'+y+'px)">'+inner+'</g>';}
+function HM_RM(){try{return matchMedia("(prefers-reduced-motion: reduce)").matches;}catch(e){return false;}}
+function hmEase(p){return p<0.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2;}
+function hmPlace(el,x,y){el.style.transform="translate("+x+"px,"+y+"px)";}
+function hmAnimate(){var now=performance.now(),seen={};
+  document.querySelectorAll(".hmsvg [data-anim]").forEach(function(el){var key=el.dataset.anim,tx=+el.dataset.tx,ty=+el.dataset.ty,svg=el.ownerSVGElement,sid=svg&&svg.id;if(!sid)return;seen[key]=1;var a=HM_ANIM[key];
+    if(!a||a.svg!==sid){/* new, or on another floor: fade out where it was, fade in here */
+      if(a){var old=document.getElementById(a.svg);if(old&&a.html){old.insertAdjacentHTML("beforeend",a.html.replace('class="hmmov"','class="hmmov hmghost"'));var gh=old.lastElementChild;hmPlace(gh,a.x,a.y);setTimeout(function(){if(gh.parentNode)gh.parentNode.removeChild(gh);},900);}}
+      HM_ANIM[key]={x:tx,y:ty,fx:tx,fy:ty,tx:tx,ty:ty,t0:now,dur:0,svg:sid,el:el,html:el.outerHTML};if(a)el.classList.add("hmin");hmPlace(el,tx,ty);return;}
+    a.el=el;a.html=el.outerHTML;
+    if((a.tx!==tx||a.ty!==ty)&&HM_RM()){a.x=a.fx=a.tx=tx;a.y=a.fy=a.ty=ty;a.dur=0;}
+    if(a.tx!==tx||a.ty!==ty){a.fx=a.x;a.fy=a.y;a.tx=tx;a.ty=ty;a.t0=now;var m=Math.hypot(tx-a.x,ty-a.y)/HM_PX;a.dur=Math.max(700,Math.min(4000,m/HM_SPEED*1000));}
+    hmPlace(el,a.x,a.y);});
+  Object.keys(HM_ANIM).forEach(function(k){if(!seen[k]&&document.getElementById(HM_ANIM[k].svg))delete HM_ANIM[k];});
+  if(!HM_RAF)HM_RAF=requestAnimationFrame(hmTick);}
+function hmTick(now){HM_RAF=null;var busy=false;
+  Object.keys(HM_ANIM).forEach(function(k){var a=HM_ANIM[k];if(!a.dur)return;var p=Math.min(1,(now-a.t0)/a.dur),e=hmEase(p);
+    a.x=a.fx+(a.tx-a.fx)*e;a.y=a.fy+(a.ty-a.fy)*e;if(a.el&&a.el.isConnected)hmPlace(a.el,a.x,a.y);if(p<1)busy=true;else a.dur=0;});
+  if(busy)HM_RAF=requestAnimationFrame(hmTick);}
 function hmDevIcon(d,v,sel){var kind=v.kind==="scanner"?"gw":v.kind==="ble"?"ble":({openings:"door",access:"key"}[hmCat(d,v.id)]||"motion");return hmIcon(kind,v.x*HM_PX,v.y*HM_PX,{id:v.id,sel:sel});}
 /* outline of the union of a room's rectangles as one path: touching rectangles of the same room merge,
    the border is inset (gap to neighbouring rooms) and its corners are rounded */
@@ -772,7 +800,7 @@ function hmSvg(d,F,fl,m,mode,E,px){var k=HM_PX,W=m.w*k,H=m.h*k,names=fl.areas.ma
   var rooms="",labels="";
   m.rooms.forEach(function(r,ri){var out=!!r.outside,col=hgCol(names,r.area),sv=out&&names.indexOf(r.area)<0?"idle":(st[r.area]||"idle"),on=mode==="live"&&!E&&["motion","open","light","media","alarm"].indexOf(sv)>=0,selR=E&&((E.tool==="outside"&&E.oroom===r.area)||(E.tool!=="outside"&&E.room===r.area));
     if(out)col=["var(--n-teal)","var(--n-cyan)","var(--n-lime)","var(--n-yellow)","var(--n-violet)","var(--n-mag)"][ri%6];
-    var gid="hmg"+fl.key+ri;defs+='<linearGradient id="'+gid+'" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:'+(on?"var("+HSC[sv]+")":col)+'"/><stop offset="1" style="stop-color:var(--hm-g2)"/></linearGradient>';
+    var gid="hmg"+hmFid(fl)+"_"+ri;defs+='<linearGradient id="'+gid+'" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:'+(on?"var("+HSC[sv]+")":col)+'"/><stop offset="1" style="stop-color:var(--hm-g2)"/></linearGradient>';
     rooms+='<g class="hmroom'+(out?" out":"")+(on?" on":"")+(grey?" grey":"")+(E&&!selR?" dim":"")+'" style="--rc:'+(on?"var("+HSC[sv]+")":col)+'">'+(r.rects.length>1&&!E?'<path class="rf" d="'+hmOutline(r.rects,k,3,10)+'" stroke="url(#'+gid+')"/>':hmRects(r.rects,"rf",k,3,' rx="10" stroke="url(#'+gid+')"'))+
       (E?r.rects.map(function(q,qi){var isSel=E.sel&&E.sel.t==="r"&&E.sel.a===r.area&&E.sel.i===qi;return '<rect class="hmhit'+(isSel?" sel":"")+'" data-r="'+ri+':'+qi+'" x="'+q[0]*k+'" y="'+q[1]*k+'" width="'+q[2]*k+'" height="'+q[3]*k+'"/>'+(isSel?'<rect class="hmhandle" data-hd="1" x="'+((q[0]+q[2])*k-7)+'" y="'+((q[1]+q[3])*k-7)+'" width="14" height="14" rx="3"/>':"");}).join(""):"")+'</g>';
     var c=hmCenter(r.rects),wl=r.area.length*(out?6.2:7.2)+18;
@@ -790,12 +818,13 @@ function hmSvg(d,F,fl,m,mode,E,px){var k=HM_PX,W=m.w*k,H=m.h*k,names=fl.areas.ma
       '<text style="transform:translate('+(z.rects[0][0]*k+6)+'px,'+(z.rects[0][1]*k+14)+'px) scale(var(--u))">'+esc(z.name)+(on?" · "+t("hm_zone_on"):"")+'</text>'+(isSel?'<rect class="hmhandle" data-hd="1" x="'+((z.rects[E.sel.j][0]+z.rects[E.sel.j][2])*k-7)+'" y="'+((z.rects[E.sel.j][1]+z.rects[E.sel.j][3])*k-7)+'" width="14" height="14" rx="3"/>':"")+'</g>';});
   var placedIrk={};
   if(mode==="live"&&!E)(d.ble||[]).forEach(function(r){if(!r.pos||r.pos.floor!==(fl.name||""))return;
-    if(r.irk&&r.person){placedIrk[r.person]=1;bles+=hmIcon("phone",r.pos.x*k,r.pos.y*k,{name:r.person});}
-    else bles+='<g class="hmic" style="transform:translate('+r.pos.x*k+'px,'+r.pos.y*k+'px) scale(var(--u))"><title>'+esc(r.label)+'</title><circle r="7" class="hmble"/></g>';});
-  if(mode==="live"&&!E){var byRoom={};av.forEach(function(v){if(v.place==="room"&&!placedIrk[v.name])(byRoom[v.area]=byRoom[v.area]||[]).push(v);});
-    m.rooms.forEach(function(r){var here=byRoom[r.area];if(!here||r.outside)return;var c=hmCenter(r.rects);here.forEach(function(v,i){people+=hmIcon("phone",c[0]+(i-(here.length-1)/2)*46,c[1]+30,{name:v.name});});});}
+    var errc=r.pos.err?'<circle class="hmerr" r="'+Math.round(r.pos.err*k)+'"/>':"";
+    if(r.irk&&r.person){placedIrk[r.person]=1;bles+=hmMov("p:"+r.person,r.pos.x*k,r.pos.y*k,errc+hmIcon("phone",0,0,{name:r.person}));}
+    else bles+=hmMov("b:"+(r.key||r.address),r.pos.x*k,r.pos.y*k,errc+'<g class="hmic" style="transform:scale(var(--u))"><title>'+esc(r.label)+'</title><circle r="7" class="hmble"/></g>');});
+  if(mode==="live"&&!E){var byRoom={};av.forEach(function(v){if(v.place==="room"&&!placedIrk[v.name]&&!(d.ble||[]).some(function(r){return r.irk&&r.person===v.name&&r.pos;}))(byRoom[v.area]=byRoom[v.area]||[]).push(v);});
+    m.rooms.forEach(function(r){var here=byRoom[r.area];if(!here||r.outside)return;var c=hmCenter(r.rects);here.forEach(function(v,i){people+=hmMov("p:"+v.name,c[0]+(i-(here.length-1)/2)*46,c[1]+30,hmIcon("phone",0,0,{name:v.name}));});});}
   var heat=grey?hmHeat(m,k):"";
-  return '<svg class="hmsvg'+(E?" edit tool-"+E.tool:"")+((lay.plans||[]).length?" hasplan":"")+'" id="'+(E?"hmSvg":"hmv_"+fl.key)+'" style="--u:'+u+'" viewBox="-8 -8 '+(W+16)+' '+(H+16)+'" role="img" aria-label="'+esc(t("hg_title")+" "+(fl.name||""))+'">'+defs+'</defs>'+
+  return '<svg class="hmsvg'+(E?" edit tool-"+E.tool:"")+((lay.plans||[]).length?" hasplan":"")+'" id="'+(E?"hmSvg":"hmv_"+hmFid(fl))+'" style="--u:'+u+'" viewBox="-8 -8 '+(W+16)+' '+(H+16)+'" role="img" aria-label="'+esc(t("hg_title")+" "+(fl.name||""))+'">'+defs+'</defs>'+
    '<rect class="hmground'+(grey?" grey":"")+'" x="-8" y="-8" width="'+(W+16)+'" height="'+(H+16)+'" rx="14"/>'+plans+hullSvg+rooms+stairs+heat+grid+zones+hullHit+marks+labels+devs+bles+people+(mode==="signal"&&!E?hmCalSvg(d,fl,k):"")+'<rect id="hmPrev" class="hmprev" x="0" y="0" width="0" height="0"/></svg>';}
 function hmPanel(d,F,E){var P=d.placeable||{},tab=E.tab||"scanners",list=P[tab]||[],here={},other={};
   Object.keys(d.layouts||{}).forEach(function(fn){((d.layouts[fn].map||{}).devices||[]).forEach(function(v){other[v.id]=fn;});});
@@ -1071,6 +1100,7 @@ function bleCard(){var b=V4.ble;if(!b)return "";var st=b.status||{},c=b.counts||
   var h='<div class="card" id="bleCard"><h2>'+ic("wifi")+' '+t("ble_title")+'</h2><div class="hint">'+t("ble_hint")+'</div>'+
     '<div class="check"><span class="dot" style="--c:'+stat[0]+'"></span><div class="grow"><div>'+esc(stat[1])+'</div></div></div>'+
     '<div class="frow"><label class="ch hmsnap"><input type="checkbox" id="bleOn"'+(b.settings.on?" checked":"")+'> '+t("ble_rec")+'</label><label class="ch hmsnap"><input type="checkbox" id="bleHouse"'+(b.settings.hide_house?" checked":"")+'> '+t("ble_hide_house")+'</label></div>'+
+    '<div class="frow"><span class="lab">'+t("ble_calm")+'</span>'+["calm","normal","fast"].map(function(x){return '<button type="button" class="ch'+((b.settings.calm||"normal")===x?" on":"")+'" data-blecalm="'+x+'">'+t("ble_calm_"+x)+'</button>';}).join("")+'</div><div class="meta">'+t("ble_calm_hint_"+(b.settings.calm||"normal"))+'</div>'+
     '<div class="kpis" style="margin:8px 0">'+[[t("ble_k_present"),c.present||0],[t("ble_k_irk"),c.irk||0],[t("ble_k_fixed"),c.fixed||0],[t("ble_k_rot"),c.rotating||0],[t("ble_k_scanners"),(b.scanners||[]).length]].map(function(k){return '<div class="kpi"><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div></div>';}).join("")+'</div>';
   if((b.scanners||[]).length)h+='<details class="phow"><summary>'+t("ble_scanners")+'</summary>'+b.scanners.map(function(s){return '<div class="check"><span class="dot" style="--c:'+(s.recent?"var(--n-blue)":"var(--sec)")+'"></span><div class="grow"><div>'+esc(s.name)+'</div><div class="meta"><code>'+esc(s.source)+'</code> · '+t(s.placed?"ble_placed":"ble_unplaced")+'</div></div></div>';}).join("")+'</details>';
   if((b.missing||[]).length)h+='<details class="phow"'+(V4.bleMissOpen?" open":"")+' id="bleMiss"><summary style="color:var(--n-orange)">'+fmtK("ble_missing",{n:b.missing.length})+'</summary><div class="hint">'+t("ble_missing_hint")+'</div>'+b.missing.map(function(x){return '<div class="check"><span class="dot" style="--c:'+(x.reason==="no_ble"?"var(--sec)":"var(--n-orange)")+'"></span><div class="grow"><div>'+esc(x.name)+(x.model?' <span class="meta">'+esc(x.model)+'</span>':"")+'</div><div class="meta">'+t("ble_why_"+x.reason)+'</div></div></div>';}).join("")+'</details>';
@@ -1092,6 +1122,7 @@ function bindBle(){if(S.view!=="house")return;
   document.querySelectorAll("[data-blef]").forEach(function(b){b.onclick=function(){V4.blef=b.dataset.blef;render();};});
   document.querySelectorAll("[data-blegrp]").forEach(function(b){b.onclick=function(){V4.bleOpen=V4.bleOpen||{};V4.bleOpen[b.dataset.blegrp]=!V4.bleOpen[b.dataset.blegrp];render();};});
   var bm=document.getElementById("bleMiss");if(bm)bm.ontoggle=function(){V4.bleMissOpen=bm.open;};
+  document.querySelectorAll("[data-blecalm]").forEach(function(b){b.onclick=function(){api("api/bluetooth",{calm:b.dataset.blecalm}).then(bleReload).catch(function(e){toast("✗ "+trText(e.message),true);});};});
   var on=document.getElementById("bleOn");if(on)on.onchange=function(){api("api/bluetooth",{on:on.checked}).then(bleReload).catch(function(e){toast("✗ "+trText(e.message),true);});};
   var hh=document.getElementById("bleHouse");if(hh)hh.onchange=function(){api("api/bluetooth",{hide_house:hh.checked}).then(bleReload).catch(function(e){toast("✗ "+trText(e.message),true);});};
   document.querySelectorAll("[data-blehide]").forEach(function(b){b.onclick=function(){api("api/bluetooth",{address:b.dataset.blehide,hidden:b.dataset.h==="1"}).then(bleReload).catch(function(e){toast("✗ "+trText(e.message),true);});};});}
@@ -1208,7 +1239,7 @@ function bindHouse(){
 }
 var LIVE_T=null;
 function livePoll(on){if(LIVE_T){clearInterval(LIVE_T);LIVE_T=null;}if(!on)return;LIVE_T=setInterval(function(){if(S.view!=="house"){livePoll(false);return;}
-  var ae=document.activeElement;if(ae&&ae.tagName==="INPUT")return;if(V4.medit||V4.hmDrag)return;api("api/live").then(function(d){if(S.view!=="house"||V4.medit||V4.hmDrag)return;var j=JSON.stringify(d,function(k,v){return k==="now"?undefined:v;});if(j===V4.liveJson)return;V4.liveJson=j;V4.house=d;render();}).catch(function(){});},5000);}
+  var ae=document.activeElement;if(ae&&ae.tagName==="INPUT")return;if(V4.medit||V4.hmDrag)return;api("api/live").then(function(d){if(S.view!=="house"||V4.medit||V4.hmDrag)return;var j=JSON.stringify(d,function(k,v){return k==="now"?undefined:v;});if(j===V4.liveJson)return;V4.liveJson=j;V4.house=d;render();}).catch(function(){});},(V4.mtab||"live")==="live"?2000:5000);}
 
 /* ---------- Pattern recognition ---------- */
 var TYPEC={block:"var(--blk)",person:"var(--per)",routine:"var(--rou)"},TYPEI={block:"block",person:"person",routine:"routine"};
@@ -1612,6 +1643,14 @@ function bindFilters(){if(S.view!=="setup")return;
 document.documentElement.lang=LANG;
 
 /* ---------- 0.15 navigation: six areas, each with sub-tabs (#area/sub) ---------- */
+Object.assign(TX.de,{ble_calm:"Ruhe",ble_calm_calm:"Ruhig",ble_calm_normal:"Normal",ble_calm_fast:"Schnell",
+  ble_calm_hint_calm:"Punkte bewegen sich erst bei deutlicher Änderung und gemächlich – am ruhigsten auf der Karte, Bereiche wechseln etwas später.",
+  ble_calm_hint_normal:"Ausgewogen: kleine Schwankungen werden geschluckt, ein echter Weg wird in wenigen Sekunden nachgezogen.",
+  ble_calm_hint_fast:"Folgt am schnellsten – für Automationen, die rasch reagieren sollen; die Punkte bewegen sich dafür öfter."});
+Object.assign(TX.en,{ble_calm:"Calmness",ble_calm_calm:"Calm",ble_calm_normal:"Normal",ble_calm_fast:"Fast",
+  ble_calm_hint_calm:"Dots only move on a clear change, and slowly – calmest map, areas change a little later.",
+  ble_calm_hint_normal:"Balanced: small wobbles are swallowed, a real move is followed within a few seconds.",
+  ble_calm_hint_fast:"Follows fastest – for automations that should react quickly; the dots move more often."});
 Object.assign(TX.de,{ble_types:"Typen",ble_gw_more:"Von {n} Gateways gehört",ble_gw_less:"Gateways zuklappen"});Object.assign(TX.en,{ble_types:"Types",ble_gw_more:"Heard by {n} gateways",ble_gw_less:"Hide gateways"});
 Object.assign(TX.de,{hm_as_out:"Auf der Karte als Aussenbereich",hm_as_out_short:"aussen",hm_as_out_hint:"Bleibt ein Raum in Home Assistant, wird auf der Karte aber wie ein Aussenbereich gezeichnet: gestrichelt, nicht Teil des Hausumrisses, und die Karte zählt ihn nie als drinnen."});
 Object.assign(TX.en,{hm_as_out:"Show as outside area on the map",hm_as_out_short:"outside",hm_as_out_hint:"Stays a room in Home Assistant but is drawn like an outside area: dashed, not part of the house outline, and the map never counts it as inside."});
@@ -1670,7 +1709,7 @@ function applySub(){var m=document.getElementById("main");if(!m)return;var cur=n
   walk(m);
   if(!shown&&m.querySelector(".subm"))m.insertAdjacentHTML("beforeend",'<div class="card empty2 subempty">'+esc(t("sub_empty"))+'</div>');}
 var _render3=render;
-render=function(){_render3();applySub();
+render=function(){_render3();applySub();if(S.view==="house")hmAnimate();
   /* the oldest render step resets .active on #tabs for status/setup – set the area again */
   document.querySelectorAll("#tabs [data-area]").forEach(function(x){x.classList.toggle("active",x.dataset.area===S.area);});};
 function navFromHash(){var h=(location.hash||"").replace(/^#/,"");go(h||"status/now");}

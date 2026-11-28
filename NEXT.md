@@ -585,7 +585,7 @@ Every sub-section gets its own address (`#house/signal`), so a link or a notific
 **Open questions**: which variant? Keep "Balance" visible at top level until the alarm signal is released, or move it under Safety right away?
 **Tests**: every former card reachable (no orphan), deep links, back/forward, GUI check of all sub-sections light/dark/390 px.
 
-### Idea · Bluetooth positions: as exact as possible, without flicker (28.11.) – waiting for "mach es"
+### Bluetooth positions: as exact as possible, without flicker (28.11.) – built in 0.16.0 (setting "Calmness" with calm / normal / fast)
 **Today**: RSSI per gateway is smoothed with a simple average (70 % old / 30 % new, reset after 30 s silence); shown as whole dBm (BLE only reports whole dBm). The position is computed fresh on every evaluation – 3 nearest calibration points, plain mean, or the weighted centre of the gateways – with no smoothing over time. A gateway that misses one advert drops out after 60 s and counts as −100 dBm in the match, so the dot jumps.
 **Exact**
 - RSSI per gateway: median of the last ~10 s, then a light Kalman/EMA filter (robust against single outliers, e.g. a body between phone and Shelly).

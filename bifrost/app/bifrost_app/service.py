@@ -34,6 +34,7 @@ from .routines import outcomes_from_decisions
 from .store import Store
 
 LOG = logging.getLogger(__name__)
+POS_S = 2.0  # Bluetooth positions for the map are refreshed this often
 STATE_LABEL = {"home": "Home", "asleep": "Asleep", "leaving": "Leaving", "away": "Away", "arriving": "Arriving", "unknown": "Unknown"}
 
 
@@ -1414,12 +1415,25 @@ class BifrostService:
                 backoff = min(backoff * 2, 300)
         self.ble.status["connected"] = False
 
+    def _ble_pos_loop(self) -> None:
+        """Positions every POS_S seconds (the decision runs only every update_interval) – small steps for the map."""
+        while not self._stop.wait(POS_S):
+            if not self.ble.settings.get("on", True) or not self.ble.status.get("connected"):
+                continue
+            try:
+                with self._lock:
+                    cands = list(self.scanners)
+                self._ble_rows = self.ble.positions(self._maps(), cands, self._states, self._person_of())
+            except Exception:  # noqa: BLE001 – Bluetooth is a bonus, never stop the loop
+                LOG.debug("Bluetooth positions failed", exc_info=True)
+
     def _ble_connected(self) -> None:
         self.ble.status.update(connected=True, supported=True, error=None, since=datetime.now(UTC).isoformat(timespec="seconds"))
 
     def start_ble(self) -> None:
         if self.options.get("bluetooth", True) and hasattr(self.client, "stream_bluetooth"):
             threading.Thread(target=self._ble_loop, name="bifrost-ble", daemon=True).start()
+            threading.Thread(target=self._ble_pos_loop, name="bifrost-ble-pos", daemon=True).start()
 
     # --- everyday life (0.14) ---------------------------------------------------------------
     def _area_of(self) -> dict[str, str | None]:

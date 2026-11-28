@@ -2,7 +2,18 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
-## [0.15.4] – 2026-11-28
+## [0.16.0] – 2026-11-28
+
+### Added
+- **Bluetooth positions: as exact as possible, without flicker.**
+  - *Exact*: per gateway the median of the last 10 s plus a light filter (a single outlier – a body between phone and Shelly – does not count); a gateway that stops hearing a device fades out over 30 s instead of dropping out at once; the fingerprint match weights nearer calibration points more and lands between them; an error circle around the dot shows how sure the position is.
+  - *Calm*: positions are refreshed every 2 s (before: only with the decision, every 30 s); the measured position is low-pass filtered, the dot only starts moving outside a dead band and then goes all the way at walking speed at most; a floor change needs agreeing results (or the old floor's gateways no longer hear the device).
+  - *Smooth*: dots glide across the map with easing instead of popping up; a re-render continues the movement where it is; a floor change fades out on the old floor and in on the new one. Respects "reduce motion".
+  - **Calmness** setting in House → Bluetooth: *Calm* (calmest map), *Normal* (default), *Fast* (for quick automations), each with a description.
+  - Tests: noisy standstill (±0.6 m) shown within ±0.3 m, a 3 m move followed within 10 s, never faster than walking, no floor flip from one outlier, outlier and drop-out filters.
+
+### Fixed
+- Every floor map has its own id – before, all floors shared one, so room colours of later floors could come from the first floor.
 
 ### Changed
 - **Rooms of several rectangles merge into one shape** on the map (Live, Configuration, Signal): touching or overlapping rectangles of the same room are drawn as one area with one outline and rounded corners – no more inner borders in an L-shaped hall. While editing, the rectangles stay separate so each one can be selected, moved and resized; they merge after *Save*.
