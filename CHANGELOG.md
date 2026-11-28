@@ -9,6 +9,11 @@ All notable changes to Bifrost are documented here. The format follows [Keep a C
 - **Bluetooth gateways that send nothing**: Setup → Bluetooth nearby lists the Shellys and ESPHome devices that are not a gateway, with the reason – Bluetooth scanning switched off in HA (with the path), a model without Bluetooth (Gen1, battery devices) or ESPHome without `bluetooth_proxy`.
 - API: `/api/everyday` (rename/hide validated: pattern id, name ≤ 60 characters).
 
+### Changed
+- **Bluetooth list grouped**: entries with the same identity (e.g. several changing iPhone addresses) form one row with the count and the strongest gateway; *Show all* lists each entry with its own signal strength (dBm and bar) and gateway.
+- **Floor plan pictures**: rooms are see-through over a picture (almost invisible while you adjust the picture), the picture turns around its **centre** with buttons ↺/↻ 90°, 1° and 0.1°, *Straight* and *Fit to the floor*; a frame shows the selected picture.
+- **Everyday sequences and couplings** use the same chain design as the routines (steps as nodes with "then").
+
 ## [0.13.0] – 2026-11-28
 
 ### Added
