@@ -2,6 +2,13 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.15.0] – 2026-11-28
+
+### Changed
+- **Navigation with areas and sub-tabs**: six areas at the top – Overview, House, People, Patterns, Safety, Settings – each with its sub-tabs as a row of pills below, in the area's neon colour. Bifrost remembers the last sub-tab per area; every sub-tab has its own address (`#area/sub`), e.g. `#house/signal`. A sub-tab without content says so instead of showing an empty page.
+- **Moved**: Bluetooth nearby (with the gateways that send nothing) from Setup to House → Bluetooth; Questions and Balance into Safety; the house map's own Live/Configuration/Signal switch is now the House sub-tabs; Setup is now **Settings**, split into Signals, Bifrost entities, Notifications, Suggestions and Language & maintenance.
+- `tools/gui_check.py` checks every area/sub-tab.
+
 ## [0.14.0] – 2026-11-28
 
 ### Added

@@ -569,7 +569,7 @@ Tests: stop → off; exception in evaluate → off; start → off first; watchdo
 **Priority (original)**: point 1 before any release. Points 2 and 3 as the next version – proposal **0.12 before 0.11c**, because 0.11c adds many new entities (zones, person locations, visitors) that should be born as MQTT entities right away.
 **Open questions**: the three safeguards as proposed? Freshness window 3 × interval (default interval 30 s → 90 s) ok? Keep the existing entity ids under MQTT? 0.12 before 0.11c?
 
-### Idea · Navigation with menu and submenu (28.11.) – waiting for the maintainer's choice and "mach es"
+### Navigation with menu and submenu (28.11.) – built in 0.15.0 as variant A (tabs + sub-tabs); Balance moved into Safety; Visitors/Sources sub-tabs and a separate Heimdall rules page are not built yet
 Problem: seven flat tabs (Status, People, House, Patterns, Incidents, Balance, Setup) have grown; Setup and Status in particular hold unrelated cards (Bluetooth, entity switches, notifications, catalogue, IRK clean-up …), and new features land wherever there is space.
 
 **Proposed structure (six areas, each with sub-sections; the same for every layout variant)**

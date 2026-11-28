@@ -14,7 +14,33 @@ from playwright.sync_api import sync_playwright
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8765/"
 OUT = Path(sys.argv[2] if len(sys.argv) > 2 else tempfile.mkdtemp(prefix="bifrost-gui-"))
 OUT.mkdir(parents=True, exist_ok=True)
-TABS = ["status", "people", "house", "recog", "dev", "balance", "setup"]
+# every area/sub-tab of the navigation (index.html NAV)
+TABS = [
+    "status/now",
+    "status/heimdall",
+    "status/bifrost",
+    "house/live",
+    "house/config",
+    "house/signal",
+    "house/ble",
+    "house/happening",
+    "people/people",
+    "people/moves",
+    "recog/everyday",
+    "recog/routines",
+    "recog/detectors",
+    "safety/incidents",
+    "safety/questions",
+    "safety/balance",
+    "setup/signals",
+    "setup/entities",
+    "setup/notify",
+    "setup/suggest",
+    "setup/general",
+]
+CLICK_TABS = ("recog/routines", "recog/everyday", "people/people", "safety/incidents", "status/now", "house/happening", "house/ble")
+GO = "v => go(v)"
+WHERE = "() => S.area + '/' + S.sub"
 
 OVERFLOW_JS = """() => {
   const bad = [];
@@ -67,16 +93,16 @@ def run() -> int:
             pg.goto(BASE)
             pg.wait_for_timeout(800)
             for tab in TABS:
-                pg.click(f'#tabs button[data-v="{tab}"]')
+                pg.evaluate(GO, tab)
                 pg.wait_for_timeout(500)
                 res = pg.evaluate(OVERFLOW_JS)
-                tag = f"{tab}-{scheme}-{w}"
+                tag = f"{tab.replace('/', '_')}-{scheme}-{w}"
                 if res["bad"] or res["page"] > 2:
                     problems.append({"where": tag, **res})
                 pg.screenshot(path=str(OUT / f"{tag}.png"), full_page=True)
             # buttons: click every visible, non-destructive button on the interactive tabs
-            for tab in ("recog", "people", "dev", "status", "house"):
-                pg.click(f'#tabs button[data-v="{tab}"]')
+            for tab in CLICK_TABS:
+                pg.evaluate(GO, tab)
                 pg.wait_for_timeout(400)
                 n = pg.evaluate("() => document.querySelectorAll('main button:not([disabled]):not([data-pdel]):not([data-exdel]):not([data-ans]):not([data-wrong])').length")
                 for i in range(min(n, 25)):
@@ -98,13 +124,13 @@ def run() -> int:
                                 fresh[i].click(timeout=1500)
                         except Exception as e2:  # noqa: BLE001
                             problems.append({"where": f"click {tab}#{i}-{scheme}-{w}", "error": str(e2)[:120]})
-                    if pg.evaluate("() => document.querySelector('#tabs button.active')?.dataset.v") != tab:
-                        pg.click(f'#tabs button[data-v="{tab}"]')
+                    if pg.evaluate(WHERE) != tab:
+                        pg.evaluate(GO, tab)
                         pg.wait_for_timeout(300)
             if scheme == "light" and w > 600:
                 leftovers = []
                 for tab in TABS:
-                    pg.click(f'#tabs button[data-v="{tab}"]')
+                    pg.evaluate(GO, tab)
                     pg.wait_for_timeout(500)
                     leftovers += [f"{tab}: {x}" for x in pg.evaluate(ENGLISH_JS)]
                 if leftovers:
