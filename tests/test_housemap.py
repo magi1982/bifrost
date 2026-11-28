@@ -18,7 +18,7 @@ def test_valid_map_with_joined_rectangles_stairs_marks_devices():
     floor, m = hm.validate_map(body, FA)
     assert floor == "Ground floor" and m["w"] == 12 and m["h"] == 9.5
     assert m["rooms"][0]["rects"] == [[0, 0, 2, 6], [2, 4, 4, 2]]
-    assert m["devices"][0] == {"id": "dev:shellyhall01", "kind": "scanner", "x": 1.0, "y": 3.0}
+    assert m["devices"][0] == {"id": "dev:shellyhall01", "kind": "scanner", "x": 1.04, "y": 2.96}  # kept to the centimetre
     assert hm.room_at(m, 3, 5) == "Hall" and hm.room_at(m, 7, 1) == "Kitchen" and hm.room_at(m, 11, 9) is None
     assert hm.placed(m)["binary_sensor.hall_motion"]["area"] == "Hall"
 
@@ -198,3 +198,18 @@ def test_own_mqtt_entities_are_not_new_sensors(tmp_path):
     svc.client.states.append({"entity_id": "binary_sensor.sofa_occupancy", "state": "off", "attributes": {"device_class": "occupancy"}})
     svc.scan()
     assert "binary_sensor.sofa_occupancy" not in svc.snap.entities
+
+
+def test_quarter_metre_grid_survives_saving():
+    """Rooms drawn on the 0.25 m grid keep their edges (no rounding to 0.1 m)."""
+    body = {
+        "floor": "Ground floor",
+        "w": 11,
+        "h": 9,
+        "rooms": [{"area": "Hall", "rects": [[0.25, 0.75, 3.25, 2.5]]}, {"area": "Kitchen", "rects": [[3.5, 0.75, 2.75, 2.5]]}],
+        "devices": [{"id": "dev:shellyhall01", "kind": "scanner", "x": 1.25, "y": 8.75}],
+    }
+    _, m = hm.validate_map(body, FA)
+    assert m["rooms"][0]["rects"] == [[0.25, 0.75, 3.25, 2.5]]
+    assert m["rooms"][1]["rects"] == [[3.5, 0.75, 2.75, 2.5]]
+    assert m["devices"][0]["x"] == 1.25 and m["devices"][0]["y"] == 8.75
