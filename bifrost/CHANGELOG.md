@@ -2,6 +2,19 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.17.0] – 2026-11-28
+
+### Added
+- **Doors and windows show whether they are open – on the Live map.** Every door and window is drawn in *Live* too: **open** in red (with glow in dark mode), **closed** unobtrusive, without contact a little fainter, unavailable dashed. A counter above the map says e.g. "1 window open"; tapping a door or window shows its name, state and since when.
+- **Contact per door/window**: tap a door or window in *Edit map* and pick its contact (door/window `binary_sensor`) – contacts of the same room are listed first, and Bifrost suggests the matching free contact of that room. The server only accepts known door/window contacts. *Configuration* tells how many contacts are not on the map yet.
+- **Doors and windows turn**: they take the direction of the wall they snap to (vertical wall → 90°), turn along when moved to another wall, and have a **↻ 90°** button.
+- **Editing on a phone**: a panel for the selected door/window (door ↔ window, ↻ 90°, contact, nudge arrows ← ↑ ↓ → in 0.25 m steps, 0.05 m without grid; nudge arrows also for devices); zoom with two fingers or − / + / *Fit*; *Full screen* mode; the tool bar is one scrolling row.
+
+### Changed
+- **A tap selects, dragging moves**: moving starts only after about 8 screen pixels, and a room, zone, stairs or hull rectangle moves only once it is selected – no more rooms moved by accident.
+- **Small things first**: a tap within reach of a finger (about 22 screen px) of a door, window or device selects it, even when it lands on the room underneath; the hit area of doors and windows is 44 × 44 screen px.
+- With the door/window tool, tapping an existing door or window selects it instead of adding a new one; a new one is selected right away.
+
 ## [0.16.1] – 2026-11-28
 
 ### Changed

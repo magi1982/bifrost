@@ -601,3 +601,44 @@ Every sub-section gets its own address (`#house/signal`), so a link or a notific
 **Limits**: phones without IRK change their address every ~15 min – a new address starts without history. In a timber house floors separate badly; more calibration points on the stairs help most.
 **Setting**: "Calmness" (calm / normal / fast) with a description – calm for the map, fast for automations that react quickly. (Decide with the maintainer.)
 **Tests**: synthetic walk with noisy RSSI (±6 dB) → spread of the shown position at standstill below 0.5 m, a real 3 m move followed within 10 s, no floor flip from a single outlier, drop-out of one gateway does not move the dot more than 1 m; existing calibration accuracy (leave-one-out) not worse.
+
+### House map: doors and windows that turn, show their state and can be edited on a phone (28.11.) – built in **0.17.0**
+Problem (maintainer, checked in 0.16.1): doors and windows are always drawn as a horizontal pill, also on vertical walls; they cannot be turned. On a phone they are hard to hit – the tap often lands on the room underneath and moves the room. A selected door/window has no panel, so nothing can be changed. `validate_map` already accepts an `entity_id` per mark, but the UI cannot set it, and marks are not drawn in the Live tab at all.
+
+**1 · Turning**
+- New field `rot` per mark: 0 or 90 (validated, default 0; old maps stay valid).
+- When placed, the mark takes the direction of the wall it snaps to (vertical wall → 90°). Moving it to another wall turns it along.
+- Button **↻ 90°** in the selection panel. No door swing arc (decided 28.11.).
+
+**2 · Contact entity per door/window**
+- Selection panel: field **Contact** with a picker of the opening sensors Bifrost knows (category openings: `binary_sensor` with device class door/window/garage_door/opening …). Sorted: same room as the mark first, then by name; "None" removes it.
+- Server: `entity_id` only accepted if it is a known opening sensor (not just the id format) – no free entity ids.
+- When a door/window is placed, Bifrost suggests the contact of that room that is not on the map yet ("Window left – take it?").
+- Setup/Configuration hint: "4 contacts not on the map yet" (like the unplaced scanners).
+
+**3 · Live tab: open or closed**
+- Decided (28.11.): **all** doors and windows are drawn in Live. **Open** = red (`--n-red`, glow in dark mode); **closed** = unobtrusive muted pill; **without contact** = like closed, a little fainter; **unavailable** = dashed.
+- Tap → short info: name, state, since when ("Window left · open since 14:32").
+- Legend: open / closed. Counter above the map: "3 windows open" (red).
+- Works in light and dark mode; no new colours outside the `--n-*` palette.
+
+**4 · Editing on a phone (390 px)**
+- *Finger-sized targets*: doors, windows and devices get a hit area of at least 44 × 44 screen pixels, whatever the zoom.
+- *Small things first*: a tap looks for the nearest door/window/device within ~16 px before it picks a room – so a tap next to a window still selects the window.
+- *Tap selects, drag moves*: a tap only selects. Moving starts only after dragging more than ~8 px, and a room only moves when it was selected before (first tap selects, second gesture moves) – no more accidental moving.
+- *Selection panel as a bottom sheet* on the phone (card below the map on large screens): kind door/window (switchable), ↻ 90°, contact, nudge arrows ← ↑ → ↓ (0.25 m, 0.05 m without grid), delete.
+- *Zoom and pan*: two-finger zoom/pan in the editor, button "Fit"; a **full-screen edit** mode on the phone so the map uses the whole screen.
+- *Toolbar*: one scrolling row of tools instead of several wrapped rows; the active tool stays visible.
+- *Door/window tool*: after placing, the new mark is selected and the sheet opens (turn, pick contact) – no tool switch needed.
+
+**Limits**: a window contact only knows open/closed – tilted ("Kippfenster") is shown as open.
+**Decided (28.11.)**: Live shows all doors and windows; open red, closed unobtrusive; no door swing arc.
+**Tests**: `rot` validation (only 0/90, old maps without `rot`); `entity_id` only for known opening sensors, unknown → error; auto direction from the wall; live state open/closed/unavailable in the API; GUI check light/dark/390 px: tapping a window next to a room selects the window, a tap does not move a room, sheet buttons work, no text overflow.
+
+### People: assign devices from the person card (28.11.) – waiting for "mach es"
+Wish (maintainer): in the **People** tab each person gets a button to assign sources (phone/device tracker, calendar, access code/NFC, Bluetooth IRK) **to this person** – in addition to Setup, which keeps working. Both places edit the same data.
+- *Button* "Geräte zuordnen" / "Assign devices" on every person card → sheet (bottom sheet on the phone) with the sources Bifrost knows, grouped by kind; already assigned to this person = ticked, assigned to somebody else = shown with that name (moving it asks once), shared family code stays unassigned and is marked.
+- *Same API* as Setup (no second data path), so a change in one place shows in the other right away.
+- *Suggestions* first: sources whose name contains the person's name (e.g. "iPhone Alex").
+**Open question**: should the person card also show a short list of the assigned devices (icons) without opening the sheet?
+**Tests**: assign/unassign from the person sheet, change visible in Setup and vice versa; moving a device from one person to another; shared code cannot be assigned; GUI check light/dark/390 px.

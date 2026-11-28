@@ -1064,6 +1064,7 @@ class BifrostService:
             "names": names,
             "people_inside_min": (self.extra or {}).get("people_inside_min", 0),
             "placeable": self._placeable(ents),
+            "openings": list(self._openings().values()),
             "ble": [r for r in self._ble_rows if r["pos"] and not r["hidden"]],
             "ble_moves": self.ble.moves,
             "zones_state": self._ble_zones,
@@ -1120,8 +1121,26 @@ class BifrostService:
         ble = [{"id": f"ble:{r['address']}", "name": r["label"] + ("≈" if r["guess"] else ""), "model": r["short"], "area": r["room"]} for r in self._ble_rows if r["fixed"]]
         return {"scanners": scanners + extra, "sensors": sensors[:200], "ble": ble[:200]}
 
+    def _openings(self) -> dict[str, dict]:
+        """Door and window contacts that can be bound to a door/window on the map, with their current state."""
+        with self._lock:
+            ents = dict(self.snap.entities)
+        with self._stream_lock:
+            last = dict(self.live.last)
+        out: dict[str, dict] = {}
+        for eid, e in sorted(ents.items()):
+            if e.info.disabled or not _housemap.is_opening(eid, e.info.device_class, e.category):
+                continue
+            st, lv = self._states.get(eid) or {}, last.get(eid)
+            state = str((lv.state if lv else None) or st.get("state") or e.state or "")[:32]
+            ts = lv.ts.isoformat() if lv else st.get("last_changed")
+            out[eid] = {"id": eid, "name": e.info.name or eid, "area": e.info.area, "state": state, "ts": ts if isinstance(ts, str) else None}
+            if len(out) >= 300:
+                break
+        return out
+
     def set_map(self, body: object) -> dict:
-        floor, m = _housemap.validate_map(body, self._floor_areas())
+        floor, m = _housemap.validate_map(body, self._floor_areas(), set(self._openings()))
         self.store.put_obj("map", _house.floor_key(floor), {"floor": floor, **m})
         return {"floor": floor, "rooms": len(m["rooms"]), "devices": len(m["devices"])}
 

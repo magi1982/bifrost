@@ -106,6 +106,9 @@ With the **Mosquitto broker** installed, Bifrost publishes its entities via MQTT
 ### Everyday life (0.14)
 **Patterns → Everyday life** shows what repeats in your home: sequences, phases, weekly rhythm, couplings and timers – named from the facts, renamable and hideable. It needs about two weeks of data. *Different from usual today* points out a missing phase or a device that has been on far longer than usual.
 
+### Doors and windows (0.17)
+In *House → Configuration → Edit map* use *Door* or *Window* and tap a wall: the mark snaps to the nearest wall and takes its direction. Tap it to open its panel: switch door/window, turn it (↻ 90°), pick its **contact** (contacts of the same room first, a suggestion for the matching free contact) and nudge it with the arrows. In *Live* every door and window is shown: **open = red**, closed = unobtrusive; the counter above the map shows how many are open, and a tap shows since when. A tilted window counts as open (a contact only knows open/closed). On a phone: a tap selects, dragging moves (a room only after it was selected), zoom with two fingers or − / +, *Full screen* for more room.
+
 ## Deutsch
 
 ### Erste Schritte
@@ -190,3 +193,5 @@ Mit dem **Mosquitto broker** veröffentlicht Bifrost seine Entitäten über MQTT
 ### Alltagserkennung (0.14)
 **Mustererkennung → Alltagserkennung** zeigt, was sich bei euch wiederholt: Abläufe, Phasen, Wochenrhythmus, Kopplungen und Zeitschaltuhren – aus den Fakten benannt, umbenennbar und ausblendbar. Braucht etwa zwei Wochen Daten. *Heute anders als sonst* zeigt eine ausgefallene Phase oder ein Gerät, das viel länger an ist als sonst.
 
+### Türen und Fenster (0.17)
+Unter *Haus → Konfiguration → Karte bearbeiten* mit *Tür* oder *Fenster* auf eine Wand tippen: Die Markierung rastet an der nächsten Wand ein und übernimmt ihre Richtung. Antippen öffnet das Feld dazu: Tür/Fenster umschalten, drehen (↻ 90°), **Kontakt** wählen (Kontakte des gleichen Raums zuerst, mit Vorschlag für den passenden freien Kontakt) und mit den Pfeilen genau verschieben. In *Live* erscheinen alle Türen und Fenster: **offen = rot**, geschlossen = unauffällig; der Zähler über der Karte zeigt, wie viele offen sind, Antippen zeigt seit wann. Ein Kippfenster gilt als offen (ein Kontakt kennt nur offen/zu). Am Handy: Antippen wählt aus, ziehen verschiebt (einen Raum erst, wenn er ausgewählt ist), zoomen mit zwei Fingern oder − / +, *Vollbild* für mehr Platz.

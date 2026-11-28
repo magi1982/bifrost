@@ -4,7 +4,7 @@ One map per floor. Everything is in metres from the floor's top-left corner (0.1
 
 * rooms – an HA area made of one or more rectangles (an L-shaped hall is two touching rectangles);
 * stairs – rectangles that connect this floor with the one above or below;
-* marks – doors and windows as points on a wall, optionally bound to a sensor;
+* marks – doors and windows as points on a wall, turned 0° or 90°, optionally bound to a known door/window contact;
 * devices – Bluetooth scanners (Shellys …), sensors and Bluetooth devices placed exactly; used later for
   positions (fingerprints / triangulation) and drawn on the live map.
 
@@ -22,6 +22,8 @@ MAX_RECTS = 240
 MAX_MARKS = 120
 MAX_DEVICES = 240
 MARK_KINDS = ("door", "window")
+MARK_ROTS = (0, 90)  # along a horizontal or a vertical wall
+OPENING_CLASSES = frozenset({"door", "window", "garage_door", "opening", "garage"})
 MAX_HULL = 40
 MAX_ZONES = 30
 MAX_LAYERS = 4  # floor plan pictures per floor
@@ -48,10 +50,16 @@ def _rect(r: object, w: float, h: float) -> list[float]:
     return [x, y, rw, rh]
 
 
-def validate_map(body: object, floor_areas: dict[str, list[str]]) -> tuple[str, dict]:  # noqa: C901
+def is_opening(entity_id: str, device_class: str | None, category: str | None) -> bool:
+    """A door or window contact that can be bound to a mark: a binary_sensor with an opening device class or category."""
+    return entity_id.startswith("binary_sensor.") and ((device_class or "").lower() in OPENING_CLASSES or category == "openings")
+
+
+def validate_map(body: object, floor_areas: dict[str, list[str]], openings: set[str] | frozenset[str] | None = None) -> tuple[str, dict]:  # noqa: C901
     """Check a map sent by the UI. Raises ValueError with a short reason.
 
     Inside rooms must be HA areas of this floor. Outside areas (terrace, pool …) may be any HA area or a free name.
+    ``openings`` – when given, a door/window may only be bound to one of these known contacts.
     """
     if not isinstance(body, dict):
         raise ValueError("invalid body")
@@ -125,11 +133,16 @@ def validate_map(body: object, floor_areas: dict[str, list[str]]) -> tuple[str, 
     for m in marks_in:
         if not isinstance(m, dict) or m.get("kind") not in MARK_KINDS:
             raise ValueError("mark: door or window")
-        item = {"kind": m["kind"], "x": _num(m.get("x"), 0, w, "x"), "y": _num(m.get("y"), 0, h, "y")}
+        rot = m.get("rot", 0)
+        if isinstance(rot, bool) or rot not in MARK_ROTS:
+            raise ValueError("mark: rotation 0 or 90")
+        item = {"kind": m["kind"], "x": _num(m.get("x"), 0, w, "x"), "y": _num(m.get("y"), 0, h, "y"), "rot": int(rot)}
         eid = m.get("entity_id")
         if eid is not None:
             if not isinstance(eid, str) or len(eid) > 120 or not _ID.match(eid):
                 raise ValueError("invalid entity id")
+            if openings is not None and eid not in openings:
+                raise ValueError("contact: not a known door or window sensor")
             item["entity_id"] = eid
         marks.append(item)
     if len(devs_in) > MAX_DEVICES:
