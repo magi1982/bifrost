@@ -79,6 +79,8 @@ class BleHub:
             d = bt.Device(addr, float(r.get("last", 0)))
             d.first = float(r.get("first", d.last))
             d.label, d.kind, d.guess, d.name = r.get("label", "Bluetooth"), r.get("kind", "device"), bool(r.get("guess", True)), r.get("name", "")
+            if d.label == "Find My" or d.rotating:
+                continue  # saved by older versions although the address changes – not worth keeping
             self.tracker.devices[addr] = d
 
     def persist(self, now: float | None = None, keep: set[str] | None = None) -> None:

@@ -33,6 +33,7 @@ HOLD_S = 8.0  # a scanner keeps its value this long after the last advert …
 FADE_S = 30.0  # … then fades to MIN_RSSI over this time
 CAL_SECONDS = 20
 MAX_DEVICES = 1500
+TRANSIENT = timedelta(hours=1)  # a "fixed" address seen for less than this and gone for this long was just passing by
 MAX_SAMPLES = 400
 
 APPLE = 0x004C
@@ -74,9 +75,10 @@ APPLE_TYPES = {
 
 
 def is_rotating(address: str) -> bool:
-    """Resolvable private address (top two bits 01) – changes every ~15 minutes."""
+    """A private address that changes: resolvable (top two bits 01) or non-resolvable (00) – both change every few
+    minutes. Random static (11) and public addresses stay fixed (Find My tags are caught by their content, see ingest)."""
     try:
-        return int(address[:2], 16) >> 6 == 0b01
+        return int(address[:2], 16) >> 6 in (0b00, 0b01)
     except ValueError:
         return False
 
@@ -175,25 +177,32 @@ class Tracker:
                     rssi = max(MIN_RSSI, min(0.0, float(a.get("rssi"))))
                 except (TypeError, ValueError):
                     continue
+                s = self.sources.setdefault(src, {"name": src, "last": now, "count": 0})
+                s["last"], s["count"] = now, s["count"] + 1  # the gateway is alive, whatever it heard
                 d = self.devices.get(addr)
                 if d is None:
                     if len(self.devices) >= MAX_DEVICES:
-                        continue
+                        self._evict()
                     d = self.devices[addr] = Device(addr, now)
                 d.last = now
                 label, kind, guess = classify(a)
                 if not (d.name and label == "Bluetooth"):
                     d.label, d.kind, d.guess = label, kind, guess
+                if label == "Find My":
+                    d.rotating = True  # Find My tags change their (random static) address every ~15 min
                 if a.get("name"):
                     d.name = str(a["name"])[:40]
                 d.rssi[src] = _filtered(d, src, rssi, now)
                 d.seen[src] = now
-                s = self.sources.setdefault(src, {"name": src, "last": now, "count": 0})
-                s["last"], s["count"] = now, s["count"] + 1
                 n += 1
                 for fn in list(self.listeners):
                     fn(addr, src, rssi, now)
         return n
+
+    def _evict(self) -> None:
+        """Full: forget the device heard longest ago – changing addresses first, then fixed ones. (Lock held.)"""
+        victim = min(self.devices.values(), key=lambda d: (not d.rotating, d.last))
+        del self.devices[victim.address]
 
     def set_source_names(self, names: dict[str, str]) -> None:
         with self._lock:
@@ -207,7 +216,9 @@ class Tracker:
         with self._lock:
             for addr, d in list(self.devices.items()):
                 age = now - d.last
-                if (d.rotating and age > ROTATING_KEEP.total_seconds()) or (not d.rotating and age > FIXED_KEEP.total_seconds() and addr not in (keep or set())):
+                passing = not d.rotating and d.last - d.first < TRANSIENT.total_seconds() and age > TRANSIENT.total_seconds()
+                old = not d.rotating and age > FIXED_KEEP.total_seconds()
+                if (d.rotating and age > ROTATING_KEEP.total_seconds()) or ((passing or old) and addr not in (keep or set())):
                     del self.devices[addr]
                     if not d.rotating:
                         dropped.append(addr)

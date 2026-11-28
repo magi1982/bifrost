@@ -657,3 +657,33 @@ Every sub-section gets its own address (`#house/signal`), so a link or a notific
 3. Auto-place: also lights/switches with power measurement, or only sensors and gateways?
 4. Export: plan pictures included by default or off?
 **Tests**: suggestion "add" leaves every existing element unchanged (deep compare) and only adds missing rooms; before "replace" a version exists and restore brings the old map back exactly; reset endpoints no longer delete; versions capped at 50 (pinned kept); diff summary correct (added/removed/moved); export → import round trip identical, unknown areas reported, oversized or malformed JSON refused; auto-place: every position inside the right room (`placed()` returns the area), no two icons closer than 0.75 m, placed devices untouched, "cannot be placed" list with reasons; GUI check light/dark/390 px for the versions list, preview and both dialogs.
+
+### Version 0.19 · Doors and windows as real contacts, named devices, the right wall (28.11., user feedback on 0.18.0) – built in 0.19.0 (contacts merged into marks; names on while editing; open windows only on the map)
+**Observed**: after *Place devices → Doors & windows* window contacts get the same orange door symbol as door contacts, and a selected symbol does not say which sensor it is – so it cannot be moved to the right wall.
+**Cause (checked)**: `mapversions.place()` stores only `{id, kind, x, y}` per device; the HA `device_class` (door / garage_door / window / opening) is lost, and the placeable sensor list in `live_view` only carries the category (`openings`). The editor shows icons without a name. At the same time there are two ways to show an opening: **marks** (door/window bars on a wall, already with an optional `entity_id`, validated by `housemap.validate_map`) and **placed contact devices** (free points with the door icon) – the same thing twice.
+
+**Decision proposal – one element, not two**: a door/window contact *is* a mark on a wall. Placed contacts become marks with `entity_id` and a `contact` kind; free devices stay for gateways, motion/presence, buttons, lights, media, climate. Marks without an entity (a drawn door without a sensor) stay as today.
+- Migration on load (no data lost): every placed device whose entity is an opening contact becomes a mark at the nearest wall of its room, kind from its `device_class`; the old device entry is removed in the same new version (source `migrate`) – restore can bring the old state back.
+
+**1 · Tell door and window apart**
+- `contact` = `door` | `garage_door` | `window` | `opening` (neutral), taken from the entity's `device_class` when placing and – for marks that only have an `entity_id` – looked up live, so existing ones are right too. Covers: `garage` → `garage_door`, `window`/`shutter`/`blind` covers stay devices (they are blinds, not contacts).
+- Drawn on the wall in plan style, rotating with the wall (0.18.1 direction): **door** = leaf with a quarter arc (neon orange), **garage door** = wide segmented bar (neon violet), **window** = double line in the wall (neon cyan), **opening** = single neutral bar (neon teal). Live mode: *open* = leaf/arc swung open, glowing, plus a small "open" pill; *closed* = flat, no glow; *unavailable* = dashed. Same in light and dark.
+
+**2 · Name the selected device**
+- Selecting (tap/click) a device or contact opens an info strip under the map toolbar: name, entity, HA area, kind (door/window/…/motion…), current state and since when, the room it stands in on the map, and a warning if that room is not its HA area. Readable at 390 px (wraps, no truncated entity ids).
+- Hovering (desktop) shows the same as a tooltip (`<title>`).
+- Toggle **Show names** (per map, remembered): a small label under every device/contact symbol, shortened to ~14 characters, full name in the info strip.
+- **List next to the map** (below it on the phone): all placed devices and contacts of this floor grouped by kind, with room; clicking an entry selects it on the map (and scrolls there), selecting on the map highlights the entry. Not-placed ones appear greyed with "place" → puts it into its room.
+
+**3 · The right wall**
+- Walls are computed from the union of the room's rectangles (same outline as the merged room shape): each wall segment is either **outer** (no other room behind it, or on the hull) or **inner** (borders a neighbour room, which one is known).
+- **Windows and garage doors** only on outer walls. **Doors**: entrance doors (known from the learned entrances / door roles) on outer walls; other doors on an inner wall, preferring the neighbour room Bifrost has learned paths to (path matrix); if no inner wall exists, an outer one.
+- Several contacts in one room are spread over different walls first, then along a wall at least 0.75 m apart – never two on the same point; snapped to the 0.25 m grid; direction from the wall.
+- If a room has no suitable wall (e.g. a window in a room without an outer wall), the contact goes to the best other wall and is listed as "check the wall".
+
+**Limits**: the right wall is a good first guess, not knowledge – the owner still moves the last ones; marks keep their direction in 45° steps (0.18.1). Bifrost does not learn wall positions from sensor timing in this version.
+**Open questions**:
+1. Merge placed contacts into marks (recommended) – or keep them as devices and only change the symbol?
+2. *Show names* on by default while editing, or off?
+3. Should an *open* window in live mode also show on the Overview (e.g. "2 windows open") – or stay on the map?
+**Tests**: window entity → `contact: window` and window symbol, door → `door`, garage → `garage_door`, unknown class → `opening` – also for devices placed before the update (migration creates marks, removes the old devices, keeps a version, restore brings it back); selection info shows name, entity, area, kind and state; list ↔ map selection both ways; windows only on outer walls; entrance door on an outer wall, inner door between the two rooms with learned paths; no two contacts closer than 0.75 m; every contact on its room's wall (distance 0); GUI check light/dark/390 px incl. the info strip and the list.

@@ -318,7 +318,7 @@ table.dtt{border-collapse:collapse;font-size:13px;width:100%}table.dtt th{text-a
 .hmlab.out text{font-size:11px}
 .hmlab.grey rect{fill:transparent;stroke:none}.hmlab.grey text{fill:var(--hm-greylab)}
 .hmstairs rect:first-child{fill:var(--n-violet);fill-opacity:.14;stroke:var(--n-violet);stroke-width:calc(2 * var(--u))}.hmstairs .st{stroke:var(--n-violet);stroke-opacity:.7;stroke-width:calc(1.2 * var(--u))}.hmstairs.grey rect:first-child{stroke:var(--hm-greyline);fill:none}.hmstairs.grey .st{stroke:var(--hm-greyline)}
-.hmmark rect{stroke:var(--card);stroke-width:1.5}.hmsvg .hmmark rect.mkhit{fill:transparent;stroke:none}.hmsvg.tool-select .hmmark,.hmsvg.tool-erase .hmmark{cursor:pointer}.hmmark.door rect{fill:var(--n-orange)}.hmmark.window rect{fill:var(--n-blue)}
+.hmmark rect{stroke:var(--card);stroke-width:1.5}.hmmark.sel rect:not(.mkhit){stroke:var(--n-cyan);stroke-width:2.5}.hmsvg .hmmark rect.mkhit{fill:transparent;stroke:none}.hmsvg.tool-select .hmmark,.hmsvg.tool-erase .hmmark{cursor:pointer}.hmmark.door rect{fill:var(--n-orange)}.hmmark.window rect{fill:var(--n-blue)}
 .hmic{cursor:pointer}.hmble{fill:var(--hm-ble);stroke:var(--hm-blestroke);stroke-width:1.5}
 .hmic .hmsel{fill:none;stroke:var(--text);stroke-width:2.5;stroke-dasharray:4 3}
 .hmname{font-size:10.5px;font-weight:600;paint-order:stroke;stroke:var(--card);stroke-width:3.4px}
@@ -336,6 +336,16 @@ table.dtt{border-collapse:collapse;font-size:13px;width:100%}table.dtt th{text-a
 .hmsliders{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 14px;margin:8px 0}
 .hmbox.hmscaled{margin-left:0}
 .hmgrid line.mn{opacity:.2}
+/* 0.19 contacts in plan style: door leaf + arc, garage segments, window double line, opening bar */
+.hmmark .leaf,.hmmark .pane,.hmmark .cap,.hmmark .seg{stroke:var(--mc);stroke-linecap:round;fill:none}.hmmark .leaf{stroke-width:3.5}.hmmark .pane{stroke-width:2.4}.hmmark .cap{stroke-width:2}
+.hmmark .arc{stroke:var(--mc);stroke-width:1.4;fill:color-mix(in srgb,var(--mc) 12%,transparent);stroke-dasharray:3 2}.hmmark .arc.faint{opacity:.35;fill:none}
+.hmmark .jamb,.hmmark .bar{fill:var(--mc)}.hmmark .seg{stroke:var(--card);stroke-width:1.5}
+.hmmark.open .leaf,.hmmark.open .pane,.hmmark.open .bar{filter:drop-shadow(0 0 4px var(--mc))}.hmmark.open .arc{stroke-dasharray:none;fill:color-mix(in srgb,var(--mc) 22%,transparent)}
+.hmmark.na{opacity:.55}.hmmark.na .leaf,.hmmark.na .pane{stroke-dasharray:3 3}
+.hmmark .mkname{font-size:9px;fill:var(--text);paint-order:stroke;stroke:var(--card);stroke-width:3px;font-weight:600}.hmmark .mkopen{font-size:9px;font-weight:700;fill:var(--mc);paint-order:stroke;stroke:var(--card);stroke-width:3px}
+.hmmark.sel .leaf,.hmmark.sel .pane,.hmmark.sel .bar{stroke-width:4.5}.hmmark.sel .mkhit{stroke:var(--n-cyan)!important;stroke-width:1.5;stroke-dasharray:3 2;fill:color-mix(in srgb,var(--n-cyan) 10%,transparent)!important}
+.infostrip{margin:8px 0;padding:8px 12px;border-radius:12px;border:1px solid var(--n-cyan);background:color-mix(in srgb,var(--n-cyan) 8%,var(--card));display:grid;gap:4px;min-width:0}.infostrip code{overflow-wrap:anywhere}
+.devlist{margin-top:8px}.dlrow{display:flex;gap:8px;align-items:center;width:100%;padding:6px 8px;border:0;border-radius:10px;background:transparent;color:var(--text);font:inherit;text-align:left;cursor:pointer;min-width:0}.dlrow .grow{min-width:0;overflow-wrap:anywhere}.dlrow.on{background:color-mix(in srgb,var(--n-cyan) 14%,transparent);box-shadow:inset 0 0 0 1px var(--n-cyan)}.dlrow.off{opacity:.7;cursor:default}.dlrow .dot{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
 .sugpanel{margin:8px 0;display:grid;gap:8px;border-left:3px solid var(--n-cyan)}.sugopt{display:grid;gap:4px;padding:8px;border-radius:12px;border:1px solid var(--div)}.sugopt.warn{border-color:color-mix(in srgb,var(--n-red) 45%,var(--div))}.sugopt .b{justify-self:start}
 .verrow{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--div)}.verrow.on{background:color-mix(in srgb,var(--n-cyan) 6%,transparent)}.verrow .grow{min-width:0;flex:1 1 220px}.verlabel{margin-top:4px;max-width:260px}.verprev{width:100%;margin-top:4px}
 .undobar{position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;gap:10px;align-items:center;background:var(--card);color:var(--text);border:1px solid var(--n-cyan);box-shadow:0 4px 18px rgba(0,0,0,.25);border-radius:14px;padding:8px 10px 8px 14px;z-index:30;font-size:13px;max-width:calc(100vw - 32px)}
@@ -727,7 +737,7 @@ var HM_GLYPH={phone:'<rect x="-4.2" y="-7" width="8.4" height="14" rx="2" fill="
   door:'<path d="M-4.5 6.5V-6.5h9V6.5" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="2" r="1.1" fill="#fff"/>',key:'<circle cx="-2.5" cy="-2.5" r="3.4" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M0 0 6 6M3.5 3.5 5.5 1.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>'};
 function hmIcon(kind,x,y,o){o=o||{};var col=kind==="phone"?"var(--n-teal)":kind==="gw"?"var(--n-blue)":kind==="door"?"var(--n-orange)":kind==="key"?"var(--n-cyan)":"var(--n-lime)";
   var inner=kind==="ble"?'<circle r="12" class="hmble"/>':'<circle r="12" style="fill:'+col+'"/>'+(HM_GLYPH[kind]||"");
-  return '<g class="hmic'+(o.sel?" sel":"")+'"'+(o.id?' data-dv="'+esc(o.id)+'"':"")+' style="transform:translate('+x+'px,'+y+'px) scale(var(--u))">'+(o.sel?'<circle r="16" class="hmsel"/>':"")+inner+(o.name?'<text y="25" text-anchor="middle" class="hmname" style="fill:'+col+'">'+esc(o.name)+'</text>':"")+'</g>';}
+  return '<g class="hmic'+(o.sel?" sel":"")+'"'+(o.id?' data-dv="'+esc(o.id)+'"':"")+' style="transform:translate('+x+'px,'+y+'px) scale(var(--u))">'+(o.title?'<title>'+esc(o.title)+'</title>':"")+(o.sel?'<circle r="16" class="hmsel"/>':"")+inner+(o.name?'<text y="25" text-anchor="middle" class="hmname" style="fill:'+col+'">'+esc(o.name)+'</text>':"")+'</g>';}
 /* ---------- moving dots: they glide, never pop ---------- */
 /* a moving thing keeps a stable key; after every re-render it continues from where it was shown, eased, at walking pace */
 var HM_ANIM={},HM_RAF=null,HM_SPEED=1.5;/* m/s */
@@ -756,7 +766,21 @@ function hmTick(now){HM_RAF=null;var busy=false;
 function hmSteps(q,k){var h=q[2]>=q[3],len=h?q[2]:q[3],n=Math.max(2,Math.floor(len/0.3)),out="";
   for(var i=1;i<n;i++){var f=i/n;out+=h?'<line class="st" x1="'+(q[0]+q[2]*f)*k+'" y1="'+(q[1]*k+5)+'" x2="'+(q[0]+q[2]*f)*k+'" y2="'+((q[1]+q[3])*k-5)+'"/>':'<line class="st" x1="'+(q[0]*k+5)+'" y1="'+(q[1]+q[3]*f)*k+'" x2="'+((q[0]+q[2])*k-5)+'" y2="'+(q[1]+q[3]*f)*k+'"/>';}
   return out;}
-function hmDevIcon(d,v,sel){var kind=v.kind==="scanner"?"gw":v.kind==="ble"?"ble":({openings:"door",access:"key"}[hmCat(d,v.id)]||"motion");return hmIcon(kind,v.x*HM_PX,v.y*HM_PX,{id:v.id,sel:sel});}
+/* ---------- 0.19: doors and windows are contacts on a wall, drawn in plan style ---------- */
+var MK_COL={door:"var(--n-orange)",garage_door:"var(--n-violet)",window:"var(--n-cyan)",opening:"var(--n-teal)"};
+var HM_SHOWNAMES=false;
+function devName(d,id){var x=(d.devinfo||{})[id];return x?x.name:id;}
+function shortName(n){n=String(n||"");return n.length>14?n.slice(0,13)+"…":n;}
+function isOpen(st){return ["on","open","opening","unlocked"].indexOf(String(st||"").toLowerCase())>=0;}
+function hmMark(d,p,pi,E,k,live){var c=p.contact||(p.kind==="window"?"window":p.entity_id?"opening":"door"),inf=p.entity_id?(d.devinfo||{})[p.entity_id]:null,st=inf&&inf.state,open=isOpen(st),na=st==null||st==="unavailable"||st==="unknown";
+  var sel=E&&E.sel&&E.sel.t==="m"&&E.sel.i===pi,shape;
+  if(c==="door")shape=(open?'<path class="arc" d="M-11 0 A22 22 0 0 0 4 -16"/><line class="leaf" x1="-11" y1="0" x2="4" y2="-16"/>':'<path class="arc faint" d="M-11 0 A22 22 0 0 0 4 -16"/><line class="leaf" x1="-11" y1="0" x2="11" y2="0"/>')+'<rect class="jamb" x="-12" y="-2" width="2.5" height="4"/><rect class="jamb" x="9.5" y="-2" width="2.5" height="4"/>';
+  else if(c==="garage_door")shape='<rect class="bar" x="-16" y="'+(open?-8:-3)+'" width="32" height="6" rx="1.5"/><line class="seg" x1="-8" y1="'+(open?-8:-3)+'" x2="-8" y2="'+(open?-2:3)+'"/><line class="seg" x1="0" y1="'+(open?-8:-3)+'" x2="0" y2="'+(open?-2:3)+'"/><line class="seg" x1="8" y1="'+(open?-8:-3)+'" x2="8" y2="'+(open?-2:3)+'"/>';
+  else if(c==="window")shape=open?'<line class="pane" x1="-13" y1="-2.5" x2="13" y2="-2.5"/><line class="pane" x1="-13" y1="2.5" x2="0" y2="2.5"/><line class="pane" x1="0" y1="2.5" x2="9" y2="10"/>':'<line class="pane" x1="-13" y1="-2.5" x2="13" y2="-2.5"/><line class="pane" x1="-13" y1="2.5" x2="13" y2="2.5"/><line class="cap" x1="-13" y1="-3.5" x2="-13" y2="3.5"/><line class="cap" x1="13" y1="-3.5" x2="13" y2="3.5"/>';
+  else shape='<rect class="bar" x="-12" y="-3" width="24" height="6" rx="3"/>';
+  var label=(E&&E.names||live&&open)&&p.entity_id?'<g style="transform:rotate('+(-(p.r||0))+'deg)">'+(E&&E.names?'<text class="mkname" y="22" text-anchor="middle">'+esc(shortName(devName(d,p.entity_id)))+'</text>':"")+(live&&open?'<text class="mkopen" y="-14" text-anchor="middle">'+esc(t("mk_open"))+'</text>':"")+'</g>':"";
+  return '<g class="hmmark c-'+c+(open?" open":"")+(na&&p.entity_id?" na":"")+(sel?" sel":"")+'" data-mk="'+pi+'" style="--mc:'+MK_COL[c]+';transform:translate('+p.x*k+'px,'+p.y*k+'px) rotate('+(p.r||0)+'deg) scale(var(--u))"><title>'+esc(p.entity_id?devName(d,p.entity_id)+" · "+p.entity_id:t("mk_"+c))+'</title><rect class="mkhit" x="-20" y="-14" width="40" height="28" rx="8"/>'+shape+label+'</g>';}
+function hmDevIcon(d,v,sel){var nm0=HM_SHOWNAMES?shortName(devName(d,v.id)):"";var kind=v.kind==="scanner"?"gw":v.kind==="ble"?"ble":({openings:"door",access:"key"}[hmCat(d,v.id)]||"motion");return hmIcon(kind,v.x*HM_PX,v.y*HM_PX,{id:v.id,sel:sel,name:nm0,title:devName(d,v.id)+(v.id.indexOf(".")>0?" · "+v.id:"")});}
 /* outline of the union of a room's rectangles as one path: touching rectangles of the same room merge,
    the border is inset (gap to neighbouring rooms) and its corners are rounded */
 function hmOutline(rs,k,inset,rad){var xs=[],ys=[],key=function(v){return Math.round(v*1000)/1000;};
@@ -797,7 +821,7 @@ function hmHeat(m,k){var gws=m.devices.filter(function(v){return v.kind==="scann
     var c=a>1.2?"var(--n-lime)":a>.75?"var(--n-yellow)":a>.42?"var(--n-orange)":"var(--n-red)";
     s+='<rect x="'+(x*k)+'" y="'+(y*k)+'" width="'+(st*k+1)+'" height="'+(st*k+1)+'" style="fill:'+c+'"/>';}
   return s+'</g>';}
-function hmSvg(d,F,fl,m,mode,E,px){var k=HM_PX,W=m.w*k,H=m.h*k,names=fl.areas.map(function(a){return a.name;}),st={},av=d.avatars||[],lay=hmLayF(d,fl.name),u=((W+16)/px).toFixed(3);
+function hmSvg(d,F,fl,m,mode,E,px){HM_SHOWNAMES=!!(E&&E.names);var k=HM_PX,W=m.w*k,H=m.h*k,names=fl.areas.map(function(a){return a.name;}),st={},av=d.avatars||[],lay=hmLayF(d,fl.name),u=((W+16)/px).toFixed(3);
   fl.areas.forEach(function(a){st[a.name]=areaState(a);});
   var grey=mode==="signal",defs='<defs><filter id="hmblur" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="'+(k*.4)+'"/></filter>',body="";
   /* floor plan pictures */
@@ -818,7 +842,7 @@ function hmSvg(d,F,fl,m,mode,E,px){var k=HM_PX,W=m.w*k,H=m.h*k,names=fl.areas.ma
   var hullHit=E&&E.tool!=="room"&&E.tool!=="outside"?m.hull.map(function(q,qi){var isSel=E.sel&&E.sel.t==="h"&&E.sel.i===qi;return E.tool==="hull"||E.tool==="select"||E.tool==="erase"?'<rect class="hmhit hull'+(isSel?" sel":"")+'" data-hl="'+qi+'" x="'+q[0]*k+'" y="'+q[1]*k+'" width="'+q[2]*k+'" height="'+q[3]*k+'"/>'+(isSel?'<rect class="hmhandle" data-hd="1" x="'+((q[0]+q[2])*k-7)+'" y="'+((q[1]+q[3])*k-7)+'" width="14" height="14" rx="3"/>':""):"";}).join(""):"";
   var stairs=m.stairs.map(function(q,qi){var isSel=E&&E.sel&&E.sel.t==="s"&&E.sel.i===qi;return '<g class="hmstairs'+(grey?" grey":"")+'"><rect x="'+(q[0]*k+3)+'" y="'+(q[1]*k+3)+'" width="'+(q[2]*k-6)+'" height="'+(q[3]*k-6)+'" rx="6"/>'+hmSteps(q,k)+(E?'<rect class="hmhit'+(isSel?" sel":"")+'" data-s="'+qi+'" x="'+q[0]*k+'" y="'+q[1]*k+'" width="'+q[2]*k+'" height="'+q[3]*k+'"/>'+(isSel?'<rect class="hmhandle" data-hd="1" x="'+((q[0]+q[2])*k-7)+'" y="'+((q[1]+q[3])*k-7)+'" width="14" height="14" rx="3"/>':""):"")+'</g>';}).join("");
   var tech=mode==="config"||!!E;
-  var marks=tech?m.marks.map(function(p,pi){return '<g class="hmmark '+p.kind+'" data-mk="'+pi+'" style="transform:translate('+p.x*k+'px,'+p.y*k+'px) scale(var(--u))"><rect class="mkhit" x="-20" y="-14" width="40" height="28" rx="8"/><rect x="'+(p.kind==="door"?-11:-13)+'" y="-3.5" width="'+(p.kind==="door"?22:26)+'" height="7" rx="3.5"/></g>';}).join(""):"";
+  var marks=m.marks.map(function(p,pi){if(!tech&&!p.entity_id)return "";return hmMark(d,p,pi,E,k,!tech);}).join("");
   var devs="";if(tech)devs=m.devices.map(function(v){return hmDevIcon(d,v,E&&E.sel&&E.sel.t==="d"&&E.sel.id===v.id);}).join("");
   else if(mode==="signal")devs=m.devices.filter(function(v){return v.kind==="scanner";}).map(function(v){return hmIcon("gw",v.x*k,v.y*k);}).join("");
   var people="",zones="",bles="";
@@ -847,6 +871,29 @@ function hmPanel(d,F,E){var P=d.placeable||{},tab=E.tab||"scanners",list=P[tab]|
 /* ---------- 0.18: Bifrost's suggestion never breaks anything; one button per kind of device ---------- */
 var PL_KINDS=["gateways","motion","presence","openings","buttons","lights","covers","access","media","climate"];
 function sumText(sm){var k=Object.keys(sm||{});if(!k.length)return t("sum_none");return k.map(function(x){return fmtK("sum_"+x,{n:sm[x]});}).join(" · ");}
+function hmRoomAt(m,x,y){var hit=null;(m.rooms||[]).forEach(function(r){if(!hit&&r.rects.some(function(q){return x>=q[0]-0.01&&x<=q[0]+q[2]+0.01&&y>=q[1]-0.01&&y<=q[1]+q[3]+0.01;}))hit=r.area;});return hit;}
+function kindName(k){return t("dk_"+k)===("dk_"+k)?trText(k||""):t("dk_"+k);}
+function hmSelInfo(d,E,m){var s=E.sel;if(!s)return null;if(s.t==="d"){var v=m.devices.filter(function(x){return x.id===s.id;})[0];return v?{id:v.id,x:v.x,y:v.y}:null;}
+  if(s.t==="m"){var p=m.marks[s.i];return p?{id:p.entity_id||null,x:p.x,y:p.y,mark:p}:null;}return null;}
+function hmInfoStrip(d,E,m){var si=hmSelInfo(d,E,m);if(!si)return "";var inf=si.id?(d.devinfo||{})[si.id]||{name:si.id,entity:si.id}:null,room=hmRoomAt(m,si.x,si.y);
+  if(!inf)return '<div class="infostrip"><b>'+esc(t("mk_"+((si.mark&&si.mark.kind)||"door")))+'</b> <span class="meta">'+t("info_no_sensor")+(room?' · '+esc(room):"")+'</span></div>';
+  var kind=si.mark?(si.mark.contact||"opening"):inf.kind,st=inf.state;
+  return '<div class="infostrip" role="status"><div><b>'+esc(inf.name)+'</b> '+pill(kindName(kind),MK_COL[kind]||"var(--n-blue)",true)+(st!=null?' '+pill(trText(st)+(inf.since?" · "+ago(inf.since):""),isOpen(st)?"var(--n-orange)":"var(--sec)"):"")+'</div>'+
+    '<div class="meta"><code>'+esc(inf.entity||si.id)+'</code>'+(inf.area?' · '+t("info_area")+': '+esc(inf.area):"")+(room?' · '+t("info_room")+': '+esc(room):"")+'</div>'+
+    (inf.area&&room&&inf.area!==room?'<div class="meta" style="color:var(--n-orange)">'+fmtK("info_other_room",{a:esc(inf.area),r:esc(room)})+'</div>':"")+'</div>';}
+function hmDevList(d,E,m,fl){var rows=[];
+  m.devices.forEach(function(v){var inf=(d.devinfo||{})[v.id]||{};rows.push({key:"d:"+v.id,sel:{t:"d",id:v.id},name:inf.name||v.id,kind:v.kind==="scanner"?"gateway":v.kind==="ble"?"ble":inf.kind||"device",room:hmRoomAt(m,v.x,v.y)});});
+  m.marks.forEach(function(p,i){if(!p.entity_id)return;var inf=(d.devinfo||{})[p.entity_id]||{};rows.push({key:"m:"+i,sel:{t:"m",i:i},name:inf.name||p.entity_id,kind:p.contact||"opening",room:hmRoomAt(m,p.x,p.y)});});
+  var here=(fl.areas||[]).map(function(a){return a.name;}),on={};m.devices.forEach(function(v){on[v.id]=1;});m.marks.forEach(function(p){if(p.entity_id)on[p.entity_id]=1;});
+  var P=d.placeable||{},todo=(P.scanners||[]).map(function(x){return {id:x.id,name:x.name,area:x.area,kind:"gateway"};}).concat((P.sensors||[]).map(function(x){return {id:x.id,name:x.name,area:x.area,kind:x.category};}))
+    .filter(function(x){return !on[x.id]&&x.area&&here.indexOf(x.area)>=0;});
+  if(!rows.length&&!todo.length)return "";
+  var groups={};rows.forEach(function(r){(groups[r.kind]=groups[r.kind]||[]).push(r);});
+  var cur=E.sel?(E.sel.t==="d"?"d:"+E.sel.id:E.sel.t==="m"?"m:"+E.sel.i:""):"";
+  var h='<details class="phow devlist"'+(E.listOpen!==false?" open":"")+' id="hmList"><summary><b>'+fmtK("dl_title",{n:rows.length})+'</b></summary>';
+  h+=Object.keys(groups).sort().map(function(k){return '<div class="sec">'+esc(kindName(k))+' · '+groups[k].length+'</div>'+groups[k].map(function(r){return '<button type="button" class="dlrow'+(r.key===cur?" on":"")+'" data-dlsel="'+esc(r.key)+'"><span class="dot" style="--c:'+(MK_COL[r.kind]||"var(--n-blue)")+'"></span><span class="grow">'+esc(r.name)+'</span><span class="meta">'+esc(r.room||t("dl_no_room"))+'</span></button>';}).join("");}).join("");
+  if(todo.length)h+='<div class="sec">'+fmtK("dl_todo",{n:todo.length})+'</div>'+todo.slice(0,60).map(function(x){return '<div class="dlrow off"><span class="dot" style="--c:var(--sec)"></span><span class="grow">'+esc(x.name)+'</span><span class="meta">'+esc(x.area)+'</span>'+btn(t("dl_place"),'data-dlplace="'+esc(x.id)+'"','sm ghost','plus')+'</div>';}).join("");
+  return h+'</details>';}
 function hmSuggestPanel(E){var S2=E.sug;if(!S2)return "";if(S2.loading)return '<div class="card sugpanel"><div class="meta">…</div></div>';
   return '<div class="card sugpanel"><div class="prow"><div class="grow"><b>'+t("sug_title")+'</b><div class="meta">'+t("sug_hint")+'</div></div>'+btn(t("dt_close"),'id="sugClose"','sm ghost','x')+'</div>'+
     '<div class="sugopt"><b>'+t("sug_add")+'</b><div class="meta">'+t("sug_add_hint")+'</div><div class="meta"><b>'+esc(sumText(S2.add.summary))+'</b></div>'+btn(t("sug_add_btn"),'data-sugapply="add"','sm p','plus')+'</div>'+
@@ -915,11 +962,12 @@ function houseMap(d){var F=hgFloor(d);if(!F)return '<div class="card"><h2>'+ic("
     if(E.tool==="zone"){h+='<div class="frow hgrooms">'+(m.zones||[]).map(function(z){return '<button type="button" class="ch hgroom'+(E.zname===z.name?" on":"")+'" data-hmzn="'+esc(z.name)+'" style="--rc:var(--n-teal)"><span class="sw"></span>'+esc(z.name)+'</button>';}).join("")+'</div><div class="frow"><input class="inp" id="hmZNew" maxlength="40" placeholder="'+esc(t("hm_zone_ph"))+'" aria-label="'+esc(t("hm_zone_ph"))+'">'+btn(t("hm_out_add"),'id="hmZAdd"','sm','plus')+'</div>';}
     if(E.tool==="hull")h+='<div class="frow">'+btn(t("hm_hull_from"),'id="hmHullFrom"','sm','home')+(m.hull.length?btn(t("hm_hull_clear"),'id="hmHullClear"','sm ghost','trash'):"")+'</div>';
     h+='</div><div class="hmbox" style="max-width:'+hmPx(1)+'px">'+hmSvg(d,F,fl,m,"config",E,hmPx(1))+'</div>';
+    h+=hmInfoStrip(d,E,m)+'<label class="ch hmsnap"><input type="checkbox" id="hmNames"'+(E.names?" checked":"")+'> '+t("hm_names")+'</label>';
     h+='<div class="hged">'+(E.tool==="device"||E.tool==="select"?hmPanel(d,F,E):"")+(E.tool==="plan"?hmPlanPanel(d,fl,E):"")+
       '<div class="frow"><button type="button" class="ch" id="hmUndo"'+(E.undo.length?"":" disabled")+'>'+t("hg_undo")+'</button><button type="button" class="ch" id="hmRedo"'+(E.redo.length?"":" disabled")+'>'+t("hm_redo")+'</button>'+
-      (E.sel?'<button type="button" class="ch" id="hmDel">'+ic("trash")+' '+t("hm_delete")+'</button>':"")+'<label class="ch hmsnap"><input type="checkbox" id="hmSnap"'+(E.snap?" checked":"")+'> '+t("hm_snap")+'</label>'+
+      (E.sel&&E.sel.t==="m"?'<button type="button" class="ch" id="hmMarkRot">'+ic("routine")+' '+t("hm_mark_rot")+'</button>':"")+(E.sel?'<button type="button" class="ch" id="hmDel">'+ic("trash")+' '+t("hm_delete")+'</button>':"")+'<label class="ch hmsnap"><input type="checkbox" id="hmSnap"'+(E.snap?" checked":"")+'> '+t("hm_snap")+'</label>'+
       '<label class="hmsize">'+t("hm_w")+' <input class="inp" id="hmW" type="number" min="2" max="80" step="0.5" value="'+m.w+'"></label><label class="hmsize">'+t("hm_h")+' <input class="inp" id="hmH" type="number" min="2" max="80" step="0.5" value="'+m.h+'"></label>'+'<label class="hmsize"><input type="checkbox" id="hmStretch"'+(E.stretch!==false?" checked":"")+'> '+t("hm_stretch")+'</label></div>'+
-      hmSuggestPanel(E)+hmPlacePanel(E)+
+      hmSuggestPanel(E)+hmPlacePanel(E)+hmDevList(d,E,m,fl)+
       '<div class="frow">'+btn(t("hg_done"),'id="hmSave"','sm p','check')+btn(t("hg_cancel"),'id="hmCancel"','sm ghost')+btn(t("hm_reset"),'id="hmReset" aria-expanded="'+!!E.sug+'"','sm ghost','routine')+btn(t("pl_open"),'id="hmPlaceOpen" aria-expanded="'+!!E.place+'"','sm ghost','motion')+'</div></div>';
     return h+'</div>';}
   var FL=hmFloors(d,F);if(!FL.length)FL=F.all;var cols=hmCols(FL.length),px=hmPx(cols);
@@ -935,9 +983,9 @@ function houseMap(d){var F=hgFloor(d);if(!F)return '<div class="card"><h2>'+ic("
   if(mode==="config")h+=verPanel(d,F);
   if(mode==="config")h+='<div class="legend2"><span class="hmleg"><svg viewBox="-14 -14 28 28" aria-hidden="true"><circle r="12" style="fill:var(--n-blue)"/>'+HM_GLYPH.gw+'</svg>'+t("hm_l_scanner")+'</span><span class="hmleg"><svg viewBox="-14 -14 28 28" aria-hidden="true"><circle r="12" class="hmble"/></svg>'+t("hm_l_ble")+'</span><span class="hmleg"><svg viewBox="-14 -14 28 28" aria-hidden="true"><circle r="12" style="fill:var(--n-lime)"/>'+HM_GLYPH.motion+'</svg>'+t("hm_l_motion")+'</span><span class="hmleg"><svg viewBox="-14 -14 28 28" aria-hidden="true"><circle r="12" style="fill:var(--n-orange)"/>'+HM_GLYPH.door+'</svg>'+t("hm_l_door")+'</span></div>';
   return h+'</div>';}
-function hmEditStart(d,F,fname){var fl=F.all.filter(function(f){return (f.name||"")===fname;})[0]||F.all[0],lay=hmLayF(d,fl.name),m=JSON.parse(JSON.stringify(lay.map));
+function hmEditStart(d,F,fname){var nmPref=null;try{nmPref=localStorage.getItem("bifrost.mapNames");}catch(er){}var fl=F.all.filter(function(f){return (f.name||"")===fname;})[0]||F.all[0],lay=hmLayF(d,fl.name),m=JSON.parse(JSON.stringify(lay.map));
   (lay.plans||[]).forEach(function(p){if(!m.layers.some(function(x){return x.n===p.n;}))m.layers.push({n:p.n,x:0,y:0,w:m.w,rot:0,op:.5});});
-  V4.medit={floor:fl.name||"",m:m,tool:"room",room:(fl.areas[0]||{}).name,oroom:null,snap:true,undo:[],redo:[],sel:null,dev:null,tab:"scanners",lay:(lay.plans[0]||{}).n};}
+  V4.medit={floor:fl.name||"",m:m,tool:"room",room:(fl.areas[0]||{}).name,oroom:null,snap:true,names:nmPref!=="0",undo:[],redo:[],sel:null,dev:null,tab:"scanners",lay:(lay.plans[0]||{}).n};}
 function bindMap(){var d=V4.house;if(!d)return;var F=hgFloor(d);if(!F)return;
   function reload(){return api("api/live").then(function(x){V4.house=x;render();});}
   function fail(e){toast("✗ "+trText(e.message),true);}
@@ -963,6 +1011,14 @@ var HM_GRID=0.25;
   var hc=document.getElementById("hmHullClear");if(hc)hc.onclick=function(){snapshot();m.hull=[];render();};
   var un=document.getElementById("hmUndo");if(un)un.onclick=function(){var s=E.undo.pop();if(s){E.redo.push(JSON.stringify(m));E.m=JSON.parse(s);E.sel=null;render();}};
   var rd=document.getElementById("hmRedo");if(rd)rd.onclick=function(){var s=E.redo.pop();if(s){E.undo.push(JSON.stringify(m));E.m=JSON.parse(s);E.sel=null;render();}};
+  var hn=document.getElementById("hmNames");if(hn)hn.onchange=function(){E.names=hn.checked;try{localStorage.setItem("bifrost.mapNames",hn.checked?"1":"0");}catch(er){}render();};
+  var hl=document.getElementById("hmList");if(hl)hl.ontoggle=function(){E.listOpen=hl.open;};
+  document.querySelectorAll("[data-dlsel]").forEach(function(b){b.onclick=function(){var k=b.dataset.dlsel;E.sel=k.charAt(0)==="d"?{t:"d",id:k.slice(2)}:{t:"m",i:+k.slice(2)};E.tool="select";render();
+    var sv=document.getElementById("hmSvg");if(sv&&sv.scrollIntoView)sv.scrollIntoView({block:"center",behavior:"smooth"});};});
+  document.querySelectorAll("[data-dlplace]").forEach(function(b){b.onclick=function(){b.disabled=true;var id=b.dataset.dlplace;
+    api("api/map/place",{floor:fl.name||"",kind:"auto",ids:[id],preview:true,map:m}).then(function(r){snapshot();if(r.marks)E.m.marks=r.marks;E.m.devices=r.devices;
+      var ni=E.m.marks.map(function(p){return p.entity_id;}).indexOf(id);E.sel=ni>=0?{t:"m",i:ni}:{t:"d",id:id};E.tool="select";render();if(r.cannot&&r.cannot.length)toast(t("pl_why_"+r.cannot[0].reason),true);}).catch(function(e){b.disabled=false;fail(e);});};});
+  var mr=document.getElementById("hmMarkRot");if(mr)mr.onclick=function(){var mk=E.sel&&E.sel.t==="m"&&m.marks[E.sel.i];if(!mk)return;snapshot();var r=((mk.r||0)+45)%180;if(r)mk.r=r;else delete mk.r;render();};
   var del=document.getElementById("hmDel");if(del)del.onclick=function(){remove(E.sel);E.sel=null;render();};
   var sn=document.getElementById("hmSnap");if(sn)sn.onchange=function(){E.snap=sn.checked;render();};
   /* new floor size: by default the whole drawing is stretched along, edges rounded to the grid so neighbouring rooms stay joined */
@@ -1002,7 +1058,7 @@ var HM_GRID=0.25;
     api("api/map/place_counts?floor="+encodeURIComponent(fl.name||"")).then(function(c){if(E.place){E.place.counts=c.kinds;render();}}).catch(fail);};
   var pa=document.getElementById("plAll");if(pa)pa.onchange=function(){E.placeAll=pa.checked;};
   document.querySelectorAll("[data-plkind]").forEach(function(b){b.onclick=function(){b.disabled=true;var kind=b.dataset.plkind;
-    api("api/map/place",{floor:fl.name||"",kind:kind,preview:true,replace_placed:!!E.placeAll,map:m}).then(function(r){snapshot();E.m.devices=r.devices;E.place.res={kind:kind,placed:r.placed,cannot:r.cannot,other:r.other_floor};render();}).catch(function(e){b.disabled=false;fail(e);});};});;
+    api("api/map/place",{floor:fl.name||"",kind:kind,preview:true,replace_placed:!!E.placeAll,map:m}).then(function(r){snapshot();E.m.devices=r.devices;if(r.marks)E.m.marks=r.marks;E.place.res={kind:kind,placed:r.placed,cannot:r.cannot,other:r.other_floor};render();}).catch(function(e){b.disabled=false;fail(e);});};});;
   var sv=document.getElementById("hmSave");if(sv)sv.onclick=function(){sv.disabled=true;api("api/map",{floor:fl.name||"",w:m.w,h:m.h,rooms:m.rooms,stairs:m.stairs,marks:m.marks,devices:m.devices,hull:m.hull,layers:m.layers,zones:m.zones||[]}).then(function(){V4.medit=null;toast(t("hg_saved"));return reload();}).catch(function(e){sv.disabled=false;fail(e);});};
   function roomOf(name){return m.rooms.filter(function(x){return x.area===name;})[0];}
   function remove(s){if(!s)return;snapshot();
@@ -1020,11 +1076,11 @@ var HM_GRID=0.25;
     var s1=el.getAttribute("data-s");if(s1!==null)return {t:"s",i:+s1};var h1=el.getAttribute("data-hl");if(h1!==null)return {t:"h",i:+h1};return null;}
   function rectOf(s){if(!s)return null;if(s.t==="z"){var zz=(m.zones||[])[s.i];return zz&&zz.rects[s.j];}if(s.t==="r"){var r=roomOf(s.a);return r&&r.rects[s.i];}if(s.t==="s")return m.stairs[s.i];if(s.t==="h")return m.hull[s.i];return null;}
   function nearestWall(x,y){var best=[x,y],bd=0.8,all=hmHull(m).slice();m.rooms.forEach(function(r){all=all.concat(r.rects);});
-    all.forEach(function(q1){[[q1[0],null],[q1[0]+q1[2],null],[null,q1[1]],[null,q1[1]+q1[3]]].forEach(function(w){var px=w[0]!==null?w[0]:clamp(x,q1[0],q1[0]+q1[2]),py=w[1]!==null?w[1]:clamp(y,q1[1],q1[1]+q1[3]),dd=Math.hypot(px-x,py-y);if(dd<bd){bd=dd;best=[px,py];}});});return best;}
+    all.forEach(function(q1){[[q1[0],null],[q1[0]+q1[2],null],[null,q1[1]],[null,q1[1]+q1[3]]].forEach(function(w){var px=w[0]!==null?w[0]:clamp(x,q1[0],q1[0]+q1[2]),py=w[1]!==null?w[1]:clamp(y,q1[1],q1[1]+q1[3]),dd=Math.hypot(px-x,py-y);if(dd<bd){bd=dd;best=[px,py,w[0]!==null];}});});return best;}
   var drag=null,names=fl.areas.map(function(a){return a.name;});
   box.addEventListener("pointerdown",function(e){var p=pt(e),hit=hitOf(e);e.preventDefault();
     if(E.tool==="erase"){if(hit&&hit.t!=="hd"){remove(hit);render();}return;}
-    if(E.tool==="door"||E.tool==="window"){snapshot();var w=nearestWall(p[0],p[1]);m.marks.push({kind:E.tool,x:r1(w[0]),y:r1(w[1])});render();return;}
+    if(E.tool==="door"||E.tool==="window"){snapshot();var w=nearestWall(p[0],p[1]),mk={kind:E.tool,x:r1(w[0]),y:r1(w[1])};if(w[2])mk.r=90;m.marks.push(mk);E.sel={t:"m",i:m.marks.length-1};render();return;}
     if(E.tool==="device"){if(!E.dev){toast(t("hm_pick_dev"));return;}snapshot();m.devices=m.devices.filter(function(v){return v.id!==E.dev;});m.devices.push({id:E.dev,kind:hmKind(d,E.dev),x:r1(p[0]),y:r1(p[1])});E.sel={t:"d",id:E.dev};E.dev=null;E.tool="select";render();return;}
     if(E.tool==="plan"){var l=m.layers.filter(function(x){return x.n===E.lay;})[0];if(!l)return;snapshot();drag={mode:"layer",l:l,p0:p,o:[l.x,l.y]};try{box.setPointerCapture(e.pointerId);}catch(er){}return;}
     if(E.tool==="select"||(E.tool==="hull"&&hit&&(hit.t==="h"||hit.t==="hd"))){
@@ -1753,6 +1809,15 @@ function bindFilters(){if(S.view!=="setup")return;
 document.documentElement.lang=LANG;
 
 /* ---------- 0.15 navigation: six areas, each with sub-tabs (#area/sub) ---------- */
+Object.assign(TX.de,{hm_mark_rot:"Drehen 45°"});Object.assign(TX.en,{hm_mark_rot:"Turn 45°"});
+Object.assign(TX.de,{mk_open:"offen",mk_door:"Tür",mk_garage_door:"Garagentor",mk_window:"Fenster",mk_opening:"Öffnung",hm_names:"Namen anzeigen",
+  info_area:"HA-Bereich",info_room:"auf der Karte",info_other_room:"Steht im Raum {r}, gehört in Home Assistant aber zu {a} – stimmt der Platz?",info_no_sensor:"ohne Sensor (gezeichnet)",
+  dk_door:"Tür",dk_garage_door:"Garagentor",dk_window:"Fenster",dk_opening:"Öffnung",dk_gateway:"Gateway",dk_ble:"Bluetooth-Gerät",dk_motion:"Bewegung & Präsenz",dk_openings:"Türen & Fenster",dk_manual:"Bedienung",dk_access:"Zugang",dk_media:"Medien",dk_climate:"Klima",dk_device:"Gerät",dk_energy:"Energie",
+  dl_title:"Geräte auf dieser Karte ({n})",dl_no_room:"kein Raum",dl_todo:"Noch nicht gesetzt ({n})",dl_place:"Setzen",src_v_migrate:"Kontakte an die Wand gesetzt"});
+Object.assign(TX.en,{mk_open:"open",mk_door:"Door",mk_garage_door:"Garage door",mk_window:"Window",mk_opening:"Opening",hm_names:"Show names",
+  info_area:"HA area",info_room:"on the map",info_other_room:"Stands in {r} but belongs to {a} in Home Assistant – is the place right?",info_no_sensor:"without a sensor (drawn)",
+  dk_door:"Door",dk_garage_door:"Garage door",dk_window:"Window",dk_opening:"Opening",dk_gateway:"Gateway",dk_ble:"Bluetooth device",dk_motion:"Motion & presence",dk_openings:"Doors & windows",dk_manual:"Controls",dk_access:"Access",dk_media:"Media",dk_climate:"Climate",dk_device:"Device",dk_energy:"Energy",
+  dl_title:"Devices on this map ({n})",dl_no_room:"no room",dl_todo:"Not placed yet ({n})",dl_place:"Place",src_v_migrate:"Contacts moved onto walls"});
 Object.assign(TX.de,{sug_title:"Vorschlag von Bifrost",sug_hint:"Bifrost ordnet die Bereiche dieses Stockwerks nach den gelernten Wegen an. Es wird nichts gespeichert, bevor du „Fertig“ drückst – und jede gespeicherte Karte bleibt als Version erhalten.",
   sug_add:"Nur Fehlendes ergänzen",sug_add_hint:"Bereiche, die noch nicht gezeichnet sind, kommen dazu. Räume, Zonen, Türen, Fenster und Geräte bleiben genau, wie sie sind.",sug_add_btn:"Ergänzen",
   sug_replace:"Alles durch den Vorschlag ersetzen",sug_replace_hint:"Deine Zeichnung dieses Stockwerks wird ersetzt (Grundriss-Bilder bleiben). Rückgängig mit ↶ oder später über „Versionen“.",sug_replace_btn:"Ersetzen …",sug_replace_sure:"Wirklich ersetzen",

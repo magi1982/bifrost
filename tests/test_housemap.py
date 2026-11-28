@@ -225,3 +225,11 @@ def test_ha_room_can_be_shown_as_outside_area():
     assert "outside" not in m["rooms"][1]
     assert hm.room_at(m, 3, 1) is None  # outside areas never count as a room inside
     assert hm.room_at(m, 3, 5) == "Hall"
+
+
+def test_doors_and_windows_keep_their_direction():
+    body = {"floor": "Ground floor", "w": 10, "h": 8, "marks": [{"kind": "door", "x": 0, "y": 3, "r": 90}, {"kind": "window", "x": 5, "y": 0}, {"kind": "window", "x": 5, "y": 8, "r": 0}]}
+    _, m = hm.validate_map(body, FA)
+    assert m["marks"][0]["r"] == 90 and "r" not in m["marks"][1] and "r" not in m["marks"][2]
+    with pytest.raises(ValueError):
+        hm.validate_map({**body, "marks": [{"kind": "door", "x": 0, "y": 3, "r": 30}]}, FA)

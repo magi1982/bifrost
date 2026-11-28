@@ -227,3 +227,30 @@ def test_calm_setting_is_validated():
         hub.set_settings({"calm": "turbo"})
     hub.set_settings({"calm": "calm"})
     assert hub.settings["calm"] == "calm"
+
+
+# --- 0.18.1: a full device list must never silence gateways ---------------------------------------
+def test_full_list_makes_room_and_gateways_stay_alive(monkeypatch):
+    monkeypatch.setattr(bt, "MAX_DEVICES", 5)
+    tr = bt.Tracker()
+    for i in range(5):  # fixed addresses (random static, top bits 11)
+        tr.ingest([{"address": f"C4:00:00:00:00:0{i}", "source": "A", "rssi": -60}], now=100 + i)
+    tr.ingest([{"address": "C4:00:00:00:00:09", "source": "B", "rssi": -60}], now=200)
+    assert "C4:00:00:00:00:09" in tr.devices and len(tr.devices) == 5  # room made, the newest is kept
+    assert "C4:00:00:00:00:00" not in tr.devices  # the one heard longest ago went
+    assert tr.sources["B"]["last"] == 200  # gateway B counts as hearing
+
+
+def test_changing_addresses_and_find_my_are_not_kept_for_months():
+    assert bt.is_rotating("4A:11:22:33:44:55")  # resolvable private (01)
+    assert bt.is_rotating("0A:11:22:33:44:55")  # non-resolvable private (00)
+    assert not bt.is_rotating("CA:11:22:33:44:55")  # random static (11)
+    tr = bt.Tracker()
+    tr.ingest([{"address": "CA:11:22:33:44:55", "source": "A", "rssi": -70, "manufacturer_data": {"76": "12190000"}}], now=0)
+    d = tr.devices["CA:11:22:33:44:55"]
+    assert d.label == "Find My" and d.rotating  # Find My rotates although its address looks static
+    tr.ingest([{"address": "C4:7D:CC:10:20:30", "source": "A", "rssi": -60}], now=0)  # a fixed device passing by
+    tr.ingest([{"address": "C4:7D:CC:10:20:31", "source": "A", "rssi": -60}], now=0)
+    tr.ingest([{"address": "C4:7D:CC:10:20:31", "source": "A", "rssi": -60}], now=2 * 3600)  # one that stays
+    gone = tr.prune(now=2 * 3600 + 10)
+    assert "C4:7D:CC:10:20:30" in gone and "C4:7D:CC:10:20:31" in tr.devices and "CA:11:22:33:44:55" not in tr.devices
