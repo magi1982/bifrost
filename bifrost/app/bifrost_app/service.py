@@ -1128,6 +1128,13 @@ class BifrostService:
 
     def set_map(self, body: object) -> dict:
         floor, m = _housemap.validate_map(body, self._floor_areas())
+        shift = body.get("shift") if isinstance(body, dict) else None
+        if shift is not None:
+            dx, dy = (shift or {}).get("dx", 0), (shift or {}).get("dy", 0)
+            if not all(isinstance(v, (int, float)) and not isinstance(v, bool) and -80 <= v <= 80 for v in (dx, dy)):
+                raise ValueError("shift: dx/dy in metres")
+            if dx or dy:
+                self.ble.shift_samples(floor, float(dx), float(dy))
         v = self._save_map(floor, m, "save")
         return {"floor": floor, "rooms": len(m["rooms"]), "devices": len(m["devices"]), "version": v}
 
