@@ -96,8 +96,10 @@ def test_service_map_round_trip(tmp_path):
     svc.set_map({"floor": floor["name"], "w": 10, "h": 8, "rooms": [{"area": area, "rects": [[0, 0, 3, 3], [3, 0, 2, 1]]}], "devices": [{"id": sid, "kind": "scanner", "x": 1, "y": 1}]})
     lay = svc.live_view()["layouts"][floor["name"]]
     assert lay["map_saved"] and lay["map"]["devices"][0]["id"] == sid and len(lay["map"]["rooms"][0]["rects"]) == 2
-    svc.reset_map(floor["name"])
-    assert not svc.live_view()["layouts"][floor["name"]]["map_saved"]
+    svc.reset_map(floor["name"])  # 0.18: no longer deletes – the suggestion becomes a new version
+    lay = svc.live_view()["layouts"][floor["name"]]
+    assert lay["map_saved"] and not lay["map"]["devices"]
+    assert [v["source"] for v in svc.map_versions(floor["name"])["versions"]][:2] == ["suggestion", "save"]
     with pytest.raises(ValueError):
         svc.reset_map("nope")
 

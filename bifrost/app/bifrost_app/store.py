@@ -59,6 +59,18 @@ CREATE TABLE IF NOT EXISTS objects (
     updated TEXT NOT NULL,
     PRIMARY KEY (kind, id)
 );
+CREATE TABLE IF NOT EXISTS map_versions (
+    kind    TEXT NOT NULL,
+    floor   TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    data    TEXT NOT NULL,
+    created TEXT NOT NULL,
+    source  TEXT NOT NULL,
+    label   TEXT,
+    summary TEXT,
+    pinned  INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (kind, floor, version)
+);
 CREATE TABLE IF NOT EXISTS app_state (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -136,6 +148,39 @@ class Store:
         with self._lock:
             rows = self._db.execute("SELECT data FROM objects WHERE kind=? ORDER BY id", (kind,)).fetchall()
         return [json.loads(r[0]) for r in rows]
+
+    # --- versions of the house configuration (0.18) ------------------------------------------------
+    def add_version(self, kind: str, floor: str, data: dict, source: str, summary: dict | None = None, keep: int = 50) -> int:
+        """Store a new version; keep the newest ``keep`` unpinned ones (pinned versions are never removed)."""
+        now = datetime.now(UTC).isoformat(timespec="seconds")
+        with self._lock, self._db:
+            row = self._db.execute("SELECT COALESCE(MAX(version), 0) FROM map_versions WHERE kind=? AND floor=?", (kind, floor)).fetchone()
+            v = int(row[0]) + 1
+            self._db.execute(
+                "INSERT INTO map_versions(kind, floor, version, data, created, source, summary) VALUES (?,?,?,?,?,?,?)",
+                (kind, floor, v, json.dumps(data, ensure_ascii=False), now, source, json.dumps(summary or {})),
+            )
+            self._db.execute(
+                "DELETE FROM map_versions WHERE kind=? AND floor=? AND pinned=0 AND version NOT IN "
+                "(SELECT version FROM map_versions WHERE kind=? AND floor=? AND pinned=0 ORDER BY version DESC LIMIT ?)",
+                (kind, floor, kind, floor, keep),
+            )
+        return v
+
+    def list_versions(self, kind: str, floor: str) -> list[dict]:
+        with self._lock:
+            rows = self._db.execute("SELECT version, created, source, label, summary, pinned FROM map_versions WHERE kind=? AND floor=? ORDER BY version DESC", (kind, floor)).fetchall()
+        return [{"version": r[0], "created": r[1], "source": r[2], "label": r[3], "summary": json.loads(r[4] or "{}"), "pinned": bool(r[5])} for r in rows]
+
+    def get_version(self, kind: str, floor: str, version: int) -> dict | None:
+        with self._lock:
+            row = self._db.execute("SELECT data FROM map_versions WHERE kind=? AND floor=? AND version=?", (kind, floor, version)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def pin_version(self, kind: str, floor: str, version: int, pinned: bool, label: str | None) -> bool:
+        with self._lock, self._db:
+            cur = self._db.execute("UPDATE map_versions SET pinned=?, label=? WHERE kind=? AND floor=? AND version=?", (int(pinned), label, kind, floor, version))
+        return cur.rowcount > 0
 
     def del_obj(self, kind: str, oid: str) -> bool:
         with self._lock, self._db:

@@ -619,7 +619,7 @@ Every sub-section gets its own address (`#house/signal`), so a link or a notific
 **Open questions**: half-life values ok (30 → 7 days)? Should the history still show the old "what fooled Bifrost" picks from before?
 **Tests**: one-tap correction stores truth + evidence snapshot; blame shared by weight (no culprit picked); weight halves after the half-life; half-life shortens with learning progress; old corrections stop counting under 0.1; wrong "empty" keeps blocking release for 30 days; repeated blame on one signal → one inbox question.
 
-### Next version 0.18 · House configuration with versions, a safe suggestion, devices into their areas (28.11., user feedback) – waiting for "mach es"
+### Version 0.18 · House configuration with versions, a safe suggestion, devices into their areas (28.11., user feedback) – built in 0.18.0 (50 versions; one place button per kind; plan pictures in the export by default; suggestion and placing work in the editor, saved with "Done")
 **Bug found (since 0.13, still in 0.17.0)** – checked in the code:
 - *Edit map → Bifrost's suggestion* (`#hmReset`, i18n `hm_reset`) calls `api/map/reset` without asking; `service.reset_map()` → `store.del_obj("map", floor_key)` deletes the hand-drawn map of that floor for good (rooms, outside areas, zones, stairs, hull, doors/windows, device positions, plan-layer settings). Afterwards the automatic suggestion shows.
 - Same pattern for the old grid layout: `api/layout/reset` → `del_obj("layout", …)`. No button in the UI calls it any more (the grid layout was replaced by the map in 0.13), but the endpoint is still reachable.

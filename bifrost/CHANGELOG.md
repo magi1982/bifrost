@@ -2,6 +2,17 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.18.0] – 2026-11-28
+
+### Fixed
+- **"Bifrost's suggestion" deleted the hand-drawn map** of a floor without asking (rooms, zones, doors/windows, device positions, plan settings) – since 0.13. It no longer deletes anything: a dialog shows what would change, *Only add what is missing* is the default and *Replace everything* needs a second click; nothing is saved before *Done*, and the editor's ↶ undoes it. The old reset endpoints now keep a version instead of deleting.
+
+### Added
+- **Versions of the house configuration**: every saved change of a floor's map (save, suggestion, placing devices, import, restore) is a version with time, source and a short summary ("2 rooms changed, 5 devices moved"). The last 50 per floor are kept; pin and name versions to keep them for good. House → Configuration → *Versions* per floor: list, preview on the map, *Restore* (two clicks, creates a new version – nothing is lost) and a 10-second *Undo* bar. A map saved before 0.18 is kept as "State before versions" on the first change.
+- **Put devices into their areas** – one button per kind in *Edit map → Place devices*: gateways, motion, presence, doors & windows, buttons, lights, blinds, access, media and climate sensors, each with the number that can be placed. Devices go into the room of their Home Assistant area (largest rectangle, 0.5 m from the edge, 0.75 m apart, on the 0.25 m grid; doors and windows onto a wall). Placed devices stay unless *Also re-place* is ticked; devices without an area or whose area is not drawn are listed with the reason.
+- **Back up the house configuration** (Settings → Language & maintenance): export all maps, the calibration points and – by default – the floor plan pictures as one JSON file; import checks everything first (schema, picture type and size, 16 MB limit), writes each floor as a new version and keeps areas that no longer exist in Home Assistant as outside areas, listed in the report.
+- API: `/api/map/suggest`, `/api/map/place`, `/api/map/place_counts`, `/api/map/versions`, `/api/map/version`, `/api/map/restore`, `/api/map/pin`, `/api/house/export`, `/api/house/import`.
+
 ## [0.17.0] – 2026-11-28
 
 ### Changed

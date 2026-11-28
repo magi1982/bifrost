@@ -224,6 +224,25 @@ class BleHub:
                 self._save("ble_moves", self.moves)
         return {"zones": zones, "people": locs}
 
+    def import_samples(self, samples: list, floors: set[str]) -> int:
+        """Calibration points from a house export (validated; replaces the current ones)."""
+        good = []
+        for s in samples[:400]:
+            if not isinstance(s, dict) or s.get("floor") not in floors:
+                continue
+            x, y, vec = s.get("x"), s.get("y"), s.get("vec")
+            if not all(isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v <= 80 for v in (x, y)) or not isinstance(vec, dict) or not vec:
+                continue
+            if not all(isinstance(k, str) and len(k) <= 40 and isinstance(r, (int, float)) and not isinstance(r, bool) and -120 <= r <= 0 for k, r in vec.items()) or len(vec) > 64:
+                continue
+            quality = s.get("quality") if s.get("quality") in ("good", "ok", "weak") else "ok"
+            vec_up = {k.upper(): float(r) for k, r in vec.items()}
+            good.append({"floor": s["floor"], "x": float(x), "y": float(y), "vec": vec_up, "quality": quality, "scanners": len(vec), "at": str(s.get("at") or "")[:40]})
+        if good:
+            self.samples = good
+            self._save("calib_samples", self.samples)
+        return len(good)
+
     # --- calibration ------------------------------------------------------------------------------
     def cal_start(self, body: dict, maps: dict[str, dict], states: dict[str, dict]) -> dict:
         dev, floor = str(body.get("device") or ""), body.get("floor")
