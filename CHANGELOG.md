@@ -4,6 +4,9 @@ All notable changes to Bifrost are documented here. The format follows [Keep a C
 
 ## [0.18.1] – 2026-11-28
 
+### Added
+- **Doors and windows can be turned**: on a vertical wall they now stand vertical by themselves; a selected door or window has a *Turn 45°* button (0° / 45° / 90° / 135°). The direction is saved with the map.
+
 ### Fixed
 - **Bluetooth: only a few gateways "hearing" and few devices**: Bifrost keeps at most 1500 Bluetooth devices. When that was full it dropped every new device – and with it forgot that the gateway had just heard something, so most gateways looked silent. Now the gateway always counts as alive, and a full list makes room by forgetting the device heard longest ago.
 - **The list filled up within a day**: Find My tags and devices with a non-resolvable private address change their address every few minutes but were kept like fixed devices for 90 days. They now count as changing addresses (forgotten after 15 minutes), and a fixed address that was only seen briefly is forgotten after an hour. Entries of this kind saved by older versions are dropped on start.

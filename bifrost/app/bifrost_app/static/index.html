@@ -318,7 +318,7 @@ table.dtt{border-collapse:collapse;font-size:13px;width:100%}table.dtt th{text-a
 .hmlab.out text{font-size:11px}
 .hmlab.grey rect{fill:transparent;stroke:none}.hmlab.grey text{fill:var(--hm-greylab)}
 .hmstairs rect:first-child{fill:var(--n-violet);fill-opacity:.14;stroke:var(--n-violet);stroke-width:calc(2 * var(--u))}.hmstairs .st{stroke:var(--n-violet);stroke-opacity:.7;stroke-width:calc(1.2 * var(--u))}.hmstairs.grey rect:first-child{stroke:var(--hm-greyline);fill:none}.hmstairs.grey .st{stroke:var(--hm-greyline)}
-.hmmark rect{stroke:var(--card);stroke-width:1.5}.hmsvg .hmmark rect.mkhit{fill:transparent;stroke:none}.hmsvg.tool-select .hmmark,.hmsvg.tool-erase .hmmark{cursor:pointer}.hmmark.door rect{fill:var(--n-orange)}.hmmark.window rect{fill:var(--n-blue)}
+.hmmark rect{stroke:var(--card);stroke-width:1.5}.hmmark.sel rect:not(.mkhit){stroke:var(--n-cyan);stroke-width:2.5}.hmsvg .hmmark rect.mkhit{fill:transparent;stroke:none}.hmsvg.tool-select .hmmark,.hmsvg.tool-erase .hmmark{cursor:pointer}.hmmark.door rect{fill:var(--n-orange)}.hmmark.window rect{fill:var(--n-blue)}
 .hmic{cursor:pointer}.hmble{fill:var(--hm-ble);stroke:var(--hm-blestroke);stroke-width:1.5}
 .hmic .hmsel{fill:none;stroke:var(--text);stroke-width:2.5;stroke-dasharray:4 3}
 .hmname{font-size:10.5px;font-weight:600;paint-order:stroke;stroke:var(--card);stroke-width:3.4px}
@@ -818,7 +818,7 @@ function hmSvg(d,F,fl,m,mode,E,px){var k=HM_PX,W=m.w*k,H=m.h*k,names=fl.areas.ma
   var hullHit=E&&E.tool!=="room"&&E.tool!=="outside"?m.hull.map(function(q,qi){var isSel=E.sel&&E.sel.t==="h"&&E.sel.i===qi;return E.tool==="hull"||E.tool==="select"||E.tool==="erase"?'<rect class="hmhit hull'+(isSel?" sel":"")+'" data-hl="'+qi+'" x="'+q[0]*k+'" y="'+q[1]*k+'" width="'+q[2]*k+'" height="'+q[3]*k+'"/>'+(isSel?'<rect class="hmhandle" data-hd="1" x="'+((q[0]+q[2])*k-7)+'" y="'+((q[1]+q[3])*k-7)+'" width="14" height="14" rx="3"/>':""):"";}).join(""):"";
   var stairs=m.stairs.map(function(q,qi){var isSel=E&&E.sel&&E.sel.t==="s"&&E.sel.i===qi;return '<g class="hmstairs'+(grey?" grey":"")+'"><rect x="'+(q[0]*k+3)+'" y="'+(q[1]*k+3)+'" width="'+(q[2]*k-6)+'" height="'+(q[3]*k-6)+'" rx="6"/>'+hmSteps(q,k)+(E?'<rect class="hmhit'+(isSel?" sel":"")+'" data-s="'+qi+'" x="'+q[0]*k+'" y="'+q[1]*k+'" width="'+q[2]*k+'" height="'+q[3]*k+'"/>'+(isSel?'<rect class="hmhandle" data-hd="1" x="'+((q[0]+q[2])*k-7)+'" y="'+((q[1]+q[3])*k-7)+'" width="14" height="14" rx="3"/>':""):"")+'</g>';}).join("");
   var tech=mode==="config"||!!E;
-  var marks=tech?m.marks.map(function(p,pi){return '<g class="hmmark '+p.kind+'" data-mk="'+pi+'" style="transform:translate('+p.x*k+'px,'+p.y*k+'px) scale(var(--u))"><rect class="mkhit" x="-20" y="-14" width="40" height="28" rx="8"/><rect x="'+(p.kind==="door"?-11:-13)+'" y="-3.5" width="'+(p.kind==="door"?22:26)+'" height="7" rx="3.5"/></g>';}).join(""):"";
+  var marks=tech?m.marks.map(function(p,pi){return '<g class="hmmark '+p.kind+(E&&E.sel&&E.sel.t==="m"&&E.sel.i===pi?" sel":"")+'" data-mk="'+pi+'" style="transform:translate('+p.x*k+'px,'+p.y*k+'px) rotate('+(p.r||0)+'deg) scale(var(--u))"><rect class="mkhit" x="-20" y="-14" width="40" height="28" rx="8"/><rect x="'+(p.kind==="door"?-11:-13)+'" y="-3.5" width="'+(p.kind==="door"?22:26)+'" height="7" rx="3.5"/></g>';}).join(""):"";
   var devs="";if(tech)devs=m.devices.map(function(v){return hmDevIcon(d,v,E&&E.sel&&E.sel.t==="d"&&E.sel.id===v.id);}).join("");
   else if(mode==="signal")devs=m.devices.filter(function(v){return v.kind==="scanner";}).map(function(v){return hmIcon("gw",v.x*k,v.y*k);}).join("");
   var people="",zones="",bles="";
@@ -917,7 +917,7 @@ function houseMap(d){var F=hgFloor(d);if(!F)return '<div class="card"><h2>'+ic("
     h+='</div><div class="hmbox" style="max-width:'+hmPx(1)+'px">'+hmSvg(d,F,fl,m,"config",E,hmPx(1))+'</div>';
     h+='<div class="hged">'+(E.tool==="device"||E.tool==="select"?hmPanel(d,F,E):"")+(E.tool==="plan"?hmPlanPanel(d,fl,E):"")+
       '<div class="frow"><button type="button" class="ch" id="hmUndo"'+(E.undo.length?"":" disabled")+'>'+t("hg_undo")+'</button><button type="button" class="ch" id="hmRedo"'+(E.redo.length?"":" disabled")+'>'+t("hm_redo")+'</button>'+
-      (E.sel?'<button type="button" class="ch" id="hmDel">'+ic("trash")+' '+t("hm_delete")+'</button>':"")+'<label class="ch hmsnap"><input type="checkbox" id="hmSnap"'+(E.snap?" checked":"")+'> '+t("hm_snap")+'</label>'+
+      (E.sel&&E.sel.t==="m"?'<button type="button" class="ch" id="hmMarkRot">'+ic("routine")+' '+t("hm_mark_rot")+'</button>':"")+(E.sel?'<button type="button" class="ch" id="hmDel">'+ic("trash")+' '+t("hm_delete")+'</button>':"")+'<label class="ch hmsnap"><input type="checkbox" id="hmSnap"'+(E.snap?" checked":"")+'> '+t("hm_snap")+'</label>'+
       '<label class="hmsize">'+t("hm_w")+' <input class="inp" id="hmW" type="number" min="2" max="80" step="0.5" value="'+m.w+'"></label><label class="hmsize">'+t("hm_h")+' <input class="inp" id="hmH" type="number" min="2" max="80" step="0.5" value="'+m.h+'"></label>'+'<label class="hmsize"><input type="checkbox" id="hmStretch"'+(E.stretch!==false?" checked":"")+'> '+t("hm_stretch")+'</label></div>'+
       hmSuggestPanel(E)+hmPlacePanel(E)+
       '<div class="frow">'+btn(t("hg_done"),'id="hmSave"','sm p','check')+btn(t("hg_cancel"),'id="hmCancel"','sm ghost')+btn(t("hm_reset"),'id="hmReset" aria-expanded="'+!!E.sug+'"','sm ghost','routine')+btn(t("pl_open"),'id="hmPlaceOpen" aria-expanded="'+!!E.place+'"','sm ghost','motion')+'</div></div>';
@@ -963,6 +963,7 @@ var HM_GRID=0.25;
   var hc=document.getElementById("hmHullClear");if(hc)hc.onclick=function(){snapshot();m.hull=[];render();};
   var un=document.getElementById("hmUndo");if(un)un.onclick=function(){var s=E.undo.pop();if(s){E.redo.push(JSON.stringify(m));E.m=JSON.parse(s);E.sel=null;render();}};
   var rd=document.getElementById("hmRedo");if(rd)rd.onclick=function(){var s=E.redo.pop();if(s){E.undo.push(JSON.stringify(m));E.m=JSON.parse(s);E.sel=null;render();}};
+  var mr=document.getElementById("hmMarkRot");if(mr)mr.onclick=function(){var mk=E.sel&&E.sel.t==="m"&&m.marks[E.sel.i];if(!mk)return;snapshot();var r=((mk.r||0)+45)%180;if(r)mk.r=r;else delete mk.r;render();};
   var del=document.getElementById("hmDel");if(del)del.onclick=function(){remove(E.sel);E.sel=null;render();};
   var sn=document.getElementById("hmSnap");if(sn)sn.onchange=function(){E.snap=sn.checked;render();};
   /* new floor size: by default the whole drawing is stretched along, edges rounded to the grid so neighbouring rooms stay joined */
@@ -1020,11 +1021,11 @@ var HM_GRID=0.25;
     var s1=el.getAttribute("data-s");if(s1!==null)return {t:"s",i:+s1};var h1=el.getAttribute("data-hl");if(h1!==null)return {t:"h",i:+h1};return null;}
   function rectOf(s){if(!s)return null;if(s.t==="z"){var zz=(m.zones||[])[s.i];return zz&&zz.rects[s.j];}if(s.t==="r"){var r=roomOf(s.a);return r&&r.rects[s.i];}if(s.t==="s")return m.stairs[s.i];if(s.t==="h")return m.hull[s.i];return null;}
   function nearestWall(x,y){var best=[x,y],bd=0.8,all=hmHull(m).slice();m.rooms.forEach(function(r){all=all.concat(r.rects);});
-    all.forEach(function(q1){[[q1[0],null],[q1[0]+q1[2],null],[null,q1[1]],[null,q1[1]+q1[3]]].forEach(function(w){var px=w[0]!==null?w[0]:clamp(x,q1[0],q1[0]+q1[2]),py=w[1]!==null?w[1]:clamp(y,q1[1],q1[1]+q1[3]),dd=Math.hypot(px-x,py-y);if(dd<bd){bd=dd;best=[px,py];}});});return best;}
+    all.forEach(function(q1){[[q1[0],null],[q1[0]+q1[2],null],[null,q1[1]],[null,q1[1]+q1[3]]].forEach(function(w){var px=w[0]!==null?w[0]:clamp(x,q1[0],q1[0]+q1[2]),py=w[1]!==null?w[1]:clamp(y,q1[1],q1[1]+q1[3]),dd=Math.hypot(px-x,py-y);if(dd<bd){bd=dd;best=[px,py,w[0]!==null];}});});return best;}
   var drag=null,names=fl.areas.map(function(a){return a.name;});
   box.addEventListener("pointerdown",function(e){var p=pt(e),hit=hitOf(e);e.preventDefault();
     if(E.tool==="erase"){if(hit&&hit.t!=="hd"){remove(hit);render();}return;}
-    if(E.tool==="door"||E.tool==="window"){snapshot();var w=nearestWall(p[0],p[1]);m.marks.push({kind:E.tool,x:r1(w[0]),y:r1(w[1])});render();return;}
+    if(E.tool==="door"||E.tool==="window"){snapshot();var w=nearestWall(p[0],p[1]),mk={kind:E.tool,x:r1(w[0]),y:r1(w[1])};if(w[2])mk.r=90;m.marks.push(mk);E.sel={t:"m",i:m.marks.length-1};render();return;}
     if(E.tool==="device"){if(!E.dev){toast(t("hm_pick_dev"));return;}snapshot();m.devices=m.devices.filter(function(v){return v.id!==E.dev;});m.devices.push({id:E.dev,kind:hmKind(d,E.dev),x:r1(p[0]),y:r1(p[1])});E.sel={t:"d",id:E.dev};E.dev=null;E.tool="select";render();return;}
     if(E.tool==="plan"){var l=m.layers.filter(function(x){return x.n===E.lay;})[0];if(!l)return;snapshot();drag={mode:"layer",l:l,p0:p,o:[l.x,l.y]};try{box.setPointerCapture(e.pointerId);}catch(er){}return;}
     if(E.tool==="select"||(E.tool==="hull"&&hit&&(hit.t==="h"||hit.t==="hd"))){
@@ -1753,6 +1754,7 @@ function bindFilters(){if(S.view!=="setup")return;
 document.documentElement.lang=LANG;
 
 /* ---------- 0.15 navigation: six areas, each with sub-tabs (#area/sub) ---------- */
+Object.assign(TX.de,{hm_mark_rot:"Drehen 45°"});Object.assign(TX.en,{hm_mark_rot:"Turn 45°"});
 Object.assign(TX.de,{sug_title:"Vorschlag von Bifrost",sug_hint:"Bifrost ordnet die Bereiche dieses Stockwerks nach den gelernten Wegen an. Es wird nichts gespeichert, bevor du „Fertig“ drückst – und jede gespeicherte Karte bleibt als Version erhalten.",
   sug_add:"Nur Fehlendes ergänzen",sug_add_hint:"Bereiche, die noch nicht gezeichnet sind, kommen dazu. Räume, Zonen, Türen, Fenster und Geräte bleiben genau, wie sie sind.",sug_add_btn:"Ergänzen",
   sug_replace:"Alles durch den Vorschlag ersetzen",sug_replace_hint:"Deine Zeichnung dieses Stockwerks wird ersetzt (Grundriss-Bilder bleiben). Rückgängig mit ↶ oder später über „Versionen“.",sug_replace_btn:"Ersetzen …",sug_replace_sure:"Wirklich ersetzen",

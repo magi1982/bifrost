@@ -126,6 +126,10 @@ def validate_map(body: object, floor_areas: dict[str, list[str]]) -> tuple[str, 
         if not isinstance(m, dict) or m.get("kind") not in MARK_KINDS:
             raise ValueError("mark: door or window")
         item = {"kind": m["kind"], "x": _num(m.get("x"), 0, w, "x"), "y": _num(m.get("y"), 0, h, "y")}
+        if m.get("r") not in (None, 0):
+            if m.get("r") not in (45, 90, 135):
+                raise ValueError("door/window direction: 0, 45, 90 or 135")
+            item["r"] = m["r"]
         eid = m.get("entity_id")
         if eid is not None:
             if not isinstance(eid, str) or len(eid) > 120 or not _ID.match(eid):
