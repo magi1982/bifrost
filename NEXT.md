@@ -601,3 +601,20 @@ Every sub-section gets its own address (`#house/signal`), so a link or a notific
 **Limits**: phones without IRK change their address every ~15 min – a new address starts without history. In a timber house floors separate badly; more calibration points on the stairs help most.
 **Setting**: "Calmness" (calm / normal / fast) with a description – calm for the map, fast for automations that react quickly. (Decide with the maintainer.)
 **Tests**: synthetic walk with noisy RSSI (±6 dB) → spread of the shown position at standstill below 0.5 m, a real 3 m move followed within 10 s, no floor flip from a single outlier, drop-out of one gateway does not move the dot more than 1 m; existing calibration accuracy (leave-one-out) not worse.
+
+### Idea · "That's wrong" without blame, corrections fade as patterns grow (28.11.) – waiting for "mach es"
+**Maintainer**: the button must not ask who or what caused it – Bifrost has to learn that itself. The owner only says "wrong" and what is true (home / away / asleep). Corrections given while Bifrost is still learning must count strongly at first and fade over time once Bifrost recognises more patterns of its own.
+**Today**: two steps – the true state, then "what fooled Bifrost" (a list of signals from the last 30 min). Every correction counts forever: the owner label is a STRONG truth in hindsight, a named culprit loses trust permanently (penalty × count), tracker mistakes add up for good.
+**UI**: "That's wrong" → Home · Away · Asleep → done ("Thanks – Bifrost learns from it"). No second step. Same for a single person.
+**Bifrost finds the reason itself**
+- With the correction it stores the evidence of that moment: which signals pushed the decision and by how much (the "how it was calculated" parts).
+- Blame is shared by weight: signals that pushed towards the wrong state get a soft penalty proportional to their share – no single culprit, no question.
+- The hindsight learning re-checks the period: the corrected time becomes a truth segment, the evidence scale re-learns from it.
+- A signal that keeps being blamed (several corrections, ≥ 3 days apart) becomes a question in the inbox ("Does the hall motion react to pets?") – only then.
+**Fading** – a correction's weight = owner weight × fade:
+- fade = ½^(age / half-life); half-life depends on how much Bifrost has learned by itself: ~30 days while hindsight has few certain hours, shortening to ~7 days once the learning progress card is full (enough certain home/empty hours, departures, patterns).
+- Under ~0.1 the correction no longer counts for learning; it stays in the history.
+- If Bifrost's own learned patterns agree with an old correction, nothing changes; if they disagree, the patterns win as the correction fades.
+**Safety stays strict**: a wrong "empty" still blocks the alarm release for 30 days (balance gate) – that window does not fade faster.
+**Open questions**: half-life values ok (30 → 7 days)? Should the history still show the old "what fooled Bifrost" picks from before?
+**Tests**: one-tap correction stores truth + evidence snapshot; blame shared by weight (no culprit picked); weight halves after the half-life; half-life shortens with learning progress; old corrections stop counting under 0.1; wrong "empty" keeps blocking release for 30 days; repeated blame on one signal → one inbox question.
