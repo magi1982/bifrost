@@ -7,6 +7,10 @@ All notable changes to Bifrost are documented here. The format follows [Keep a C
 ### Changed
 - **Exact room frames while editing**: in *Edit map* every room – not only the selected one – shows its frame with square corners and without the gap to its neighbours, so edges can be laid exactly onto each other. After *Save* the rooms are drawn rounded and merged as before.
 
+### Fixed
+- **Stairs were nearly invisible**: they were drawn as a thin, half-transparent dashed line, so drawing one looked like nothing happened. Stairs are now a violet area with step lines.
+- **Windows and doors were hard to pick**: the hit area was only the small bar (about 24 × 6 px on a phone). Each door and window now has a generous invisible hit area (about 37 × 26 px).
+
 ## [0.16.0] – 2026-11-28
 
 ### Added

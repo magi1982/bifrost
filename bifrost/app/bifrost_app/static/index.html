@@ -317,8 +317,8 @@ table.dtt{border-collapse:collapse;font-size:13px;width:100%}table.dtt th{text-a
 .hmlab rect{fill:var(--hm-pill);stroke:var(--hm-line)}.hmlab text{font-size:12px;font-weight:600;fill:var(--hm-lab);pointer-events:none}.hmlab{pointer-events:none}
 .hmlab.out text{font-size:11px}
 .hmlab.grey rect{fill:transparent;stroke:none}.hmlab.grey text{fill:var(--hm-greylab)}
-.hmstairs rect:first-child{fill:none;stroke:var(--hm-lab);stroke-opacity:.45;stroke-dasharray:4 4}.hmstairs.grey rect:first-child{stroke:var(--hm-greyline);stroke-opacity:1}
-.hmmark rect{stroke:var(--card);stroke-width:1.5}.hmmark.door rect{fill:var(--n-orange)}.hmmark.window rect{fill:var(--n-blue)}
+.hmstairs rect:first-child{fill:var(--n-violet);fill-opacity:.14;stroke:var(--n-violet);stroke-width:calc(2 * var(--u))}.hmstairs .st{stroke:var(--n-violet);stroke-opacity:.7;stroke-width:calc(1.2 * var(--u))}.hmstairs.grey rect:first-child{stroke:var(--hm-greyline);fill:none}.hmstairs.grey .st{stroke:var(--hm-greyline)}
+.hmmark rect{stroke:var(--card);stroke-width:1.5}.hmsvg .hmmark rect.mkhit{fill:transparent;stroke:none}.hmsvg.tool-select .hmmark,.hmsvg.tool-erase .hmmark{cursor:pointer}.hmmark.door rect{fill:var(--n-orange)}.hmmark.window rect{fill:var(--n-blue)}
 .hmic{cursor:pointer}.hmble{fill:var(--hm-ble);stroke:var(--hm-blestroke);stroke-width:1.5}
 .hmic .hmsel{fill:none;stroke:var(--text);stroke-width:2.5;stroke-dasharray:4 3}
 .hmname{font-size:10.5px;font-weight:600;paint-order:stroke;stroke:var(--card);stroke-width:3.4px}
@@ -748,6 +748,10 @@ function hmTick(now){HM_RAF=null;var busy=false;
   Object.keys(HM_ANIM).forEach(function(k){var a=HM_ANIM[k];if(!a.dur)return;var p=Math.min(1,(now-a.t0)/a.dur),e=hmEase(p);
     a.x=a.fx+(a.tx-a.fx)*e;a.y=a.fy+(a.ty-a.fy)*e;if(a.el&&a.el.isConnected)hmPlace(a.el,a.x,a.y);if(p<1)busy=true;else a.dur=0;});
   if(busy)HM_RAF=requestAnimationFrame(hmTick);}
+/* step lines of a staircase: one every 0.3 m across the longer side */
+function hmSteps(q,k){var h=q[2]>=q[3],len=h?q[2]:q[3],n=Math.max(2,Math.floor(len/0.3)),out="";
+  for(var i=1;i<n;i++){var f=i/n;out+=h?'<line class="st" x1="'+(q[0]+q[2]*f)*k+'" y1="'+(q[1]*k+5)+'" x2="'+(q[0]+q[2]*f)*k+'" y2="'+((q[1]+q[3])*k-5)+'"/>':'<line class="st" x1="'+(q[0]*k+5)+'" y1="'+(q[1]+q[3]*f)*k+'" x2="'+((q[0]+q[2])*k-5)+'" y2="'+(q[1]+q[3]*f)*k+'"/>';}
+  return out;}
 function hmDevIcon(d,v,sel){var kind=v.kind==="scanner"?"gw":v.kind==="ble"?"ble":({openings:"door",access:"key"}[hmCat(d,v.id)]||"motion");return hmIcon(kind,v.x*HM_PX,v.y*HM_PX,{id:v.id,sel:sel});}
 /* outline of the union of a room's rectangles as one path: touching rectangles of the same room merge,
    the border is inset (gap to neighbouring rooms) and its corners are rounded */
@@ -808,9 +812,9 @@ function hmSvg(d,F,fl,m,mode,E,px){var k=HM_PX,W=m.w*k,H=m.h*k,names=fl.areas.ma
     var c=hmCenter(r.rects),wl=r.area.length*(out?6.2:7.2)+18;
     labels+='<g class="hmlab'+(out?" out":"")+(grey?" grey":"")+'" style="transform:translate('+c[0]+'px,'+c[1]+'px) scale(var(--u))"><rect x="'+(-wl/2)+'" y="-10.5" width="'+wl+'" height="21" rx="10.5"/><text y="4.2" text-anchor="middle">'+esc(r.area)+'</text></g>';});
   var hullHit=E&&E.tool!=="room"&&E.tool!=="outside"?m.hull.map(function(q,qi){var isSel=E.sel&&E.sel.t==="h"&&E.sel.i===qi;return E.tool==="hull"||E.tool==="select"||E.tool==="erase"?'<rect class="hmhit hull'+(isSel?" sel":"")+'" data-hl="'+qi+'" x="'+q[0]*k+'" y="'+q[1]*k+'" width="'+q[2]*k+'" height="'+q[3]*k+'"/>'+(isSel?'<rect class="hmhandle" data-hd="1" x="'+((q[0]+q[2])*k-7)+'" y="'+((q[1]+q[3])*k-7)+'" width="14" height="14" rx="3"/>':""):"";}).join(""):"";
-  var stairs=m.stairs.map(function(q,qi){var isSel=E&&E.sel&&E.sel.t==="s"&&E.sel.i===qi;return '<g class="hmstairs'+(grey?" grey":"")+'"><rect x="'+(q[0]*k+3)+'" y="'+(q[1]*k+3)+'" width="'+(q[2]*k-6)+'" height="'+(q[3]*k-6)+'" rx="6"/>'+(E?'<rect class="hmhit'+(isSel?" sel":"")+'" data-s="'+qi+'" x="'+q[0]*k+'" y="'+q[1]*k+'" width="'+q[2]*k+'" height="'+q[3]*k+'"/>'+(isSel?'<rect class="hmhandle" data-hd="1" x="'+((q[0]+q[2])*k-7)+'" y="'+((q[1]+q[3])*k-7)+'" width="14" height="14" rx="3"/>':""):"")+'</g>';}).join("");
+  var stairs=m.stairs.map(function(q,qi){var isSel=E&&E.sel&&E.sel.t==="s"&&E.sel.i===qi;return '<g class="hmstairs'+(grey?" grey":"")+'"><rect x="'+(q[0]*k+3)+'" y="'+(q[1]*k+3)+'" width="'+(q[2]*k-6)+'" height="'+(q[3]*k-6)+'" rx="6"/>'+hmSteps(q,k)+(E?'<rect class="hmhit'+(isSel?" sel":"")+'" data-s="'+qi+'" x="'+q[0]*k+'" y="'+q[1]*k+'" width="'+q[2]*k+'" height="'+q[3]*k+'"/>'+(isSel?'<rect class="hmhandle" data-hd="1" x="'+((q[0]+q[2])*k-7)+'" y="'+((q[1]+q[3])*k-7)+'" width="14" height="14" rx="3"/>':""):"")+'</g>';}).join("");
   var tech=mode==="config"||!!E;
-  var marks=tech?m.marks.map(function(p,pi){return '<g class="hmmark '+p.kind+'" data-mk="'+pi+'" style="transform:translate('+p.x*k+'px,'+p.y*k+'px) scale(var(--u))"><rect x="'+(p.kind==="door"?-11:-13)+'" y="-3.5" width="'+(p.kind==="door"?22:26)+'" height="7" rx="3.5"/></g>';}).join(""):"";
+  var marks=tech?m.marks.map(function(p,pi){return '<g class="hmmark '+p.kind+'" data-mk="'+pi+'" style="transform:translate('+p.x*k+'px,'+p.y*k+'px) scale(var(--u))"><rect class="mkhit" x="-20" y="-14" width="40" height="28" rx="8"/><rect x="'+(p.kind==="door"?-11:-13)+'" y="-3.5" width="'+(p.kind==="door"?22:26)+'" height="7" rx="3.5"/></g>';}).join(""):"";
   var devs="";if(tech)devs=m.devices.map(function(v){return hmDevIcon(d,v,E&&E.sel&&E.sel.t==="d"&&E.sel.id===v.id);}).join("");
   else if(mode==="signal")devs=m.devices.filter(function(v){return v.kind==="scanner";}).map(function(v){return hmIcon("gw",v.x*k,v.y*k);}).join("");
   var people="",zones="",bles="";
