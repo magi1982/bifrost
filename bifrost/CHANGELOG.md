@@ -2,6 +2,11 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.15.2] – 2026-11-28
+
+### Fixed
+- **Changing a floor's size** (e.g. to 11 × 9 m) no longer leaves the rooms off the grid or outside the map: with *Stretch the drawing along* (on by default) rooms, stairs, hull, zones, doors, windows, devices and plan pictures are scaled to the new size, edges rounded to the grid so neighbouring rooms stay joined. Switch it off to only change the size. Calibration points are not moved – calibrate again after a big change.
+
 ## [0.15.1] – 2026-11-28
 
 ### Changed

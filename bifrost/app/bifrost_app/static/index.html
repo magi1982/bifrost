@@ -803,7 +803,7 @@ function houseMap(d){var F=hgFloor(d);if(!F)return '<div class="card"><h2>'+ic("
     h+='<div class="hged">'+(E.tool==="device"||E.tool==="select"?hmPanel(d,F,E):"")+(E.tool==="plan"?hmPlanPanel(d,fl,E):"")+
       '<div class="frow"><button type="button" class="ch" id="hmUndo"'+(E.undo.length?"":" disabled")+'>'+t("hg_undo")+'</button><button type="button" class="ch" id="hmRedo"'+(E.redo.length?"":" disabled")+'>'+t("hm_redo")+'</button>'+
       (E.sel?'<button type="button" class="ch" id="hmDel">'+ic("trash")+' '+t("hm_delete")+'</button>':"")+'<label class="ch hmsnap"><input type="checkbox" id="hmSnap"'+(E.snap?" checked":"")+'> '+t("hm_snap")+'</label>'+
-      '<label class="hmsize">'+t("hm_w")+' <input class="inp" id="hmW" type="number" min="2" max="80" step="0.5" value="'+m.w+'"></label><label class="hmsize">'+t("hm_h")+' <input class="inp" id="hmH" type="number" min="2" max="80" step="0.5" value="'+m.h+'"></label></div>'+
+      '<label class="hmsize">'+t("hm_w")+' <input class="inp" id="hmW" type="number" min="2" max="80" step="0.5" value="'+m.w+'"></label><label class="hmsize">'+t("hm_h")+' <input class="inp" id="hmH" type="number" min="2" max="80" step="0.5" value="'+m.h+'"></label>'+'<label class="hmsize"><input type="checkbox" id="hmStretch"'+(E.stretch!==false?" checked":"")+'> '+t("hm_stretch")+'</label></div>'+
       '<div class="frow">'+btn(t("hg_done"),'id="hmSave"','sm p','check')+btn(t("hg_cancel"),'id="hmCancel"','sm ghost')+btn(t("hm_reset"),'id="hmReset"','sm ghost','routine')+'</div></div>';
     return h+'</div>';}
   var FL=hmFloors(d,F);if(!FL.length)FL=F.all;var cols=hmCols(FL.length),px=hmPx(cols);
@@ -847,7 +847,16 @@ function bindMap(){var d=V4.house;if(!d)return;var F=hgFloor(d);if(!F)return;
   var rd=document.getElementById("hmRedo");if(rd)rd.onclick=function(){var s=E.redo.pop();if(s){E.undo.push(JSON.stringify(m));E.m=JSON.parse(s);E.sel=null;render();}};
   var del=document.getElementById("hmDel");if(del)del.onclick=function(){remove(E.sel);E.sel=null;render();};
   var sn=document.getElementById("hmSnap");if(sn)sn.onchange=function(){E.snap=sn.checked;render();};
-  ["hmW","hmH"].forEach(function(id){var el=document.getElementById(id);if(el)el.onchange=function(){var v=clamp(parseFloat(el.value)||0,2,80);snapshot();m[id==="hmW"?"w":"h"]=r1(v);render();};});
+  /* new floor size: by default the whole drawing is stretched along, edges rounded to the grid so neighbouring rooms stay joined */
+  function scaleMap(sx,sy){var g=E.snap!==false?0.5:0.1,rd=function(v){return Math.round(v/g)*g;};
+    function rect(q){var x0=rd(q[0]*sx),y0=rd(q[1]*sy),x1=rd((q[0]+q[2])*sx),y1=rd((q[1]+q[3])*sy);return [r1(x0),r1(y0),r1(Math.max(g,x1-x0)),r1(Math.max(g,y1-y0))];}
+    function pt(o){o.x=r1(clamp(o.x*sx,0,m.w));o.y=r1(clamp(o.y*sy,0,m.h));}
+    m.rooms.forEach(function(r){r.rects=r.rects.map(rect);});m.stairs=m.stairs.map(rect);m.hull=(m.hull||[]).map(rect);
+    (m.zones||[]).forEach(function(z){z.rects=z.rects.map(rect);});m.marks.forEach(pt);m.devices.forEach(pt);
+    (m.layers||[]).forEach(function(l){l.x=r1(l.x*sx);l.y=r1(l.y*sy);l.w=r1(Math.max(0.5,l.w*sx));});}
+  ["hmW","hmH"].forEach(function(id){var el=document.getElementById(id);if(el)el.onchange=function(){var v=r1(clamp(parseFloat(el.value)||0,2,80)),k=id==="hmW"?"w":"h",old=m[k];if(v===old)return;snapshot();m[k]=v;
+    if(E.stretch!==false)scaleMap(k==="w"?v/old:1,k==="h"?v/old:1);render();};});
+  var st=document.getElementById("hmStretch");if(st)st.onchange=function(){E.stretch=st.checked;};
   document.querySelectorAll("[data-hmrot]").forEach(function(b){b.onclick=function(){var l=m.layers.filter(function(x){return x.n===E.lay;})[0];if(!l)return;snapshot();var v=+b.dataset.hmrot;
     l.rot=v===0?0:Math.round((((l.rot+v)%360+540)%360-180)*10)/10;render();};});
   var fit=document.getElementById("hmFit");if(fit)fit.onclick=function(){var l=m.layers.filter(function(x){return x.n===E.lay;})[0];if(!l)return;snapshot();l.x=0;l.y=0;l.w=m.w;render();};
@@ -1565,6 +1574,7 @@ function bindFilters(){if(S.view!=="setup")return;
 document.documentElement.lang=LANG;
 
 /* ---------- 0.15 navigation: six areas, each with sub-tabs (#area/sub) ---------- */
+Object.assign(TX.de,{hm_stretch:"Zeichnung mitskalieren"});Object.assign(TX.en,{hm_stretch:"Stretch the drawing along"});
 Object.assign(TX.de,{hm_size:"Grösse fein einstellen",hm_size_hint:"100 % = so breit wie die Karte dieses Stockwerks; das Bild wächst und schrumpft um seine Mitte."});
 Object.assign(TX.en,{hm_size:"Fine size",hm_size_hint:"100 % = as wide as this floor's map; the picture grows and shrinks around its centre."});
 Object.assign(TX.de,{nav_status:"Übersicht",nav_house:"Haus",nav_people:"Personen",nav_recog:"Muster",nav_safety:"Sicherheit",nav_setup:"Einstellungen",
