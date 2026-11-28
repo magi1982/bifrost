@@ -2,6 +2,16 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.15.1] – 2026-11-28
+
+### Changed
+- **Areas and sub-tabs look the same**: both rows are neon pills (the area row a little larger); the active one is tinted in the area's colour.
+- **Floor plan picture size in %**: 100 % = as wide as the floor's map. The picture grows and shrinks around its **centre** (like turning), with fine buttons −10 % / −1 % / +1 % / +10 % and a field for the percentage; *Left/Top* cover the whole allowed range.
+- **All floors at one scale**: 1 m is equally long on every floor map – a ground floor with its garden is drawn larger than a smaller upper floor.
+
+### Fixed
+- *Overview* and *Settings* were not marked as the active area.
+
 ## [0.15.0] – 2026-11-28
 
 ### Changed

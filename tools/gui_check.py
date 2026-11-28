@@ -96,6 +96,9 @@ def run() -> int:
                 pg.evaluate(GO, tab)
                 pg.wait_for_timeout(500)
                 res = pg.evaluate(OVERFLOW_JS)
+                marked = pg.evaluate("() => [document.querySelector('#tabs .active')?.dataset.area, document.querySelector('#subtabs .on')?.dataset.sub].join('/')")
+                if marked != tab:
+                    problems.append({"where": f"nav-{tab}-{scheme}-{w}", "marked": marked})
                 tag = f"{tab.replace('/', '_')}-{scheme}-{w}"
                 if res["bad"] or res["page"] > 2:
                     problems.append({"where": tag, **res})
