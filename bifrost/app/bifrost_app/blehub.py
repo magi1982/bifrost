@@ -279,7 +279,22 @@ class BleHub:
             "status": status,
         }
 
-    def view(self, rows: list[dict], scanners: dict[str, dict], now: float | None = None) -> dict:
+    NO_BLE = re.compile(r"^(SH[A-Z0-9]{2,}-|SHSW|SHPLG|SHDM|SHIX|SHEM|SHHT|SHWT|SHDW|SHBTN|SHMOS|SHGS|SBBT|SBDW|SBHT|SBMO)|\b(gen ?1|shelly ?1(pm|l)?|shelly ?2\.5|dimmer ?2|plug ?s|h&t|blu)\b", re.I)
+
+    def missing(self, candidates: list[dict]) -> list[dict]:
+        """Devices that could be gateways but send nothing – with the likely reason."""
+        out = []
+        for c in candidates:
+            if any(mac_match(s, c.get("macs") or []) for s in self.tracker.sources):
+                continue
+            text = f"{c.get('model') or ''} {c.get('name') or ''}"
+            esphome = "esp" in (c.get("manufacturer") or "").lower() or "esphome" in text.lower()
+            gen2 = re.search(r"\b(plus|pro|mini|gen ?[2-9]|S[0-9][A-Z]{2})", text, re.I)  # Plus/Pro/Mini/Gen2+ all have Bluetooth
+            reason = "esphome" if esphome else "no_ble" if self.NO_BLE.search(text) and not gen2 else "enable"
+            out.append({"name": c.get("name"), "model": c.get("model") or "", "area": c.get("area"), "reason": reason})
+        return sorted(out, key=lambda x: (x["reason"] != "enable", x["name"] or ""))
+
+    def view(self, rows: list[dict], scanners: dict[str, dict], now: float | None = None, candidates: list[dict] | None = None) -> dict:
         now = time.time() if now is None else now
         hide_house = bool(self.settings.get("hide_house"))
         rows = [{**r, "hidden": r["address"] in self.hidden or (r["house"] and hide_house)} for r in rows]  # switches apply at once
@@ -289,6 +304,7 @@ class BleHub:
             "settings": self.settings,
             "scanners": srcs,
             "devices": rows,
+            "missing": self.missing(candidates or []),
             "counts": {
                 "present": len(rows),
                 "fixed": sum(1 for r in rows if r["fixed"]),

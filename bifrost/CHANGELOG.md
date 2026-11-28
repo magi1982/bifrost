@@ -2,6 +2,25 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.15.0] – 2026-11-28
+
+### Changed
+- **Navigation with areas and sub-tabs**: six areas at the top – Overview, House, People, Patterns, Safety, Settings – each with its sub-tabs as a row of pills below, in the area's neon colour. Bifrost remembers the last sub-tab per area; every sub-tab has its own address (`#area/sub`), e.g. `#house/signal`. A sub-tab without content says so instead of showing an empty page.
+- **Moved**: Bluetooth nearby (with the gateways that send nothing) from Setup to House → Bluetooth; Questions and Balance into Safety; the house map's own Live/Configuration/Signal switch is now the House sub-tabs; Setup is now **Settings**, split into Signals, Bifrost entities, Notifications, Suggestions and Language & maintenance.
+- `tools/gui_check.py` checks every area/sub-tab.
+
+## [0.14.0] – 2026-11-28
+
+### Added
+- **Everyday life** (Patterns tab): patterns beyond arriving, leaving and sleeping, found in the last 28 days on three time scales – **sequences** (steps in the same order within minutes; automatic follow-ups like motion → light are merged; only the longest chains are kept), **phases** (a room active for hours on weekdays or weekends), **weekly rhythm** (only on one weekday, e.g. cleaning on Tuesday), **couplings** (B follows A by a fixed delay, e.g. dishwasher after cooking) and **timers** (switch on to the minute – never counted as activity). Names are built from the facts (time, rooms, devices); rename or hide each one. **Different from usual today** shows a phase that did not happen or a device on far longer than usual. Random activity produces no patterns (tested); 110,000 events take about a second in the learning run.
+- **Bluetooth gateways that send nothing**: Setup → Bluetooth nearby lists the Shellys and ESPHome devices that are not a gateway, with the reason – Bluetooth scanning switched off in HA (with the path), a model without Bluetooth (Gen1, battery devices) or ESPHome without `bluetooth_proxy`.
+- API: `/api/everyday` (rename/hide validated: pattern id, name ≤ 60 characters).
+
+### Changed
+- **Bluetooth list grouped**: entries with the same identity (e.g. several changing iPhone addresses) form one row with the count and the strongest gateway; *Show all* lists each entry with its own signal strength (dBm and bar) and gateway.
+- **Floor plan pictures**: rooms are see-through over a picture (almost invisible while you adjust the picture), the picture turns around its **centre** with buttons ↺/↻ 90°, 1° and 0.1°, *Straight* and *Fit to the floor*; a frame shows the selected picture.
+- **Everyday sequences and couplings** use the same chain design as the routines (steps as nodes with "then").
+
 ## [0.13.0] – 2026-11-28
 
 ### Added

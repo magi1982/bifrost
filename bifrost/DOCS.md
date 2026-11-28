@@ -14,6 +14,17 @@ Bifrost tells you whether anybody is home – with a confidence and the reasons.
 5. Assign your sensors to **areas** (and areas to **floors**) in Home Assistant – the **House** tab is built from them.
 6. Let Bifrost learn for a few days. It runs in **shadow mode** and does not trigger anything.
 
+### Navigation (0.15)
+Six areas at the top, each with its sub-tabs as a row of pills below. Bifrost remembers the last sub-tab per area, and every sub-tab has its own address (e.g. `#house/signal`), so a link can open it directly.
+- **Overview** – *Now* · *Heimdall* (“May the house be empty?”, guest mode) · *Bifrost* (what Bifrost is processing, learning).
+- **House** – *Live map* · *Configuration* · *Signal & calibration* · *Bluetooth* (moved here from Setup) · *What is happening*.
+- **People** – *People* · *Movements*.
+- **Patterns** – *Everyday life* · *Routines* · *Detectors & calendar*.
+- **Safety** – *Incidents* · *Questions* · *Balance*.
+- **Settings** (formerly Setup) – *Signals* · *Bifrost entities* · *Notifications* · *Suggestions* · *Language & maintenance*.
+
+The sections below describe the content; their old tab names map to the areas above.
+
 ### Tabs
 - **Status** – the result with a percentage for Home, Asleep and Away (and how Bifrost calculated it), reasons, “Is Bifrost wrong?” right under the result, “May the house be empty?” checklist, people, suspicious entry, guest mode.
 - **People** – everybody in the household with their sources and how visible they are; unknown people inside.
@@ -92,6 +103,9 @@ With the **Mosquitto broker** installed, Bifrost publishes its entities via MQTT
 - **House → Signal → Start calibration**: choose your phone, walk to each numbered point, tap *Measure*. Afterwards positions use these fingerprints; the floor buttons show the expected accuracy.
 - Entities: `binary_sensor.bifrost_zone_<name>` (occupancy) and `sensor.bifrost_<person>_location`.
 
+### Everyday life (0.14)
+**Patterns → Everyday life** shows what repeats in your home: sequences, phases, weekly rhythm, couplings and timers – named from the facts, renamable and hideable. It needs about two weeks of data. *Different from usual today* points out a missing phase or a device that has been on far longer than usual.
+
 ## Deutsch
 
 ### Erste Schritte
@@ -101,6 +115,17 @@ With the **Mosquitto broker** installed, Bifrost publishes its entities via MQTT
 4. **Setup** – Handys und Kalender mit **Gehört zu** zuordnen; Code-/NFC-/„letzter Benutzer“-Entitäten die Kategorie **Zutritt** geben und die gemeldeten Benutzer zuordnen. Die Karte **Was Bifrost bei dir sieht** zeigt, welche Arten von Signalen gefunden wurden und was damit möglich wird.
 5. Sensoren in Home Assistant **Bereichen** zuweisen (und Bereiche **Stockwerken**) – daraus entsteht der Tab **Haus**.
 6. Bifrost ein paar Tage lernen lassen. Es läuft im **Schattenmodus** und löst nichts aus.
+
+### Navigation (0.15)
+Oben sechs Bereiche, darunter jeweils die Unterreiter als Pillen-Reihe. Bifrost merkt sich pro Bereich den zuletzt geöffneten Unterreiter, und jeder Unterreiter hat eine eigene Adresse (z. B. `#house/signal`), damit ein Link ihn direkt öffnen kann.
+- **Übersicht** – *Jetzt* · *Heimdall* („Darf das Haus leer sein?“, Gästemodus) · *Bifrost* (was Bifrost verarbeitet, Lernen).
+- **Haus** – *Live-Karte* · *Konfiguration* · *Signal & Einmessen* · *Bluetooth* (vom Setup hierher umgezogen) · *Was passiert*.
+- **Personen** – *Personen* · *Bewegungen*.
+- **Muster** – *Alltag* · *Abläufe* · *Detektoren & Kalender*.
+- **Sicherheit** – *Vorfälle* · *Fragen* · *Bilanz*.
+- **Einstellungen** (bisher Setup) – *Signale* · *Bifrost-Entitäten* · *Benachrichtigungen* · *Vorschläge* · *Sprache & Wartung*.
+
+Die Abschnitte unten beschreiben die Inhalte; ihre alten Tab-Namen entsprechen den Bereichen oben.
 
 ### Tabs
 - **Status** – das Ergebnis mit Prozent für Daheim, Schläft und Weg (und wie Bifrost gerechnet hat), Gründe, „Liegt Bifrost falsch?“ direkt darunter, Checkliste „Darf das Haus leer sein?“, Personen, verdächtiger Eintritt, Gästemodus.
@@ -161,4 +186,7 @@ Mit dem **Mosquitto broker** veröffentlicht Bifrost seine Entitäten über MQTT
 - **Haus → Konfiguration → Karte bearbeiten**: jeden Gateway genau setzen (*Gerät setzen*), **Bereiche** zeichnen (Sofa, Schreibtisch …).
 - **Haus → Signal → Einmessen starten**: Handy wählen, zu jedem nummerierten Punkt gehen, *Messen* tippen. Danach nutzen die Positionen diese Fingerabdrücke; die Stockwerk-Knöpfe zeigen die erwartete Genauigkeit.
 - Entitäten: `binary_sensor.bifrost_zone_<name>` (Präsenz) und `sensor.bifrost_<person>_location`.
+
+### Alltagserkennung (0.14)
+**Mustererkennung → Alltagserkennung** zeigt, was sich bei euch wiederholt: Abläufe, Phasen, Wochenrhythmus, Kopplungen und Zeitschaltuhren – aus den Fakten benannt, umbenennbar und ausblendbar. Braucht etwa zwei Wochen Daten. *Heute anders als sonst* zeigt eine ausgefallene Phase oder ein Gerät, das viel länger an ist als sonst.
 

@@ -526,7 +526,7 @@ Every placed gateway and every calibration point fits a simple multi-wall model:
 - Rotating devices stay grouped and counted ("3 iPhones nearby"), never followed individually.
 **Decided (27.11.)**: fixed-address devices that stopped appearing are deleted after **3 months** (named ones stay). The list shows **only devices present right now**; the positions of **all** of them are drawn directly on the map. Stationary devices (TV, speakers, sensors – learned as "house devices") can be hidden: one switch for all of them plus *Hide* per device; hidden devices still serve as scanner health check and calibration help. Labels as short as possible: "iPhone", "Android", "Watch", "AirPods", "Samsung TV" …; a guess gets a small "≈" mark instead of the word "probably".
 **To discuss (reminder set for the maintainer)**: what Bifrost does when it says "everybody away" and a Bluetooth device moves inside the house.
-**Status**: 0.11a + 0.11b (map with tabs Live/Configuration/Signal, Aurora look, garden with outside areas, drawable hull, floor plan layers, all floors at once) built in 0.11.0. 0.11c (Bluetooth nearby, calibration, zones, person location) built in **0.13.0**. Still open from the Bluetooth concept: visitor tokens on the map and named visitors with push, signal map from calibration samples (now: gateway estimate + sample dots), learned wall/ceiling damping, calibration-free samples from motion sensors. Next: 0.11d everyday life. Map look: 6 proposals (artifact "Bifrost Kartenwerkstatt") – waiting for the maintainer's choice.
+**Status**: 0.11a + 0.11b (map with tabs Live/Configuration/Signal, Aurora look, garden with outside areas, drawable hull, floor plan layers, all floors at once) built in 0.11.0. 0.11c (Bluetooth nearby, calibration, zones, person location) built in **0.13.0**. Still open from the Bluetooth concept: visitor tokens on the map and named visitors with push, signal map from calibration samples (now: gateway estimate + sample dots), learned wall/ceiling damping, calibration-free samples from motion sensors. 0.11d (everyday life) built in **0.14.0**: sequences, phases, weekly rhythm, couplings, timers, breaks; rename/hide. Open: everyday patterns as entities, calendar words in names, local LLM naming (opt-in). Map look: 6 proposals (artifact "Bifrost Kartenwerkstatt") – waiting for the maintainer's choice.
 **Tests**: episode cutting and merged automation steps; closed-pattern filter; scoring on a simulated month (morning chain, cleaner Tuesday, pool timer, broken habit); floor decision with hysteresis and stairs; fingerprint room match; editor: rectangles, stairs, device placement saved per floor; GUI check light/dark/390 px.
 
 ### Next versions · Entity safety, MQTT Discovery, entity card (27.11.) – waiting for "mach es"
@@ -568,3 +568,19 @@ Tests: stop → off; exception in evaluate → off; start → off first; watchdo
 **Status**: built in **0.12.0** (MQTT client `mqtt.py`, outlet `outlet.py` with safeguards and registry, Setup card, clean-up). Open for later: localised entity names in HA (names follow HA's language).
 **Priority (original)**: point 1 before any release. Points 2 and 3 as the next version – proposal **0.12 before 0.11c**, because 0.11c adds many new entities (zones, person locations, visitors) that should be born as MQTT entities right away.
 **Open questions**: the three safeguards as proposed? Freshness window 3 × interval (default interval 30 s → 90 s) ok? Keep the existing entity ids under MQTT? 0.12 before 0.11c?
+
+### Navigation with menu and submenu (28.11.) – built in 0.15.0 as variant A (tabs + sub-tabs); Balance moved into Safety; Visitors/Sources sub-tabs and a separate Heimdall rules page are not built yet
+Problem: seven flat tabs (Status, People, House, Patterns, Incidents, Balance, Setup) have grown; Setup and Status in particular hold unrelated cards (Bluetooth, entity switches, notifications, catalogue, IRK clean-up …), and new features land wherever there is space.
+
+**Proposed structure (six areas, each with sub-sections; the same for every layout variant)**
+1. **Overview** – *Now* (state, last 24 h, different from usual today, people at a glance) · *Safety* (may the house be empty?, guest mode, open incidents) · *Bifrost* (what Bifrost processes, learning progress).
+2. **House** – *Live map* · *Configuration* · *Signal & calibration* · *Bluetooth* (moved from Setup) · *What is happening* (event lane, live signals, last path, gaps).
+3. **People** – *People* · *Movements* · *Visitors* (planned) · *Sources & visibility*.
+4. **Patterns** – *Everyday life* · *Routines* (blocks, persons, routines) · *Calendar words* · *Detectors* (rarity, paths).
+5. **Safety** – *Incidents* · *Questions* · *Balance & release* · *Heimdall rules*.
+6. **Settings** – *Signals* (entity list, catalogue, role guide) · *Bifrost entities* · *Notifications* · *Suggestions* · *Language & look* · *Info & maintenance* (version, old IRK keys).
+
+**Layout variants** (mock-up: artifact "Bifrost Navigation"): A · tabs + sub-tabs (closest to today, best in the HA Ingress frame) · B · side bar with groups on wide screens, bottom bar + sheet on the phone · C · start page with live tiles, sub-tabs inside an area.
+Every sub-section gets its own address (`#house/signal`), so a link or a notification can open it directly; the last opened sub-section per area is remembered.
+**Open questions**: which variant? Keep "Balance" visible at top level until the alarm signal is released, or move it under Safety right away?
+**Tests**: every former card reachable (no orphan), deep links, back/forward, GUI check of all sub-sections light/dark/390 px.

@@ -80,6 +80,8 @@ class DemoClient:
                 {"id": "shellyliving02", "name": "Shelly Plus 2PM Living", "manufacturer": "Shelly", "model": "Shelly Plus 2PM", "area_id": "living", "connections": [["mac", "aa:bb:cc:00:00:02"]]},
                 {"id": "espproxy03", "name": "BT proxy office", "manufacturer": "Espressif", "model": "ESP32", "area_id": None, "connections": [["mac", "aa:bb:cc:00:00:10"]]},
                 {"id": "hueBridge", "name": "Hue Bridge", "manufacturer": "Signify", "model": "BSB002", "area_id": None},
+                {"id": "shelly1bath", "name": "Shelly 1 Bath", "manufacturer": "Shelly", "model": "SHSW-1", "area_id": "bathroom", "connections": [["mac", "aa:bb:cc:00:00:30"]]},
+                {"id": "plugs01", "name": "Plug S Kitchen", "manufacturer": "Shelly", "model": "Shelly Plus Plug S", "area_id": "kitchen", "connections": [["mac", "aa:bb:cc:00:00:40"]]},
             ],
             "areas": [{"area_id": a.lower(), "name": a, "floor_id": FLOOR_OF.get(a)} for a in areas],
             "floors": [{"floor_id": "outside", "name": "Outside", "level": -1}, {"floor_id": "ground", "name": "Ground floor", "level": 0}, {"floor_id": "upper", "name": "Upper floor", "level": 1}],
@@ -207,6 +209,8 @@ def demo_adverts():
         ("E2:5C:00:11:22:33", "ATC_Keller", {}, ["0000fcd2-0000-1000-8000-00805f9b34fb"], {"office": -66, "hall": -84}),
         ("6B:01:02:03:04:05", "", {"76": "07190220"}, [], {"hall": -70, "living": -72}),
         ("71:9E:00:00:00:01", "", {"76": "1006"}, [], {"hall": -90}),
+        ("72:9E:00:00:00:02", "", {"76": "1006"}, [], {"living": -77, "hall": -85}),
+        ("73:9E:00:00:00:03", "", {"76": "1006"}, [], {"office": -69}),
     ]
     out = []
     for addr, name, md, su, rssi in rows:
