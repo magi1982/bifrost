@@ -336,6 +336,7 @@ table.dtt{border-collapse:collapse;font-size:13px;width:100%}table.dtt th{text-a
 .hmsliders{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 14px;margin:8px 0}
 .hmbox.hmscaled{margin-left:0}
 .hmgrid line.mn{opacity:.2}
+.pdev{margin-top:12px;padding-top:10px;border-top:1px solid var(--div);display:grid;gap:6px}.pdevlist{display:grid;gap:2px;max-height:360px;overflow-y:auto}.pdevrow{cursor:pointer;align-items:flex-start}.pdevrow input{margin-top:3px}.pdevrow code{overflow-wrap:anywhere}
 .hmmov{will-change:transform}.hmerr{fill:var(--n-teal);fill-opacity:.08;stroke:var(--n-teal);stroke-opacity:.25;stroke-width:1}
 .hmmov.hmin{animation:hmIn .8s ease-out}.hmmov.hmghost{animation:hmOut .8s ease-in forwards;pointer-events:none}
 @keyframes hmIn{from{opacity:0}to{opacity:1}}@keyframes hmOut{from{opacity:1}to{opacity:0}}
@@ -1146,7 +1147,7 @@ function viewPeople(){
     var vl=p.visibility||"invisible",vc=vl==="good"?"var(--in)":vl==="medium"?"var(--warn)":"var(--unc)",vn=vl==="good"?3:vl==="medium"?2:0,vb="";for(var vi=1;vi<=3;vi++)vb+='<i class="'+(vi<=vn?"on":"")+'"></i>';
     var visH='<div class="visb" style="--c:'+vc+'" aria-hidden="true">'+vb+'</div><div class="meta"><b style="color:'+vc+'">'+t("vis_"+vl)+'</b> – '+t("vis_hint_"+vl)+'</div>';
     var arr=tm&&tm.arrive?Object.keys(tm.arrive).map(function(k){return t("wd"+k)+" "+tm.arrive[k].typical;}).join(" · "):"";
-    h+=SM("people")+'<div class="card"><div class="prow"><div class="av" style="--c:'+c+'">'+esc(p.name.charAt(0).toUpperCase())+'</div><div class="grow"><h3>'+esc(p.name)+'</h3>'+visH+'<div class="chips">'+pill(t(now.state),c,true)+pill(t(p.kind))+(p.may_be_alone?"":pill("✕ "+t("may_alone")))+(p.unlocks?pill(p.unlocks+"× "+t("unlocked"),"var(--in)"):"")+'</div><div class="chips">'+(srcs||pill(t("no_source"),"var(--warn)"))+'</div>'+(arr?'<div class="meta" style="margin-top:6px">'+t("typical_arrival")+': '+esc(arr)+'</div>':"")+'</div><div class="bs">'+btn(t("edit"),'data-pedit="'+esc(p.id)+'"','sm','edit')+btn(t("del"),'data-pdel="'+esc(p.id)+'"','sm no','trash')+'</div></div></div>';
+    h+=SM("people")+'<div class="card"><div class="prow"><div class="av" style="--c:'+c+'">'+esc(p.name.charAt(0).toUpperCase())+'</div><div class="grow"><h3>'+esc(p.name)+'</h3>'+visH+'<div class="chips">'+pill(t(now.state),c,true)+pill(t(p.kind))+(p.may_be_alone?"":pill("✕ "+t("may_alone")))+(p.unlocks?pill(p.unlocks+"× "+t("unlocked"),"var(--in)"):"")+'</div><div class="chips">'+(srcs||pill(t("no_source"),"var(--warn)"))+'</div>'+(arr?'<div class="meta" style="margin-top:6px">'+t("typical_arrival")+': '+esc(arr)+'</div>':"")+'</div><div class="bs">'+btn(t(V4.pdev===p.id?"pdev_close":"pdev_open"),'data-pdev="'+esc(p.id)+'" aria-expanded="'+(V4.pdev===p.id)+'"','sm'+(V4.pdev===p.id?"":" p"),'people')+btn(t("edit"),'data-pedit="'+esc(p.id)+'"','sm','edit')+btn(t("del"),'data-pdel="'+esc(p.id)+'"','sm no','trash')+'</div></div>'+(V4.pdev===p.id?personDevPanel(p):"")+'</div>';
     if((p.moves||[]).length)h+=SM("moves")+'<div class="card mvcard"><h3>'+ic("routine")+' '+fmtK("mv_title",{n:esc(p.name)})+'</h3><div class="mvlist">'+p.moves.map(function(m,i){return '<div class="mvrow'+(i===0?" now":"")+'"><span class="mvdot"></span><b>'+esc(trText(m.to))+'</b><span class="meta">'+new Date(m.at).toLocaleString([], {weekday:"short",hour:"2-digit",minute:"2-digit"})+'</span></div>';}).join("")+'</div></div>';
   });
   h+=SM("people");
@@ -1176,6 +1177,13 @@ function bindPeople(){
   document.querySelectorAll("[data-pdel]").forEach(function(b){b.onclick=function(){if(!confirm(t("del")+"?"))return;api("api/person/delete",{id:b.dataset.pdel}).then(function(){V4.src=null;return api("api/people");}).then(function(d){V4.people=d;render();});};});
   document.querySelectorAll("[data-go]").forEach(function(b){b.onclick=function(){go(b.dataset.go);};});
   document.querySelectorAll("[data-pfix]").forEach(function(b){b.onclick=function(){V4.pfix=b.dataset.pfix||null;render();};});
+  document.querySelectorAll("[data-pdev]").forEach(function(b){b.onclick=function(){V4.pdev=V4.pdev===b.dataset.pdev?null:b.dataset.pdev;V4.pdevQ="";render();
+    if(V4.pdev&&!V4.src)api("api/sources").then(function(d){V4.src=d;render();}).catch(function(){});
+    if(V4.pdev&&!S.ents)api("api/entities").then(function(d){S.ents=d;render();}).catch(function(){});};});
+  var pq=document.getElementById("pdevQ");if(pq)pq.oninput=function(){V4.pdevQ=pq.value;var pos=pq.selectionStart;render();var n=document.getElementById("pdevQ");if(n){n.focus();try{n.setSelectionRange(pos,pos);}catch(e){}}};
+  document.querySelectorAll("[data-pdevown]").forEach(function(cb){cb.onchange=function(){cb.disabled=true;var eid=cb.dataset.pdevown;
+    api("api/owner",{entity_id:eid,owner:cb.checked?cb.dataset.pid:""}).then(function(r){toast(r.switched_on?t("owner_on"):t("saved_ok"));return Promise.all([api("api/sources"),api("api/entities"),api("api/people")]);})
+      .then(function(x){V4.src=x[0];S.ents=x[1];V4.people=x[2];render();}).catch(function(e){toast("✗ "+trText(e.message),true);cb.checked=!cb.checked;cb.disabled=false;});};});
   document.querySelectorAll("[data-pfixa]").forEach(function(b){b.onclick=function(){b.disabled=true;api("api/correct",{actual:b.dataset.pfixa,person:b.dataset.pid}).then(function(r){V4.pfix=null;toast(fixLearned(r));return api("api/people");}).then(function(d){V4.people=d;render();}).catch(function(e){toast("✗ "+trText(e.message),true);});};});
 }
 function modeSwitch(key,on){return '<span class="seg" role="group">'+'<button type="button" class="ch'+(!on?" on":"")+'" data-mode="'+key+'" data-on="0">'+t("simple")+'</button><button type="button" class="ch'+(on?" on":"")+'" data-mode="'+key+'" data-on="1">'+t("technical")+'</button></span>';}
@@ -1523,8 +1531,19 @@ function bindOpt(){
 var OWNER_DOMAINS=["device_tracker","person","calendar"];
 function ownerSel(eid,isCal){var d=V4.src;if(!d)return "";var cur=(d.owners||{})[eid]||"";
   return '<select data-owner="'+esc(eid)+'"><option value="">'+t("owner_none")+'</option>'+d.people.map(function(p){return '<option value="'+esc(p.id)+'"'+(cur===p.id?" selected":"")+'>'+esc(p.name)+'</option>';}).join("")+(isCal?'<option value="household"'+(cur==="household"?" selected":"")+'>'+t("whole_family")+'</option>':"")+'</select>';}
+function ownable(e){return (OWNER_DOMAINS.indexOf(e.domain)>=0||e.category==="devices"&&e.domain!=="sensor"||e.integration==="bermuda"&&e.domain==="sensor")&&e.category!=="vehicles";}
+/* People → "Assign devices": the same assignment as in Setup, seen from the person */
+function personDevPanel(p){var d=V4.src,E=S.ents;if(!d||!E)return '<div class="meta">…</div>';var own=d.owners||{},q=(V4.pdevQ||"").toLowerCase();
+  var names={};(d.people||[]).forEach(function(x){names[x.id]=x.name;});names.household=t("whole_family");
+  var L=E.entities.filter(function(e){return ownable(e)&&!e.disabled&&(!q||(e.name+" "+e.entity_id).toLowerCase().indexOf(q)>=0);});
+  L.sort(function(a,b){var ma=own[a.entity_id]===p.id?0:own[a.entity_id]?2:1,mb=own[b.entity_id]===p.id?0:own[b.entity_id]?2:1;return ma-mb||a.name.localeCompare(b.name);});
+  var mine=L.filter(function(e){return own[e.entity_id]===p.id;}).length;
+  return '<div class="pdev"><b>'+fmtK("pdev_title",{n:esc(p.name)})+'</b><div class="meta">'+fmtK("pdev_hint",{n:esc(p.name)})+'</div><input class="inp" type="search" id="pdevQ" placeholder="'+esc(t("search"))+'" aria-label="'+esc(t("search"))+'" value="'+esc(V4.pdevQ||"")+'">'+
+    '<div class="meta" style="margin:4px 0">'+fmtK("pdev_count",{n:mine})+'</div><div class="pdevlist">'+L.slice(0,150).map(function(e){var o=own[e.entity_id],me=o===p.id;
+      return '<label class="check pdevrow"><input type="checkbox" data-pdevown="'+esc(e.entity_id)+'" data-pid="'+esc(p.id)+'"'+(me?" checked":"")+'><div class="grow"><div>'+esc(e.name)+'</div><div class="meta"><code>'+esc(e.entity_id)+'</code>'+(o&&!me?' · '+fmtK("pdev_other",{n:esc(names[o]||o)}):"")+(e.status!=="included"?' · '+t("pdev_off"):"")+'</div></div></label>';}).join("")+
+    (L.length?"":'<div class="meta">'+t("nothing")+'</div>')+'</div></div>';}
 function srcHtml(e){var d=V4.src;if(!d)return "";var h="";
-  var canOwn=(OWNER_DOMAINS.indexOf(e.domain)>=0||e.category==="devices"&&e.domain!=="sensor"||e.integration==="bermuda"&&e.domain==="sensor")&&e.category!=="vehicles";
+  var canOwn=ownable(e);
   if(canOwn&&!e.disabled)h+='<div class="srcrow"><span class="meta">'+t("belongs_to")+'</span>'+ownerSel(e.entity_id,e.domain==="calendar")+'</div>';
   var idn=(d.identity||[]).filter(function(x){return x.entity_id===e.entity_id;})[0];
   if(idn){h+='<div class="srcbox"><div class="meta"><b>'+t("reported_users")+'</b> – '+t("reported_hint")+'</div>'+(idn.seen.length?idn.seen.map(function(v){
@@ -1649,6 +1668,10 @@ function bindFilters(){if(S.view!=="setup")return;
 document.documentElement.lang=LANG;
 
 /* ---------- 0.15 navigation: six areas, each with sub-tabs (#area/sub) ---------- */
+Object.assign(TX.de,{pdev_title:"Geräte von {n}",pdev_open:"Geräte zuordnen",pdev_close:"Schliessen",pdev_hint:"Handys, Tracker, Kalender und Bluetooth-Geräte, die zu {n} gehören. Dieselbe Zuordnung wie im Setup – ändern geht an beiden Stellen.",
+  pdev_count:"{n} zugeordnet",pdev_other:"gehört zu {n}",pdev_off:"noch nicht genutzt – wird beim Zuordnen eingeschaltet"});
+Object.assign(TX.en,{pdev_title:"Devices of {n}",pdev_open:"Assign devices",pdev_close:"Close",pdev_hint:"Phones, trackers, calendars and Bluetooth devices that belong to {n}. The same assignment as in Setup – change it in either place.",
+  pdev_count:"{n} assigned",pdev_other:"belongs to {n}",pdev_off:"not used yet – switched on when assigned"});
 Object.assign(TX.de,{ble_calm:"Ruhe",ble_calm_calm:"Ruhig",ble_calm_normal:"Normal",ble_calm_fast:"Schnell",
   ble_calm_hint_calm:"Punkte bewegen sich erst bei deutlicher Änderung und gemächlich – am ruhigsten auf der Karte, Bereiche wechseln etwas später.",
   ble_calm_hint_normal:"Ausgewogen: kleine Schwankungen werden geschluckt, ein echter Weg wird in wenigen Sekunden nachgezogen.",

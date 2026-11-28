@@ -2,6 +2,11 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.16.2] – 2026-11-28
+
+### Added
+- **Assign devices from the person**: People → *Assign devices* on each person lists phones, trackers, calendars and Bluetooth devices with a tick box and a search. It is the same assignment as in Setup – change it in either place; a device that belongs to someone else says so, and assigning switches an unused signal on.
+
 ## [0.16.1] – 2026-11-28
 
 ### Changed
