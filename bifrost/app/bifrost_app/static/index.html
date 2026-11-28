@@ -1242,7 +1242,7 @@ function bleCard(){var b=V4.ble;if(!b)return "";var st=b.status||{},c=b.counts||
   h+='<div class="oelist">'+rows.map(function(r){var open=V4.bleOpen&&V4.bleOpen[r.address],seen=r.seen||[];
     return '<div class="oerow"><span class="blei" style="--c:'+(r.irk?"var(--n-teal)":"var(--sec)")+'">'+ic(BLE_KIND[r.kind]||"dev")+'</span><div class="grow"><div><b>'+esc(r.label)+(r.guess?' <span title="'+esc(t("ble_guess"))+'">≈</span>':"")+'</b> '+(r.person?pill(r.person,"var(--n-teal)"):"")+(r.house?pill(t("ble_house"),"var(--sec)"):"")+'</div>'+
       '<div class="meta"><code>…'+esc(r.short)+'</code> · '+t(r.fixed?"ble_fixed":"ble_rotating")+(r.room?' · '+esc(r.room):"")+(r.best?' · '+esc(r.best):"")+'</div><div class="blebar"><i style="width:'+sig(r.rssi)+'%"></i></div><span class="meta blerssi">'+(r.rssi==null?"–":r.rssi+" dBm")+'</span>'+
-      (seen.length>1?'<div><button type="button" class="ch sm" data-blegrp="'+esc(r.address)+'" aria-expanded="'+(open?"true":"false")+'">'+fmtK(open?"ble_gw_less":"ble_gw_more",{n:seen.length})+'</button></div>':"")+
+      (seen.length?'<div><button type="button" class="ch sm" data-blegrp="'+esc(r.address)+'" aria-expanded="'+(open?"true":"false")+'">'+(open?t("ble_gw_less"):fmtK(seen.length===1?"ble_gw_one":"ble_gw_more",{n:seen.length}))+' '+(open?"▴":"▾")+'</button></div>':"")+
       (open?'<div class="blesub">'+seen.map(function(x){return '<div class="blesubrow"><span class="meta">'+esc(x.name)+'</span><span class="blebar"><i style="width:'+sig(x.rssi)+'%"></i></span><span class="meta blerssi">'+x.rssi+' dBm</span></div>';}).join("")+'</div>':"")+
       '</div>'+(r.fixed?'<button type="button" class="ch sm" data-blehide="'+esc(r.address)+'" data-h="'+(r.hidden?0:1)+'">'+t(r.hidden?"ble_show":"ble_hide")+'</button>':"")+'</div>';}).join("")+(rows.length?"":'<div class="meta">'+t("ble_none")+'</div>')+'</div>';
   return h+'</div>';}
@@ -1882,7 +1882,7 @@ Object.assign(TX.en,{ble_calm:"Calmness",ble_calm_calm:"Calm",ble_calm_normal:"N
   ble_calm_hint_calm:"Dots only move on a clear change, and slowly – calmest map, areas change a little later.",
   ble_calm_hint_normal:"Balanced: small wobbles are swallowed, a real move is followed within a few seconds.",
   ble_calm_hint_fast:"Follows fastest – for automations that should react quickly; the dots move more often."});
-Object.assign(TX.de,{ble_types:"Typen",ble_gw_more:"Von {n} Gateways gehört",ble_gw_less:"Gateways zuklappen"});Object.assign(TX.en,{ble_types:"Types",ble_gw_more:"Heard by {n} gateways",ble_gw_less:"Hide gateways"});
+Object.assign(TX.de,{ble_types:"Typen",ble_gw_more:"Von {n} Gateways gehört",ble_gw_one:"Von 1 Gateway gehört",ble_gw_less:"Gateways zuklappen"});Object.assign(TX.en,{ble_types:"Types",ble_gw_more:"Heard by {n} gateways",ble_gw_one:"Heard by 1 gateway",ble_gw_less:"Hide gateways"});
 Object.assign(TX.de,{hm_as_out:"Auf der Karte als Aussenbereich",hm_as_out_short:"aussen",hm_as_out_hint:"Bleibt ein Raum in Home Assistant, wird auf der Karte aber wie ein Aussenbereich gezeichnet: gestrichelt, nicht Teil des Hausumrisses, und die Karte zählt ihn nie als drinnen."});
 Object.assign(TX.en,{hm_as_out:"Show as outside area on the map",hm_as_out_short:"outside",hm_as_out_hint:"Stays a room in Home Assistant but is drawn like an outside area: dashed, not part of the house outline, and the map never counts it as inside."});
 Object.assign(TX.de,{hm_stretch:"Zeichnung mitskalieren"});Object.assign(TX.en,{hm_stretch:"Stretch the drawing along"});

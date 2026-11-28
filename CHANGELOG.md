@@ -6,6 +6,7 @@ All notable changes to Bifrost are documented here. The format follows [Keep a C
 
 ### Fixed
 - **Doors and windows stay in the wall**: they only snapped to a wall when placed within 0.8 m of it, and moving them did not snap at all. Now placing and moving always puts them on the nearest wall, and they turn with it (vertical wall = 90°); a diagonal direction set by hand (45°/135°) is kept.
+- **Bluetooth: every device shows how many gateways hear it**: *Heard by n gateways ▾* is now on every row (also *Heard by 1 gateway*), and opening it lists each Shelly/proxy with its signal strength – before, the button only appeared when two or more heard the device.
 - **Older doors and windows turn by themselves**: ones saved before 0.18.1 on a vertical wall are drawn vertical and get the direction stored with the next save.
 
 ## [0.19.1] – 2026-11-28
