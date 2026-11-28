@@ -2,6 +2,14 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.15.1] – 2026-11-28
+
+### Changed
+- **Areas and sub-tabs look the same**: both rows are neon pills (the area row a little larger); the active one is tinted in the area's colour.
+
+### Fixed
+- *Overview* and *Settings* were not marked as the active area.
+
 ## [0.15.0] – 2026-11-28
 
 ### Changed

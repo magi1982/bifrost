@@ -375,11 +375,13 @@ table.dtt{border-collapse:collapse;font-size:13px;width:100%}table.dtt th{text-a
 .hmrot{margin:6px 0}.edch{margin:6px 0}
 .subtabs{display:flex;gap:6px;overflow-x:auto;max-width:1150px;margin:0 auto;padding:8px 10px 10px;scrollbar-width:none}
 .subtabs::-webkit-scrollbar,.tabs::-webkit-scrollbar{display:none}
-.subtabs button{font:inherit;font-size:13px;font-weight:500;border:1px solid var(--div);background:var(--card);color:var(--text);border-radius:999px;padding:5px 12px;cursor:pointer;white-space:nowrap}
-.subtabs button.on{border-color:var(--nc);color:var(--nc);background:color-mix(in srgb,var(--nc) 14%,var(--card));box-shadow:0 0 8px color-mix(in srgb,var(--nc) 30%,transparent)}
 .subtabs button:focus-visible,.tabs button:focus-visible{outline:2px solid var(--nc,var(--pri));outline-offset:2px}
-.tabs button[data-area]{white-space:nowrap;flex:none}
-.tabs button[data-area].active{color:var(--nc);border-bottom-color:var(--nc)}
+/* areas and sub-tabs share one look: neon pills; the area row is a little larger */
+#tabs.tabs{gap:6px;padding:10px 10px 0;scrollbar-width:none}
+.tabs button[data-area],.subtabs button{font:inherit;font-weight:500;border:1px solid var(--div);background:var(--card);color:var(--text);border-radius:999px;cursor:pointer;white-space:nowrap;flex:none}
+.tabs button[data-area]{font-size:14px;padding:6px 14px}
+.subtabs button{font-size:13px;padding:5px 12px}
+.tabs button[data-area].active,.subtabs button.on{border-color:var(--nc);color:var(--nc);background:color-mix(in srgb,var(--nc) 14%,var(--card));box-shadow:0 0 8px color-mix(in srgb,var(--nc) 30%,transparent);font-weight:600}
 .hmtabs{display:none}
 [hidden]{display:none!important}
 </style>
@@ -1600,7 +1602,9 @@ function applySub(){var m=document.getElementById("main");if(!m)return;var cur=n
   walk(m);
   if(!shown&&m.querySelector(".subm"))m.insertAdjacentHTML("beforeend",'<div class="card empty2 subempty">'+esc(t("sub_empty"))+'</div>');}
 var _render3=render;
-render=function(){_render3();applySub();};
+render=function(){_render3();applySub();
+  /* the oldest render step resets .active on #tabs for status/setup – set the area again */
+  document.querySelectorAll("#tabs [data-area]").forEach(function(x){x.classList.toggle("active",x.dataset.area===S.area);});};
 function navFromHash(){var h=(location.hash||"").replace(/^#/,"");go(h||"status/now");}
 window.addEventListener("hashchange",function(){var h=(location.hash||"").replace(/^#/,"");if(h&&h!==S.area+"/"+S.sub)go(h);});
 navFromHash();
