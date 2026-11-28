@@ -568,3 +568,19 @@ Tests: stop → off; exception in evaluate → off; start → off first; watchdo
 **Status**: built in **0.12.0** (MQTT client `mqtt.py`, outlet `outlet.py` with safeguards and registry, Setup card, clean-up). Open for later: localised entity names in HA (names follow HA's language).
 **Priority (original)**: point 1 before any release. Points 2 and 3 as the next version – proposal **0.12 before 0.11c**, because 0.11c adds many new entities (zones, person locations, visitors) that should be born as MQTT entities right away.
 **Open questions**: the three safeguards as proposed? Freshness window 3 × interval (default interval 30 s → 90 s) ok? Keep the existing entity ids under MQTT? 0.12 before 0.11c?
+
+### Idea · Navigation with menu and submenu (28.11.) – waiting for the maintainer's choice and "mach es"
+Problem: seven flat tabs (Status, People, House, Patterns, Incidents, Balance, Setup) have grown; Setup and Status in particular hold unrelated cards (Bluetooth, entity switches, notifications, catalogue, IRK clean-up …), and new features land wherever there is space.
+
+**Proposed structure (six areas, each with sub-sections; the same for every layout variant)**
+1. **Overview** – *Now* (state, last 24 h, different from usual today, people at a glance) · *Safety* (may the house be empty?, guest mode, open incidents) · *Bifrost* (what Bifrost processes, learning progress).
+2. **House** – *Live map* · *Configuration* · *Signal & calibration* · *Bluetooth* (moved from Setup) · *What is happening* (event lane, live signals, last path, gaps).
+3. **People** – *People* · *Movements* · *Visitors* (planned) · *Sources & visibility*.
+4. **Patterns** – *Everyday life* · *Routines* (blocks, persons, routines) · *Calendar words* · *Detectors* (rarity, paths).
+5. **Safety** – *Incidents* · *Questions* · *Balance & release* · *Heimdall rules*.
+6. **Settings** – *Signals* (entity list, catalogue, role guide) · *Bifrost entities* · *Notifications* · *Suggestions* · *Language & look* · *Info & maintenance* (version, old IRK keys).
+
+**Layout variants** (mock-up: artifact "Bifrost Navigation"): A · tabs + sub-tabs (closest to today, best in the HA Ingress frame) · B · side bar with groups on wide screens, bottom bar + sheet on the phone · C · start page with live tiles, sub-tabs inside an area.
+Every sub-section gets its own address (`#house/signal`), so a link or a notification can open it directly; the last opened sub-section per area is remembered.
+**Open questions**: which variant? Keep "Balance" visible at top level until the alarm signal is released, or move it under Safety right away?
+**Tests**: every former card reachable (no orphan), deep links, back/forward, GUI check of all sub-sections light/dark/390 px.
