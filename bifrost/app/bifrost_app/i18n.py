@@ -234,6 +234,7 @@ DE: dict[str, str] = {
     "Bifrost just started – collecting data before it may say empty": "Bifrost ist eben gestartet – sammelt erst, bevor es „leer“ sagen darf",
     "Safety check failed – Bifrost does not say empty": "Sicherheitsprüfung fehlgeschlagen – Bifrost sagt nicht „leer“",
     "Evidence scale is not sure: {} % empty": "Die Evidenz-Waage ist nicht sicher: {} % leer",
+    "Only {} % sure – below 70 % Bifrost says unclear": "Nur {} % sicher – unter 70 % sagt Bifrost „unklar“",
     "on": "an",
     "off": "aus",
     "open": "offen",
