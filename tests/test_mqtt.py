@@ -188,8 +188,10 @@ def test_mqtt_outlet_safety_order_discovery_switching_and_cleanup():
     # safety off comes before "online"
     assert topics.index("bifrost/binary_sensor/bifrost_empty_confirmed/state") < topics.index(AVAIL)
     assert b.pubs[topics.index("bifrost/binary_sensor/bifrost_empty_confirmed/state")][1] == "off"
-    assert any(t.startswith("homeassistant/binary_sensor/bifrost/") for t in topics)
+    # discovery and the clean-up follow "online" (by design) – wait for them instead of reading a snapshot
+    assert wait(lambda: any(p[0].startswith("homeassistant/binary_sensor/bifrost/") for p in b.pubs))
     # old REST states removed once, registry entities and foreign states untouched
+    assert wait(lambda: len(rest.deleted) == 2)
     assert sorted(rest.deleted) == ["binary_sensor.bifrost_old_pattern", "sensor.bifrost_home_status"] and store.get_value("mqtt_migrated")
     assert out.mode == "mqtt"
     out.ok()
