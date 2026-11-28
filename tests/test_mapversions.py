@@ -146,3 +146,16 @@ def test_place_devices_per_kind_and_export_import_round_trip(tmp_path):
     for broken in ({"kind": "other"}, {"kind": "house", "floors": {floor: {"map": {"rooms": "x"}}}}, {"kind": "house", "floors": {floor: {"map": m, "plans": {"0": "bm90IGFuIGltYWdl"}}}}):
         with pytest.raises(ValueError):
             svc.import_house(broken)
+
+
+def test_growing_left_moves_calibration_points_of_that_floor(tmp_path):
+    svc = _svc(tmp_path)
+    floor = "Ground floor"
+    other = next(f for f in svc._floor_areas() if f and f != floor)
+    svc.ble.samples = [{"floor": floor, "x": 1.0, "y": 2.0, "vec": {"A": -60}}, {"floor": other, "x": 1.0, "y": 2.0, "vec": {"A": -60}}]
+    cur = svc._current_map(floor)
+    svc.set_map({"floor": floor, **cur, "shift": {"dx": 2, "dy": 0.5}})
+    assert (svc.ble.samples[0]["x"], svc.ble.samples[0]["y"]) == (3.0, 2.5)
+    assert (svc.ble.samples[1]["x"], svc.ble.samples[1]["y"]) == (1.0, 2.0)  # other floors stay
+    with pytest.raises(ValueError):
+        svc.set_map({"floor": floor, **cur, "shift": {"dx": "far", "dy": 0}})

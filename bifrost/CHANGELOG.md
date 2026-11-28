@@ -2,6 +2,19 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.20.0] – 2026-11-28
+
+### Changed
+- **New plan editor – tidy and easy**: instead of 12 tools and about 15 buttons on one page there is
+  - a **top bar** with only the floor, ↶ ↷, ✕ and *Save* (✕ asks before discarding changes),
+  - a **tool bar at the bottom** with five big tools: *Select*, *Room* (room or outside area), *Door/window*, *Device*, *More*,
+  - one **sheet** at a time above the tool bar: *Device* lists every kind with "n not placed", places them all or one by one by tapping the map, and shows the devices on this map; *More* holds zone, outside area, stairs, hull, floor plan, map size, Bifrost's suggestion, versions, delete tool, grid and names; tapping a room, door or device opens its details with *Turn*, *Add a rectangle*, *Show as outside area* and *Remove*,
+  - a **setup guide** above the map while something is missing – floor plan, rooms, doors & windows, devices, zones – "2 of 5 done", each step opens the right tool; can be hidden.
+
+### Added
+- **Measure a floor plan picture**: *Floor plan → Measure*, drag a line between two known points of the picture and type its real length – the picture gets the right size; the line's start stays in place, rotation is kept.
+- **Grow or shrink the map per side**: *More → Map size*, + / − for top, left, right and bottom in steps of 0.25 / 0.5 / 1 / 2 m. Growing left or top moves everything along – rooms, zones, doors, devices, plan pictures and this floor's Bluetooth calibration points – so the house stays where it is; shrinking only removes empty space and says what is in the way.
+
 ## [0.19.2] – 2026-11-28
 
 ### Fixed

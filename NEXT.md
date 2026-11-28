@@ -688,7 +688,7 @@ Every sub-section gets its own address (`#house/signal`), so a link or a notific
 3. Should an *open* window in live mode also show on the Overview (e.g. "2 windows open") – or stay on the map?
 **Tests**: window entity → `contact: window` and window symbol, door → `door`, garage → `garage_door`, unknown class → `opening` – also for devices placed before the update (migration creates marks, removes the old devices, keeps a version, restore brings it back); selection info shows name, entity, area, kind and state; list ↔ map selection both ways; windows only on outer walls; entrance door on an outer wall, inner door between the two rooms with learned paths; no two contacts closer than 0.75 m; every contact on its room's wall (distance 0); GUI check light/dark/390 px incl. the info strip and the list.
 
-### Idea · Floor plan to scale by one line, grow the map per side (28.11.) – waiting for "mach es"
+### Floor plan to scale by one line, grow the map per side (28.11.) – built in 0.20.0 (the reference line is not stored; no second check line yet)
 **Wish**: when loading a floor plan picture, draw a line on it, type its real length and the picture gets the right size by itself. Then add or remove space per side of the map (+ / −), e.g. to add the garden later.
 **1 · Scale by a reference line** (Edit map → Floor plan, per picture layer)
 - Button **Measure**: drag a line on the picture between two points you know (e.g. an outer wall dimension written on the plan), snapping to the picture, not to the grid; then type the real length in metres (e.g. 11.40).
@@ -705,7 +705,7 @@ Every sub-section gets its own address (`#house/signal`), so a link or a notific
 **Open questions**: step default 1 m ok? Should "Measure" also offer to fit the map size to the plan (map = picture size)?
 **Tests**: line of 300 px on a 1200 px wide picture, typed 3 m → picture width 12 m, start point unchanged, rotation unchanged; check line shows the deviation; + left by 2 m moves every element by +2 m in x (rooms, marks, devices, zones, stairs, hull, layers, calibration points) and keeps validate_map valid; − right blocked when a room touches the strip, allowed when empty; sizes stay within 2–80 m; undo works; GUI check light/dark/390 px.
 
-### Idea · Plan editor redesign – tidy and easy (28.11.) – waiting for the variant and "mach es"
+### Plan editor redesign – tidy and easy (28.11.) – built in 0.20.0 as variant A with the setup guide from B; pinch zoom not yet; Cancel asks only when something changed
 **Wish**: the whole plan editor must be really good: a tidy GUI, adding devices as one button, today there is too much on one House → Configuration page; very user-friendly.
 **Today**: 12 tools (room, outside area, zone, hull, select, stairs, door, window, place device, floor plan, delete …) plus about 15 buttons and fields at once (undo/redo, grid, width/depth, stretch, done/cancel, suggestion, place devices, show names, turn, delete selection, info strip, device list, scanner/sensor/Bluetooth tabs, plan panel).
 **Mock-up** (artifact "Bifrost Plan Editor", three clickable variants, light/dark, phone/wide):

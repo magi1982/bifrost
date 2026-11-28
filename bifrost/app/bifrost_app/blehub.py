@@ -226,6 +226,17 @@ class BleHub:
                 self._save("ble_moves", self.moves)
         return {"zones": zones, "people": locs}
 
+    def shift_samples(self, floor: str, dx: float, dy: float) -> int:
+        """The map of a floor grew to the left/top: its calibration points move along (others stay)."""
+        n = 0
+        for s in self.samples:
+            if s.get("floor") == floor:
+                s["x"], s["y"] = round(s["x"] + dx, 2), round(s["y"] + dy, 2)
+                n += 1
+        if n:
+            self._save("calib_samples", self.samples)
+        return n
+
     def import_samples(self, samples: list, floors: set[str]) -> int:
         """Calibration points from a house export (validated; replaces the current ones)."""
         good = []
