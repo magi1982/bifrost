@@ -2,6 +2,11 @@
 
 All notable changes to Bifrost are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.15.4] – 2026-11-28
+
+### Changed
+- **Rooms of several rectangles merge into one shape** on the map (Live, Configuration, Signal): touching or overlapping rectangles of the same room are drawn as one area with one outline and rounded corners – no more inner borders in an L-shaped hall. While editing, the rectangles stay separate so each one can be selected, moved and resized; they merge after *Save*.
+
 ## [0.15.3] – 2026-11-28
 
 ### Fixed
