@@ -597,7 +597,7 @@ Every sub-section gets its own address (`#house/signal`), so a link or a notific
 - Dead band: the dot only moves when the new position differs by more than ~0.5 m or half the error radius.
 - Floor change only after two agreeing results or ~15 s (stairs), unless the old floor's gateways no longer hear the device at all.
 - Room/zone change keeps the hysteresis (20 s in / 60 s out); the movement list only records rooms that held.
-- On the map the dot glides (CSS transition ~1 s) instead of jumping.
+- **Smooth movement on the map (maintainer: "smooth across the map, not popping up like a bad game")**: the dot is never re-drawn at a new place – it keeps its element and glides there with easing (requestAnimationFrame, ~1–2 s, speed capped at walking pace), also through rooms on the way; the map is updated more often (every ~2 s from the live stream) so the steps are small. A floor change fades the dot out on the old floor and in on the new one instead of popping. Re-rendering the map (polling) must not restart the animation or reset the dot.
 **Limits**: phones without IRK change their address every ~15 min – a new address starts without history. In a timber house floors separate badly; more calibration points on the stairs help most.
 **Setting**: "Calmness" (calm / normal / fast) with a description – calm for the map, fast for automations that react quickly. (Decide with the maintainer.)
 **Tests**: synthetic walk with noisy RSSI (±6 dB) → spread of the shown position at standstill below 0.5 m, a real 3 m move followed within 10 s, no floor flip from a single outlier, drop-out of one gateway does not move the dot more than 1 m; existing calibration accuracy (leave-one-out) not worse.
