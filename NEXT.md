@@ -721,12 +721,13 @@ Every sub-section gets its own address (`#house/signal`), so a link or a notific
 ### Idea · A Bluetooth device moves inside while Bifrost says "all away" (28.11.) – waiting for "mach es"
 **Question**: Bifrost says the house is empty, and a Bluetooth device moves on the house map. What should happen?
 **Four cases**, decided per device:
-- **(a) Fixed device with a noisy signal** (TV, sensor, speaker; fixed address, heard for days at the same spot): the position jitters but does not really move → **ignore**. After 24 h at one spot, a device is learned as stationary. A device flagged "stationary" never raises anything, even if its position jumps.
+- **(a) Fixed device with a noisy signal** (TV, sensor, speaker; fixed address, heard for days at the same spot): the position jitters but does not really move → **ignore**. After 24 h at one spot Bifrost **asks** in the inbox: "*Device* seems to stay in *room* – is it a fixed device?" with the recommendation **hide it on the live map**. *Yes* marks it as fixed and hides it from the live map (can be undone in the device list); *No* keeps it as a moving device. A fixed device never raises anything, even if its position jumps. Until the answer, a device that sat still for 24 h counts at most as info.
 - **(b) A household device moves** (phone or watch resolved by IRK or a fixed address, bound to a person):
-  - Either a phone was forgotten, or someone is home after all.
-  - The live state becomes **Unclear**, so `binary_sensor.bifrost_house_empty` turns off and *empty confirmed* is withdrawn.
+  - With good patterns this should not happen: "all away" was then simply wrong (someone is home without being seen) – or someone carries the device who should not.
+  - The live state becomes **Unclear right away** (no second confirmation), so `binary_sensor.bifrost_house_empty` turns off and *empty confirmed* is withdrawn.
+  - It counts like an automatic **"That's wrong"** for the away decision: the evidence parts that pushed towards "away" share the blame and fade as usual, so the patterns learn from it.
+  - If at the same time intrusion signs appear (entry without code or known phone, unknown device inside, case c) the device move joins that incident chain and raises its level instead of being explained as "someone is home".
   - Push: "Phone of X moves in the house although everyone is away".
-  - Hindsight learns from it: "forgotten at home" or "was home".
 - **(c) An unknown device with a fixed address appears inside, first heard outside, then inside**:
   - An incident chain **approach (outside gateway) → inside (inside gateway)**, high level, with a push.
   - It switches on `binary_sensor.bifrost_suspicious_entry`, with the attribute `source: bluetooth` (see the open questions).
@@ -755,15 +756,14 @@ Every sub-section gets its own address (`#house/signal`), so a link or a notific
 - Without placed inside gateways, this does nothing.
 - A device seen only for a few minutes (a visitor at the door) does not start case (c) until it is heard inside.
 
-**Open questions**:
-1. Use the existing `binary_sensor.bifrost_suspicious_entry` (recommended, fewer entities), or a new `binary_sensor.bifrost_intrusion_suspect`?
-2. Case (b): set the state to Unclear right away, or only after a second confirmation (motion or a second room change)?
-3. Push for case (d), yes or no?
-4. Learn "stationary" automatically after 24 h, or only by a tap ("this device does not move")?
+**Decided (28.11.)**: existing `binary_sensor.bifrost_suspicious_entry`; case (b) Unclear right away, counts as an automatic "That's wrong", joins an intrusion chain when there are signs; case (d) info only, no push; fixed devices by a question with the recommendation to hide them on the live map.
+**Open questions**: none – waiting for "mach es".
 
 **Tests**:
 - A jittering TV never raises anything.
-- An IRK phone that changes room twice in 40 s makes the state Unclear and sends one push, not one per fix.
+- An IRK phone that changes room twice in 40 s makes the state Unclear and sends one push, not one per fix; the away evidence gets blame.
+- The same phone move together with an entry without code raises the intrusion chain.
+- A device still for 24 h creates one question; "yes" hides it on the live map and it never raises anything.
 - An unknown fixed address heard outside → inside, with motion, gives a high level and switches the entity on.
 - The same without an outside first gives a medium level.
 - A rotating address gives info only.
