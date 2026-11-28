@@ -602,7 +602,7 @@ Every sub-section gets its own address (`#house/signal`), so a link or a notific
 **Setting**: "Calmness" (calm / normal / fast) with a description – calm for the map, fast for automations that react quickly. (Decide with the maintainer.)
 **Tests**: synthetic walk with noisy RSSI (±6 dB) → spread of the shown position at standstill below 0.5 m, a real 3 m move followed within 10 s, no floor flip from a single outlier, drop-out of one gateway does not move the dot more than 1 m; existing calibration accuracy (leave-one-out) not worse.
 
-### Idea · "That's wrong" without blame, corrections fade as patterns grow (28.11.) – waiting for "mach es"
+### "That's wrong" without blame, corrections fade as patterns grow (28.11.) – built in 0.17.0 (half-life 30 → 7 days; history shows how often Bifrost was wrong)
 **Maintainer**: the button must not ask who or what caused it – Bifrost has to learn that itself. The owner only says "wrong" and what is true (home / away / asleep). Corrections given while Bifrost is still learning must count strongly at first and fade over time once Bifrost recognises more patterns of its own.
 **Today**: two steps – the true state, then "what fooled Bifrost" (a list of signals from the last 30 min). Every correction counts forever: the owner label is a STRONG truth in hindsight, a named culprit loses trust permanently (penalty × count), tracker mistakes add up for good.
 **UI**: "That's wrong" → Home · Away · Asleep → done ("Thanks – Bifrost learns from it"). No second step. Same for a single person.
