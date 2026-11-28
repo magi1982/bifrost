@@ -618,3 +618,42 @@ Every sub-section gets its own address (`#house/signal`), so a link or a notific
 **Safety stays strict**: a wrong "empty" still blocks the alarm release for 30 days (balance gate) – that window does not fade faster.
 **Open questions**: half-life values ok (30 → 7 days)? Should the history still show the old "what fooled Bifrost" picks from before?
 **Tests**: one-tap correction stores truth + evidence snapshot; blame shared by weight (no culprit picked); weight halves after the half-life; half-life shortens with learning progress; old corrections stop counting under 0.1; wrong "empty" keeps blocking release for 30 days; repeated blame on one signal → one inbox question.
+
+### Version 0.18 · House configuration with versions, a safe suggestion, devices into their areas (28.11., user feedback) – built in 0.18.0 (50 versions; one place button per kind; plan pictures in the export by default; suggestion and placing work in the editor, saved with "Done")
+**Bug found (since 0.13, still in 0.17.0)** – checked in the code:
+- *Edit map → Bifrost's suggestion* (`#hmReset`, i18n `hm_reset`) calls `api/map/reset` without asking; `service.reset_map()` → `store.del_obj("map", floor_key)` deletes the hand-drawn map of that floor for good (rooms, outside areas, zones, stairs, hull, doors/windows, device positions, plan-layer settings). Afterwards the automatic suggestion shows.
+- Same pattern for the old grid layout: `api/layout/reset` → `del_obj("layout", …)`. No button in the UI calls it any more (the grid layout was replaced by the map in 0.13), but the endpoint is still reachable.
+- Maps are written with `store.put_obj("map", …)` (`ON CONFLICT … DO UPDATE`) – no history, so no way back after a wrong click. Undo/redo exists only inside one editing session, until *Save*.
+- Calibration points are not stored per floor but in one list (`calib_samples`); plan pictures are separate objects (`floorplan`, per layer).
+
+**1 · Versions of the house configuration**
+- *What*: per floor the whole map – rooms/rectangles, outside areas (incl. HA rooms shown as outside), zones, stairs, hull, doors/windows (`marks`), device positions, plan layers (position/size/rotation/opacity, not the pictures) – plus the calibration points of that floor.
+- *When*: every change creates a version – *Save*, suggestion, auto-place, import, restore. Each with time, source (`save` / `suggestion` / `auto_place` / `import` / `restore`) and a short summary computed from the difference ("2 rooms changed, 5 devices moved", "zone added").
+- *Storage*: new table `map_versions(kind, floor, version, data, created, source, label, pinned)`; `kind` = `map` (and `layout` for the old grid, read-only). The current map stays in `objects` for fast reads; a version is written in the same transaction.
+- *Keep*: the last 50 versions per floor; pinned versions are never removed and can be named (≤ 40 characters). Size check: one map ≤ 64 KB (as today) → at most ~3.2 MB per floor.
+- *UI* (House → Configuration, per floor): **Versions** – list (time, source, summary, pin, name), **Preview** (read-only map, differences highlighted: added neon lime, removed neon red, moved neon orange), **Restore** (creates a new version "restored from …" – nothing is lost). After every bigger action a toast with **Undo** (~10 s).
+- *Export/Import* (Settings → Language & maintenance): the whole house configuration as one JSON file (all floors, zones, calibration points; plan pictures optional, as base64). Import and restore are checked against the current HA areas and floors: unknown areas are listed ("not in Home Assistant any more – kept as outside area / left out?"), never dropped silently.
+- *Security*: import body ≤ 2 MB without pictures, ≤ 10 MB with; JSON schema validated with the existing `housemap.validate_map` per floor; pictures only PNG/JPEG with the existing image check; only POST with `X-Bifrost-Request`; no file paths from the import are used.
+
+**2 · "Bifrost's suggestion" never breaks anything**
+- No more overwrite without asking: a dialog with a preview and the difference.
+- Two ways: **Only add what is missing** (default) – rooms not drawn yet are added at the suggested place, everything existing (rooms, zones, doors, windows, devices, stairs, hull) stays; **Replace everything with the suggestion** – only explicitly, with a warning ("Your drawing of this floor will be replaced – a version is kept").
+- Before either: a version is saved automatically; afterwards a toast with **Undo**.
+- Backend: `reset_map` / `reset_layout` no longer delete – they compute the suggestion and store it as a new version (source `suggestion`). The old destructive endpoints are replaced by `api/map/suggest` (`{floor, mode: "add" | "replace", preview: true|false}`).
+- "Only add" never places a new room over an existing one: it takes free space in the suggested grid or, if none, a row below the drawing (the floor grows, the user moves it).
+
+**3 · "Put devices into their areas"**
+- Places Bluetooth gateways (Shelly, ESPHome proxy, Pi adapter – `housemap.scanner_candidates` knows their area), presence sensors and, on request, motion and door/window contacts by their HA area (entity area, else device area) into the matching room of the map.
+- Dialog: choose kinds (Gateways / Presence / Motion / Contacts), preview on the map, confirm.
+- Only devices not placed on this floor yet; placed ones stay (option "also re-place placed devices", off by default).
+- Position: inside the room's rectangle (the largest one if several), at least 0.5 m from the edge, spread so icons do not overlap (grid of free spots, 0.75 m apart), snapped to the 0.25 m grid; outside areas the same. Doors/windows contacts go to the nearest wall of their room (as the door tool does).
+- Devices without an area, or whose area is not drawn on any map: list **Cannot be placed** with the reason ("no area in HA", "area not drawn yet", "area on another floor that has no map").
+- The result is a version (source `auto_place`) with **Undo**.
+
+**Limits**: plan pictures are not versioned (only their layer settings) – they are big and rarely change; export can include them. Versions are local to this Bifrost; no cloud. Old grid layout (`layout`) is only kept for restore, not edited.
+**Open questions**:
+1. Keep 50 versions per floor, or count by age (e.g. 90 days)?
+2. Should the destructive bug get a quick fix first (0.17.1: confirm dialog + automatic backup before "suggestion") while the full 0.18 is built?
+3. Auto-place: also lights/switches with power measurement, or only sensors and gateways?
+4. Export: plan pictures included by default or off?
+**Tests**: suggestion "add" leaves every existing element unchanged (deep compare) and only adds missing rooms; before "replace" a version exists and restore brings the old map back exactly; reset endpoints no longer delete; versions capped at 50 (pinned kept); diff summary correct (added/removed/moved); export → import round trip identical, unknown areas reported, oversized or malformed JSON refused; auto-place: every position inside the right room (`placed()` returns the area), no two icons closer than 0.75 m, placed devices untouched, "cannot be placed" list with reasons; GUI check light/dark/390 px for the versions list, preview and both dialogs.

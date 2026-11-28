@@ -336,6 +336,9 @@ table.dtt{border-collapse:collapse;font-size:13px;width:100%}table.dtt th{text-a
 .hmsliders{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 14px;margin:8px 0}
 .hmbox.hmscaled{margin-left:0}
 .hmgrid line.mn{opacity:.2}
+.sugpanel{margin:8px 0;display:grid;gap:8px;border-left:3px solid var(--n-cyan)}.sugopt{display:grid;gap:4px;padding:8px;border-radius:12px;border:1px solid var(--div)}.sugopt.warn{border-color:color-mix(in srgb,var(--n-red) 45%,var(--div))}.sugopt .b{justify-self:start}
+.verrow{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--div)}.verrow.on{background:color-mix(in srgb,var(--n-cyan) 6%,transparent)}.verrow .grow{min-width:0;flex:1 1 220px}.verlabel{margin-top:4px;max-width:260px}.verprev{width:100%;margin-top:4px}
+.undobar{position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;gap:10px;align-items:center;background:var(--card);color:var(--text);border:1px solid var(--n-cyan);box-shadow:0 4px 18px rgba(0,0,0,.25);border-radius:14px;padding:8px 10px 8px 14px;z-index:30;font-size:13px;max-width:calc(100vw - 32px)}
 .pdev{margin-top:12px;padding-top:10px;border-top:1px solid var(--div);display:grid;gap:6px}.pdevlist{display:grid;gap:2px;max-height:360px;overflow-y:auto}.pdevrow{cursor:pointer;align-items:flex-start}.pdevrow input{margin-top:3px}.pdevrow code{overflow-wrap:anywhere}
 .hmmov{will-change:transform}.hmerr{fill:var(--n-teal);fill-opacity:.08;stroke:var(--n-teal);stroke-opacity:.25;stroke-width:1}
 .hmmov.hmin{animation:hmIn .8s ease-out}.hmmov.hmghost{animation:hmOut .8s ease-in forwards;pointer-events:none}
@@ -841,6 +844,49 @@ function hmPanel(d,F,E){var P=d.placeable||{},tab=E.tab||"scanners",list=P[tab]|
   var rows=list.length?list.map(function(x){var stt=here[x.id]?'<span class="pill" style="--c:var(--n-lime)">'+t("hm_placed")+'</span>':other[x.id]&&other[x.id]!==(E.floor||"")?'<span class="pill" style="--c:var(--sec)">'+esc(other[x.id])+'</span>':"";
     return '<button type="button" class="hmitem'+(E.dev===x.id?" on":"")+'" data-hmdev="'+esc(x.id)+'"><span class="grow"><b>'+esc(x.name)+'</b><span class="meta">'+esc([x.model,x.area].filter(Boolean).join(" · ")||x.id)+'</span></span>'+stt+'</button>';}).join(""):'<div class="meta">'+t(tab==="ble"?"hm_ble_soon":"hm_none_"+tab)+'</div>';
   return '<div class="hmpanel"><div class="frow">'+tabs+'</div>'+(unplaced?'<div class="meta" style="color:var(--n-orange)">'+fmtK("hm_unplaced",{n:unplaced})+'</div>':"")+'<div class="hmlist">'+rows+'</div></div>';}
+/* ---------- 0.18: Bifrost's suggestion never breaks anything; one button per kind of device ---------- */
+var PL_KINDS=["gateways","motion","presence","openings","buttons","lights","covers","access","media","climate"];
+function sumText(sm){var k=Object.keys(sm||{});if(!k.length)return t("sum_none");return k.map(function(x){return fmtK("sum_"+x,{n:sm[x]});}).join(" · ");}
+function hmSuggestPanel(E){var S2=E.sug;if(!S2)return "";if(S2.loading)return '<div class="card sugpanel"><div class="meta">…</div></div>';
+  return '<div class="card sugpanel"><div class="prow"><div class="grow"><b>'+t("sug_title")+'</b><div class="meta">'+t("sug_hint")+'</div></div>'+btn(t("dt_close"),'id="sugClose"','sm ghost','x')+'</div>'+
+    '<div class="sugopt"><b>'+t("sug_add")+'</b><div class="meta">'+t("sug_add_hint")+'</div><div class="meta"><b>'+esc(sumText(S2.add.summary))+'</b></div>'+btn(t("sug_add_btn"),'data-sugapply="add"','sm p','plus')+'</div>'+
+    '<div class="sugopt warn"><b>'+t("sug_replace")+'</b><div class="meta">'+t("sug_replace_hint")+'</div><div class="meta"><b>'+esc(sumText(S2.replace.summary))+'</b></div>'+btn(t(E.sugSure?"sug_replace_sure":"sug_replace_btn"),'data-sugapply="replace"','sm no','routine')+'</div></div>';}
+function hmPlacePanel(E){var P2=E.place;if(!P2)return "";var c=P2.counts;
+  var h='<div class="card sugpanel"><b>'+t("pl_title")+'</b><div class="meta">'+t("pl_hint")+'</div><label class="ch hmsnap"><input type="checkbox" id="plAll"'+(E.placeAll?" checked":"")+'> '+t("pl_all")+'</label>';
+  h+='<div class="frow">'+(c?PL_KINDS.map(function(k){var n=(c[k]||{}).place||0;return btn(fmtK("pl_"+k,{n:n}),'data-plkind="'+k+'"'+(n||E.placeAll?"":" disabled"),'sm'+(n?" p":""));}).join(""):'<span class="meta">…</span>')+'</div>';
+  var r=P2.res;if(r){h+='<div class="meta" style="margin-top:6px"><b>'+fmtK("pl_done",{n:r.placed.length})+'</b>'+(r.other?' · '+fmtK("pl_other",{n:r.other}):"")+'</div>';
+    if(r.cannot.length)h+='<details class="phow"><summary>'+fmtK("pl_cannot",{n:r.cannot.length})+'</summary>'+r.cannot.map(function(x){return '<div class="meta">'+esc(x.name)+' – '+t("pl_why_"+x.reason)+'</div>';}).join("")+'</details>';}
+  return h+'</div>';}
+function verPanel(d,F){var V=V4.ver;if(!V)return "";var fl=F.all.filter(function(f){return (f.name||"")===V.floor;})[0];if(!fl)return "";
+  var h='<div class="card" id="verPanel"><div class="prow"><div class="grow"><h3>'+ic("routine")+' '+fmtK("ver_title",{f:esc(V.floor||t("unassigned"))})+'</h3><div class="meta">'+fmtK("ver_hint",{n:V.keep||50})+'</div></div>'+btn(t("dt_close"),'id="verClose"','sm ghost','x')+'</div>';
+  if(!V.list)return h+'<div class="meta">…</div></div>';
+  if(!V.list.length)h+='<div class="meta">'+t("ver_none")+'</div>';
+  h+=V.list.map(function(x,i){var pv=V.prev&&V.prev.v===x.version;
+    return '<div class="verrow'+(pv?" on":"")+'"><div class="grow"><div><b>'+(x.label?esc(x.label)+' · ':"")+esc(t("src_v_"+x.source))+'</b>'+(i===0?' '+pill(t("ver_now"),"var(--n-lime)",true):"")+'</div><div class="meta">'+new Date(x.created).toLocaleString()+' · '+esc(sumText(x.summary))+'</div>'+
+      (x.pinned?'<input class="inp verlabel" data-verlabel="'+x.version+'" maxlength="40" placeholder="'+esc(t("ver_name_ph"))+'" aria-label="'+esc(t("ver_name_ph"))+'" value="'+esc(x.label||"")+'">':"")+'</div>'+
+      '<div class="bs">'+btn(t(x.pinned?"ver_unpin":"ver_pin"),'data-verpin="'+x.version+'" data-on="'+(x.pinned?0:1)+'"','sm ghost'+(x.pinned?" on":""),x.pinned?'check':'plus')+btn(t(pv?"ver_hide":"ver_preview"),'data-verprev="'+x.version+'"','sm ghost','map')+(i?btn(t(V.sure===x.version?"ver_restore_sure":"ver_restore"),'data-verrest="'+x.version+'"','sm'+(V.sure===x.version?" no":" p"),'routine'):"")+'</div></div>'+
+      (pv&&V.prev.map?'<div class="hmbox verprev">'+hmSvg(d,F,fl,V.prev.map,"config",null,hmPx(1))+'</div>':"");}).join("");
+  return h+'</div>';}
+function bindVersions(){
+  function load(floor){api("api/map/versions?floor="+encodeURIComponent(floor)).then(function(r){if(V4.ver&&V4.ver.floor===floor){V4.ver.list=r.versions;V4.ver.keep=r.keep;render();}}).catch(function(e){toast("✗ "+trText(e.message),true);});}
+  document.querySelectorAll("[data-hmver]").forEach(function(b){b.onclick=function(){var f=b.dataset.hmver;if(V4.ver&&V4.ver.floor===f){V4.ver=null;render();return;}V4.ver={floor:f,list:null};render();load(f);};});
+  var vc=document.getElementById("verClose");if(vc)vc.onclick=function(){V4.ver=null;render();};
+  if(!V4.ver)return;var f=V4.ver.floor;
+  document.querySelectorAll("[data-verprev]").forEach(function(b){b.onclick=function(){var v=+b.dataset.verprev;if(V4.ver.prev&&V4.ver.prev.v===v){V4.ver.prev=null;render();return;}V4.ver.prev={v:v,map:null};render();
+    api("api/map/version?floor="+encodeURIComponent(f)+"&v="+v).then(function(r){if(V4.ver&&V4.ver.prev&&V4.ver.prev.v===v){V4.ver.prev.map=r.map;render();}}).catch(function(e){toast("✗ "+trText(e.message),true);});};});
+  document.querySelectorAll("[data-verpin]").forEach(function(b){b.onclick=function(){var v=+b.dataset.verpin,x=V4.ver.list.filter(function(y){return y.version===v;})[0];
+    api("api/map/pin",{floor:f,version:v,pinned:b.dataset.on==="1",label:b.dataset.on==="1"?(x&&x.label)||null:null}).then(function(){load(f);}).catch(function(e){toast("✗ "+trText(e.message),true);});};});
+  document.querySelectorAll("[data-verlabel]").forEach(function(inp){inp.onchange=function(){var v=+inp.dataset.verlabel;
+    api("api/map/pin",{floor:f,version:v,pinned:true,label:inp.value.trim()||null}).then(function(){toast(t("saved_ok"));load(f);}).catch(function(e){toast("✗ "+trText(e.message),true);});};});
+  document.querySelectorAll("[data-verrest]").forEach(function(b){b.onclick=function(){var v=+b.dataset.verrest;if(V4.ver.sure!==v){V4.ver.sure=v;render();return;}
+    var cur=V4.ver.list[0].version;b.disabled=true;
+    api("api/map/restore",{floor:f,version:v}).then(function(r){V4.ver.sure=null;V4.ver.prev=null;load(f);return api("api/live").then(function(x){V4.house=x;render();
+      undoBar(fmtK("ver_restored",{v:v})+(r.unknown_areas&&r.unknown_areas.length?" · "+fmtK("ver_unknown",{a:r.unknown_areas.join(", ")}):""),function(){return api("api/map/restore",{floor:f,version:cur}).then(function(){load(f);return api("api/live");}).then(function(x){V4.house=x;render();});});});})
+      .catch(function(e){b.disabled=false;toast("✗ "+trText(e.message),true);});};});}
+/* a short bar with "Undo" after a bigger action (10 s) */
+function undoBar(msg,fn){var old=document.getElementById("undoBar");if(old)old.remove();var el=document.createElement("div");el.id="undoBar";el.className="undobar";el.setAttribute("role","status");
+  el.innerHTML='<span>'+esc(msg)+'</span><button type="button" class="ch sm">'+esc(t("undo"))+'</button>';document.body.appendChild(el);
+  var tm=setTimeout(function(){el.remove();},10000);el.querySelector("button").onclick=function(){clearTimeout(tm);el.remove();Promise.resolve(fn()).then(function(){toast(t("undo_done"));}).catch(function(e){toast("✗ "+trText(e.message),true);});};}
 function hmPlanPanel(d,fl,E){var lay=hmLayF(d,fl.name),m=E.m,cur=E.lay,used=(lay.plans||[]).map(function(p){return p.n;}),free=[0,1,2,3].filter(function(n){return used.indexOf(n)<0;});
   var l=m.layers.filter(function(x){return x.n===cur;})[0];
   var h='<div class="hmpanel"><div class="frow">'+(lay.plans||[]).map(function(p){return '<button type="button" class="ch'+(cur===p.n?" on":"")+'" data-hmlay="'+p.n+'">'+fmtK("hm_layer",{n:p.n+1})+'</button>';}).join("")+
@@ -873,7 +919,8 @@ function houseMap(d){var F=hgFloor(d);if(!F)return '<div class="card"><h2>'+ic("
       '<div class="frow"><button type="button" class="ch" id="hmUndo"'+(E.undo.length?"":" disabled")+'>'+t("hg_undo")+'</button><button type="button" class="ch" id="hmRedo"'+(E.redo.length?"":" disabled")+'>'+t("hm_redo")+'</button>'+
       (E.sel?'<button type="button" class="ch" id="hmDel">'+ic("trash")+' '+t("hm_delete")+'</button>':"")+'<label class="ch hmsnap"><input type="checkbox" id="hmSnap"'+(E.snap?" checked":"")+'> '+t("hm_snap")+'</label>'+
       '<label class="hmsize">'+t("hm_w")+' <input class="inp" id="hmW" type="number" min="2" max="80" step="0.5" value="'+m.w+'"></label><label class="hmsize">'+t("hm_h")+' <input class="inp" id="hmH" type="number" min="2" max="80" step="0.5" value="'+m.h+'"></label>'+'<label class="hmsize"><input type="checkbox" id="hmStretch"'+(E.stretch!==false?" checked":"")+'> '+t("hm_stretch")+'</label></div>'+
-      '<div class="frow">'+btn(t("hg_done"),'id="hmSave"','sm p','check')+btn(t("hg_cancel"),'id="hmCancel"','sm ghost')+btn(t("hm_reset"),'id="hmReset"','sm ghost','routine')+'</div></div>';
+      hmSuggestPanel(E)+hmPlacePanel(E)+
+      '<div class="frow">'+btn(t("hg_done"),'id="hmSave"','sm p','check')+btn(t("hg_cancel"),'id="hmCancel"','sm ghost')+btn(t("hm_reset"),'id="hmReset" aria-expanded="'+!!E.sug+'"','sm ghost','routine')+btn(t("pl_open"),'id="hmPlaceOpen" aria-expanded="'+!!E.place+'"','sm ghost','motion')+'</div></div>';
     return h+'</div>';}
   var FL=hmFloors(d,F);if(!FL.length)FL=F.all;var cols=hmCols(FL.length),px=hmPx(cols);
   /* one scale for all floors: the widest floor fills its column, the others are as wide as they really are */
@@ -881,10 +928,11 @@ function houseMap(d){var F=hgFloor(d);if(!F)return '<div class="card"><h2>'+ic("
   if(mode==="signal"){h+='<div class="frow">'+(V4.calOn?"":btn(t("cal_start"),'id="hmCalStart"','sm p','routine'))+'</div>';if(V4.calOn)h+=calPanel(d);}
   if(mode==="signal")h+='<div class="legend2">'+[["var(--n-lime)","hm_sig_good"],["var(--n-yellow)","hm_sig_room"],["var(--n-orange)","hm_sig_rough"],["var(--n-red)","hm_sig_weak"]].map(function(x){return '<span><i style="--c:'+x[0]+'"></i>'+t(x[1])+'</span>';}).join("")+'</div><div class="meta" style="margin-top:4px">'+t("hm_sig_note")+'</div>';
   h+='<div class="hmgrid2" style="--cols:'+cols+'">'+FL.map(function(fl){var lay=hmLayF(d,fl.name),m=lay.map,nsc=m.devices.filter(function(v){return v.kind==="scanner";}).length;
-    return '<div class="hmfloor"><div class="prow"><h3 class="grow">'+esc(fl.name||t("unassigned"))+'</h3>'+(mode==="config"?btn(t("hm_edit"),'data-hmedit="'+esc(fl.name||"")+'"','sm','edit'):"")+'</div>'+
+    return '<div class="hmfloor"><div class="prow"><h3 class="grow">'+esc(fl.name||t("unassigned"))+'</h3>'+(mode==="config"?btn(t("ver_btn"),'data-hmver="'+esc(fl.name||"")+'" aria-expanded="'+(!!V4.ver&&V4.ver.floor===(fl.name||""))+'"','sm ghost','routine')+btn(t("hm_edit"),'data-hmedit="'+esc(fl.name||"")+'"','sm','edit'):"")+'</div>'+
       (mode==="signal"&&!nsc?'<div class="meta">'+t("hm_sig_none")+'</div>':"")+'<div class="hmbox hmscaled" style="width:'+(Math.round((m.w+16/HM_PX)/(maxW+16/HM_PX)*10000)/100)+'%">'+hmSvg(d,F,fl,m,mode,null,px*(m.w+16/HM_PX)/(maxW+16/HM_PX))+'</div></div>';}).join("")+'</div>';
   if(mode==="live"){var inHouse=(d.avatars||[]).filter(function(v){return v.place==="house";});if(inHouse.length)h+='<div class="chips">'+pill(t("hg_in_house")+": "+inHouse.map(function(v){return v.name;}).join(", "),"var(--n-teal)")+'</div>';
     h+='<div class="legend2">'+["idle","motion","open","light","media","alarm"].map(function(k){return '<span><i style="--c:var('+HSC[k]+')"></i>'+t("hs_"+k)+'</span>';}).join("")+'<span class="hmleg"><svg viewBox="-14 -14 28 28" aria-hidden="true"><circle r="12" style="fill:var(--n-teal)"/>'+HM_GLYPH.phone+'</svg>'+t("hm_l_family")+'</span></div>';}
+  if(mode==="config")h+=verPanel(d,F);
   if(mode==="config")h+='<div class="legend2"><span class="hmleg"><svg viewBox="-14 -14 28 28" aria-hidden="true"><circle r="12" style="fill:var(--n-blue)"/>'+HM_GLYPH.gw+'</svg>'+t("hm_l_scanner")+'</span><span class="hmleg"><svg viewBox="-14 -14 28 28" aria-hidden="true"><circle r="12" class="hmble"/></svg>'+t("hm_l_ble")+'</span><span class="hmleg"><svg viewBox="-14 -14 28 28" aria-hidden="true"><circle r="12" style="fill:var(--n-lime)"/>'+HM_GLYPH.motion+'</svg>'+t("hm_l_motion")+'</span><span class="hmleg"><svg viewBox="-14 -14 28 28" aria-hidden="true"><circle r="12" style="fill:var(--n-orange)"/>'+HM_GLYPH.door+'</svg>'+t("hm_l_door")+'</span></div>';
   return h+'</div>';}
 function hmEditStart(d,F,fname){var fl=F.all.filter(function(f){return (f.name||"")===fname;})[0]||F.all[0],lay=hmLayF(d,fl.name),m=JSON.parse(JSON.stringify(lay.map));
@@ -944,7 +992,17 @@ var HM_GRID=0.25;
       api("api/floorplan",{floor:fl.name||"",image:b64,layer:n}).then(function(){V4.fpv=(V4.fpv||0)+1;if(!m.layers.some(function(x){return x.n===n;}))m.layers.push({n:n,x:0,y:0,w:m.w,rot:0,op:.5});E.lay=n;return api("api/live");}).then(function(x){V4.house=x;render();toast("✓");}).catch(fail);};rdr.readAsDataURL(file);};
   var ld=document.getElementById("hmLayDel");if(ld)ld.onclick=function(){var n=E.lay;api("api/floorplan/delete",{floor:fl.name||"",layer:n}).then(function(){m.layers=m.layers.filter(function(x){return x.n!==n;});E.lay=null;return api("api/live");}).then(function(x){V4.house=x;render();}).catch(fail);};
   var ca=document.getElementById("hmCancel");if(ca)ca.onclick=function(){V4.medit=null;render();};
-  var rs=document.getElementById("hmReset");if(rs)rs.onclick=function(){api("api/map/reset",{floor:fl.name||""}).then(function(){V4.medit=null;return reload();}).catch(fail);};
+  var rs=document.getElementById("hmReset");if(rs)rs.onclick=function(){if(E.sug){E.sug=null;render();return;}E.sug={loading:true};E.place=null;render();
+    /* preview both ways on the map being edited – nothing is saved until "Save" */
+    Promise.all(["add","replace"].map(function(mode){return api("api/map/suggest",{floor:fl.name||"",mode:mode,preview:true,map:m});})).then(function(r){E.sug={add:r[0],replace:r[1]};render();}).catch(function(e){E.sug=null;fail(e);});};
+  document.querySelectorAll("[data-sugapply]").forEach(function(b){b.onclick=function(){var mode=b.dataset.sugapply;if(mode==="replace"&&!E.sugSure){E.sugSure=true;render();return;}
+    snapshot();var nm=E.sug[mode].map;E.m=JSON.parse(JSON.stringify(nm));E.sug=null;E.sugSure=false;E.sel=null;render();toast(t("sug_done"));};});
+  var sc=document.getElementById("sugClose");if(sc)sc.onclick=function(){E.sug=null;E.sugSure=false;render();};
+  var po=document.getElementById("hmPlaceOpen");if(po)po.onclick=function(){if(E.place){E.place=null;render();return;}E.place={counts:null,res:null};E.sug=null;render();
+    api("api/map/place_counts?floor="+encodeURIComponent(fl.name||"")).then(function(c){if(E.place){E.place.counts=c.kinds;render();}}).catch(fail);};
+  var pa=document.getElementById("plAll");if(pa)pa.onchange=function(){E.placeAll=pa.checked;};
+  document.querySelectorAll("[data-plkind]").forEach(function(b){b.onclick=function(){b.disabled=true;var kind=b.dataset.plkind;
+    api("api/map/place",{floor:fl.name||"",kind:kind,preview:true,replace_placed:!!E.placeAll,map:m}).then(function(r){snapshot();E.m.devices=r.devices;E.place.res={kind:kind,placed:r.placed,cannot:r.cannot,other:r.other_floor};render();}).catch(function(e){b.disabled=false;fail(e);});};});;
   var sv=document.getElementById("hmSave");if(sv)sv.onclick=function(){sv.disabled=true;api("api/map",{floor:fl.name||"",w:m.w,h:m.h,rooms:m.rooms,stairs:m.stairs,marks:m.marks,devices:m.devices,hull:m.hull,layers:m.layers,zones:m.zones||[]}).then(function(){V4.medit=null;toast(t("hg_saved"));return reload();}).catch(function(e){sv.disabled=false;fail(e);});};
   function roomOf(name){return m.rooms.filter(function(x){return x.area===name;})[0];}
   function remove(s){if(!s)return;snapshot();
@@ -1244,7 +1302,7 @@ function viewHouse(){
   return h+'</div>';
 }
 function bindHouse(){
-  bindMap();bindBle();
+  bindMap();bindBle();bindVersions();
   if(!V4.ble&&!V4.bleLoading){V4.bleLoading=true;api("api/bluetooth").then(function(d){V4.ble=d;V4.bleLoading=false;render();}).catch(function(){V4.bleLoading=false;});}
   var ab=document.getElementById("archBtn");if(ab)ab.onclick=function(){V4.showArch=!V4.showArch;render();};
   bindMode("map",function(on){V4.mapTech=on;});
@@ -1583,19 +1641,34 @@ function roleGuide(){
   return '<details class="card more" id="roleGuide"'+(V4.guideOpen?" open":"")+'><summary><b>'+t("guide_title")+'</b> <span class="meta">'+t("guide_sub")+'</span></summary>'+
    rows.filter(function(r){return cats[r[0]];}).map(function(r){var c=cats[r[0]];return '<div class="check"><span class="dot" style="--c:var(--pri)">'+c.icon+'</span><div class="grow"><div><b>'+esc(trText(c.name))+'</b></div><div class="meta">'+t(r[1])+'</div></div></div>';}).join("")+
    '<div class="hint" style="margin-top:10px">'+t("guide_tip")+'</div></details>';}
+function houseIoCard(){var R=V4.hio;
+  return '<div class="card" id="hioCard"><h2>'+ic("map")+' '+t("hio_title")+'</h2><div class="hint">'+t("hio_hint")+'</div>'+
+    '<div class="frow"><label class="ch hmsnap"><input type="checkbox" id="hioPlans"'+(V4.hioPlans===false?"":" checked")+'> '+t("hio_plans")+'</label></div>'+
+    '<div class="bs">'+btn(t("hio_export"),'id="hioExport"','sm p','check')+'<label class="b sm">'+ic("upload")+'<span>'+t("hio_import")+'</span><input id="hioFile" type="file" accept="application/json,.json" style="display:none"></label></div>'+
+    (R?'<div class="meta" style="margin-top:8px">'+(R.error?'<span style="color:var(--n-red)">'+esc(R.error)+'</span>':fmtK("hio_done",{f:esc((R.floors||[]).join(", ")||"–")})+
+      (R.unknown_floors&&R.unknown_floors.length?'<br>'+fmtK("hio_unknown_floors",{f:esc(R.unknown_floors.join(", "))}):"")+
+      Object.keys(R.unknown_areas||{}).map(function(f){return '<br>'+fmtK("hio_unknown_areas",{f:esc(f),a:esc(R.unknown_areas[f].join(", "))});}).join("")+(R.calibration?'<br>'+fmtK("hio_cal",{n:R.calibration}):""))+'</div>':"")+'</div>';}
+function bindHouseIo(){
+  var hp=document.getElementById("hioPlans");if(hp)hp.onchange=function(){V4.hioPlans=hp.checked;};
+  var ex=document.getElementById("hioExport");if(ex)ex.onclick=function(){ex.disabled=true;api("api/house/export?plans="+(V4.hioPlans===false?"0":"1")).then(function(d){
+    var blob=new Blob([JSON.stringify(d)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="bifrost-house-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},1000);ex.disabled=false;toast(t("hio_exported"));}).catch(function(e){ex.disabled=false;toast("✗ "+trText(e.message),true);});};
+  var fi=document.getElementById("hioFile");if(fi)fi.onchange=function(){var file=fi.files[0];if(!file)return;if(file.size>15*1024*1024){toast(t("hio_too_big"),true);return;}
+    var rd=new FileReader();rd.onload=function(){var body;try{body=JSON.parse(String(rd.result));}catch(e){V4.hio={error:t("hio_bad")};render();return;}
+      api("api/house/import",body).then(function(r){V4.hio=r;V4.house=null;render();toast(t("hio_imported"));}).catch(function(e){V4.hio={error:trText(e.message)};render();});};rd.readAsText(file);};}
 function langCard(){return '<div class="card"><div class="prow"><div class="grow"><h2>'+t("language")+'</h2><div class="meta">'+t("lang_hint")+'</div></div><div class="bs">'+
   [["de",t("lang_de")],["en",t("lang_en")]].map(function(o){return '<button type="button" class="ch'+(LANG===o[0]?" on":"")+'" data-lang="'+o[0]+'">'+esc(o[1])+'</button>';}).join("")+'</div></div></div>';}
 function applyLang(l){LANG=l==="de"?"de":"en";document.documentElement.lang=LANG;}
 var _render2=render;
 render=function(){_render2();var m=document.getElementById("main");
-  if(S.view==="setup"&&!document.getElementById("langCard")){m.insertAdjacentHTML("afterbegin",'<div id="langCard">'+SM("general")+langCard()+irkCard()+SM("notify")+notifyCard()+SM("entities")+oeCard()+SM("suggest")+optCard()+SM("signals")+'</div>');
+  if(S.view==="setup"&&!document.getElementById("langCard")){m.insertAdjacentHTML("afterbegin",'<div id="langCard">'+SM("general")+langCard()+houseIoCard()+irkCard()+SM("notify")+notifyCard()+SM("entities")+oeCard()+SM("suggest")+optCard()+SM("signals")+'</div>');
     m.insertAdjacentHTML("beforeend",'<div id="langCard2">'+SM("signals")+catalogCard()+roleGuide()+'</div>');
     if(!V4.own&&!V4.ownLoading){V4.ownLoading=true;api("api/own_entities").then(function(d){V4.own=d;V4.ownLoading=false;render();}).catch(function(){V4.ownLoading=false;});}
     if(!V4.nt&&!V4.ntLoading){V4.ntLoading=true;api("api/notify").then(function(d){V4.nt=d;V4.ntLoading=false;render();}).catch(function(){V4.ntLoading=false;});}
     if(!V4.cat&&!V4.catLoading){V4.catLoading=true;api("api/catalog").then(function(d){V4.cat=d;V4.catLoading=false;render();}).catch(function(){V4.catLoading=false;});}
     if(!V4.opt&&!V4.optLoading){V4.optLoading=true;api("api/optimizations").then(function(d){V4.opt=d;V4.optLoading=false;render();}).catch(function(){V4.optLoading=false;});}
     if(!V4.src&&!V4.srcLoading){V4.srcLoading=true;api("api/sources").then(function(d){V4.src=d;V4.srcLoading=false;render();}).catch(function(){V4.srcLoading=false;});}
-    bindOpt();bindSources();bindFilters();bindOwn();
+    bindOpt();bindSources();bindFilters();bindOwn();bindHouseIo();
     var rg=document.getElementById("roleGuide");if(rg)rg.ontoggle=function(){V4.guideOpen=rg.open;};
     m.querySelectorAll("[data-lang]").forEach(function(b){b.onclick=function(){var l=b.dataset.lang;api("api/language",{language:l}).then(function(){applyLang(l);render();toast(t("language")+" ✓");}).catch(function(e){toast("✗ "+e.message,true);});};});}
   trDom(document.querySelector("header")||document.body);trDom(m);trDom(document.getElementById("tabs"));};
@@ -1680,6 +1753,40 @@ function bindFilters(){if(S.view!=="setup")return;
 document.documentElement.lang=LANG;
 
 /* ---------- 0.15 navigation: six areas, each with sub-tabs (#area/sub) ---------- */
+Object.assign(TX.de,{sug_title:"Vorschlag von Bifrost",sug_hint:"Bifrost ordnet die Bereiche dieses Stockwerks nach den gelernten Wegen an. Es wird nichts gespeichert, bevor du „Fertig“ drückst – und jede gespeicherte Karte bleibt als Version erhalten.",
+  sug_add:"Nur Fehlendes ergänzen",sug_add_hint:"Bereiche, die noch nicht gezeichnet sind, kommen dazu. Räume, Zonen, Türen, Fenster und Geräte bleiben genau, wie sie sind.",sug_add_btn:"Ergänzen",
+  sug_replace:"Alles durch den Vorschlag ersetzen",sug_replace_hint:"Deine Zeichnung dieses Stockwerks wird ersetzt (Grundriss-Bilder bleiben). Rückgängig mit ↶ oder später über „Versionen“.",sug_replace_btn:"Ersetzen …",sug_replace_sure:"Wirklich ersetzen",
+  sug_done:"Vorschlag eingesetzt – mit ↶ rückgängig oder mit „Fertig“ speichern.",
+  sum_none:"keine Änderung",sum_rooms_added:"{n} Raum/Räume neu",sum_rooms_removed:"{n} Raum/Räume entfernt",sum_rooms_changed:"{n} Raum/Räume geändert",sum_devices_added:"{n} Gerät(e) gesetzt",sum_devices_removed:"{n} Gerät(e) entfernt",sum_devices_moved:"{n} Gerät(e) verschoben",
+  sum_zones_changed:"{n} Zone(n) geändert",sum_marks_changed:"Türen/Fenster geändert",sum_shape_changed:"Grösse, Hülle oder Treppe geändert",sum_plans_changed:"Grundriss-Bilder verschoben",
+  pl_open:"Geräte setzen",pl_title:"Geräte in ihre Bereiche setzen",pl_hint:"Ein Knopf pro Art: Bifrost setzt die Geräte nach ihrem Bereich in Home Assistant in den passenden Raum – danach nur noch etwas verschieben. Bereits gesetzte Geräte bleiben, wo sie sind. Mit „Fertig“ speichern.",
+  pl_all:"Auch bereits gesetzte neu setzen",pl_gateways:"Gateways setzen ({n})",pl_motion:"Bewegungsmelder setzen ({n})",pl_presence:"Präsenzmelder setzen ({n})",pl_openings:"Türen & Fenster setzen ({n})",pl_buttons:"Taster setzen ({n})",pl_lights:"Lichter setzen ({n})",
+  pl_covers:"Storen setzen ({n})",pl_access:"Zugang setzen ({n})",pl_media:"Medien setzen ({n})",pl_climate:"Klima-Sensoren setzen ({n})",pl_done:"{n} gesetzt",pl_other:"{n} gehören auf ein anderes Stockwerk",pl_cannot:"{n} nicht platzierbar",
+  pl_why_no_area:"kein Bereich in Home Assistant",pl_why_area_not_drawn:"Bereich ist auf dieser Karte noch nicht gezeichnet",pl_why_room_full:"Raum ist voll – von Hand setzen",
+  ver_btn:"Versionen",ver_title:"Versionen · {f}",ver_hint:"Jede Änderung ist eine Version. Die letzten {n} bleiben, angeheftete immer. Wiederherstellen legt eine neue Version an – es geht nichts verloren.",ver_none:"Noch keine Version – sie entsteht beim nächsten Speichern.",
+  ver_now:"Aktuell",ver_pin:"Anheften",ver_unpin:"Angeheftet",ver_name_ph:"Name, z. B. vor dem Umbau",ver_preview:"Vorschau",ver_hide:"Vorschau zu",ver_restore:"Wiederherstellen",ver_restore_sure:"Wirklich wiederherstellen",
+  ver_restored:"Version {v} wiederhergestellt",ver_unknown:"als Aussenbereich behalten (nicht mehr in HA): {a}",undo:"Rückgängig",undo_done:"Rückgängig gemacht",
+  src_v_save:"Gespeichert",src_v_suggestion:"Vorschlag von Bifrost",src_v_auto_place:"Geräte gesetzt",src_v_import:"Importiert",src_v_restore:"Wiederhergestellt",src_v_before:"Stand vor den Versionen",
+  hio_title:"Hauskonfiguration sichern",hio_hint:"Alle Karten (Räume, Aussenbereiche, Zonen, Türen, Fenster, Geräte), die Einmess-Punkte und auf Wunsch die Grundriss-Bilder als eine Datei – für eine Sicherung oder einen Umzug. Beim Import wird jedes Stockwerk eine neue Version; Bereiche, die es in Home Assistant nicht mehr gibt, bleiben als Aussenbereich und werden gemeldet.",
+  hio_plans:"Grundriss-Bilder mitnehmen",hio_export:"Exportieren",hio_import:"Importieren",hio_exported:"Exportiert",hio_imported:"Importiert",hio_bad:"Keine gültige Bifrost-Datei",hio_too_big:"Datei zu gross (max. 15 MB)",
+  hio_done:"Importiert: {f}",hio_unknown_floors:"Stockwerke nicht in Home Assistant, übersprungen: {f}",hio_unknown_areas:"{f}: als Aussenbereich behalten: {a}",hio_cal:"{n} Einmess-Punkte übernommen"});
+Object.assign(TX.en,{sug_title:"Bifrost's suggestion",sug_hint:"Bifrost arranges this floor's areas by the paths it has learned. Nothing is saved before you press “Done” – and every saved map is kept as a version.",
+  sug_add:"Only add what is missing",sug_add_hint:"Areas that are not drawn yet are added. Rooms, zones, doors, windows and devices stay exactly as they are.",sug_add_btn:"Add",
+  sug_replace:"Replace everything with the suggestion",sug_replace_hint:"Your drawing of this floor is replaced (floor plan pictures stay). Undo with ↶ or later via “Versions”.",sug_replace_btn:"Replace …",sug_replace_sure:"Really replace",
+  sug_done:"Suggestion applied – undo with ↶ or save with “Done”.",
+  sum_none:"no change",sum_rooms_added:"{n} room(s) added",sum_rooms_removed:"{n} room(s) removed",sum_rooms_changed:"{n} room(s) changed",sum_devices_added:"{n} device(s) placed",sum_devices_removed:"{n} device(s) removed",sum_devices_moved:"{n} device(s) moved",
+  sum_zones_changed:"{n} zone(s) changed",sum_marks_changed:"doors/windows changed",sum_shape_changed:"size, hull or stairs changed",sum_plans_changed:"floor plan pictures moved",
+  pl_open:"Place devices",pl_title:"Put devices into their areas",pl_hint:"One button per kind: Bifrost puts the devices into the room of their Home Assistant area – then just move them a little. Devices already placed stay where they are. Save with “Done”.",
+  pl_all:"Also re-place devices already placed",pl_gateways:"Place gateways ({n})",pl_motion:"Place motion sensors ({n})",pl_presence:"Place presence sensors ({n})",pl_openings:"Place doors & windows ({n})",pl_buttons:"Place buttons ({n})",pl_lights:"Place lights ({n})",
+  pl_covers:"Place blinds ({n})",pl_access:"Place access ({n})",pl_media:"Place media ({n})",pl_climate:"Place climate sensors ({n})",pl_done:"{n} placed",pl_other:"{n} belong to another floor",pl_cannot:"{n} cannot be placed",
+  pl_why_no_area:"no area in Home Assistant",pl_why_area_not_drawn:"area not drawn on this map yet",pl_why_room_full:"room is full – place by hand",
+  ver_btn:"Versions",ver_title:"Versions · {f}",ver_hint:"Every change is a version. The last {n} are kept, pinned ones always. Restoring creates a new version – nothing is lost.",ver_none:"No version yet – it is created with the next save.",
+  ver_now:"Current",ver_pin:"Pin",ver_unpin:"Pinned",ver_name_ph:"Name, e.g. before the rebuild",ver_preview:"Preview",ver_hide:"Close preview",ver_restore:"Restore",ver_restore_sure:"Really restore",
+  ver_restored:"Version {v} restored",ver_unknown:"kept as outside area (no longer in HA): {a}",undo:"Undo",undo_done:"Undone",
+  src_v_save:"Saved",src_v_suggestion:"Bifrost's suggestion",src_v_auto_place:"Devices placed",src_v_import:"Imported",src_v_restore:"Restored",src_v_before:"State before versions",
+  hio_title:"Back up the house configuration",hio_hint:"All maps (rooms, outside areas, zones, doors, windows, devices), the calibration points and, if you like, the floor plan pictures as one file – for a backup or a move. On import every floor becomes a new version; areas that no longer exist in Home Assistant are kept as outside areas and reported.",
+  hio_plans:"Include floor plan pictures",hio_export:"Export",hio_import:"Import",hio_exported:"Exported",hio_imported:"Imported",hio_bad:"Not a valid Bifrost file",hio_too_big:"File too large (max. 15 MB)",
+  hio_done:"Imported: {f}",hio_unknown_floors:"Floors not in Home Assistant, skipped: {f}",hio_unknown_areas:"{f}: kept as outside area: {a}",hio_cal:"{n} calibration points taken over"});
 Object.assign(TX.de,{corr_title:"Wie oft sich Bifrost getäuscht hat",corr_total:"Korrekturen insgesamt",corr_month:"Letzte 30 Tage",
   corr_hl:"Eine Korrektur zählt nach {d} Tagen nur noch halb. Je mehr Bifrost selbst gelernt hat, desto kürzer – dann übernehmen seine eigenen Muster. Den Grund sucht Bifrost selbst: die Signale, die es in die falsche Richtung gedrängt haben.",
   corr_none:"Noch keine Korrektur. Liegt Bifrost falsch, tippe beim Ergebnis auf „Stimmt nicht“ und wähle, was wirklich ist.",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import re
@@ -15,12 +16,14 @@ from . import __version__, calwords, guard, i18n
 from . import everyday as _everyday
 from . import house as _house
 from . import housemap as _housemap
+from . import mapversions as _mv
 from .balance import signal as _signal
 from .blehub import BleHub, mac_match
 from .brain import Brain
 from .categories import CATEGORIES, STATUS_IGNORED, STATUS_INCLUDED, derive_role
 from .classifier import Classification, EntityInfo, classify
 from .engine import ARRIVING, AWAY, HOME, Decision, Settings, Signal, decide, parse_time
+from .floorplan import validate_floorplan
 from .ha_client import HAClient, HAError
 from .housemap import clean as _clean_map
 from .live import AUTOMATION, SCHEDULED, LiveBoard, NumericEvents, OriginLearner, classify_origin
@@ -1122,18 +1125,236 @@ class BifrostService:
 
     def set_map(self, body: object) -> dict:
         floor, m = _housemap.validate_map(body, self._floor_areas())
-        self.store.put_obj("map", _house.floor_key(floor), {"floor": floor, **m})
-        return {"floor": floor, "rooms": len(m["rooms"]), "devices": len(m["devices"])}
+        v = self._save_map(floor, m, "save")
+        return {"floor": floor, "rooms": len(m["rooms"]), "devices": len(m["devices"]), "version": v}
+
+    # --- house configuration with versions (0.18) ----------------------------------------------------
+    def _floor(self, floor: object) -> str:
+        if not isinstance(floor, str) or floor not in self._floor_areas():
+            raise ValueError("unknown floor")
+        return floor
+
+    def _save_map(self, floor: str, m: dict, source: str) -> int:
+        """Every change of a floor's map is a new version (nothing is ever overwritten without a way back)."""
+        key = _house.floor_key(floor)
+        old = self.store.get_obj("map", key)
+        if old and not self.store.list_versions("map", key):
+            self.store.add_version("map", key, old, "before", keep=_mv.KEEP)  # the drawing from before 0.18
+        self.store.put_obj("map", key, {"floor": floor, **m})
+        return self.store.add_version("map", key, {"floor": floor, **m}, source, _mv.diff(old, m), keep=_mv.KEEP)
+
+    def _base_map(self, floor: str, body: dict) -> dict:
+        """The map being edited (validated) if the client sends it, else the stored one."""
+        if isinstance(body.get("map"), dict):
+            _, m = _housemap.validate_map({**body["map"], "floor": floor}, self._floor_areas())
+            return m
+        return self._current_map(floor)
+
+    def _current_map(self, floor: str) -> dict:
+        names = self._floor_areas().get(floor, [])
+        stored = self.store.get_obj("map", _house.floor_key(floor))
+        return _clean_map(stored, names) if stored else _housemap.from_cells(_house.auto_layout(names, self.brain.paths))
+
+    def suggest_map(self, body: object) -> dict:
+        """Bifrost's suggestion: "add" only adds rooms that are not drawn yet (default); "replace" replaces the drawing
+        (only on request). preview=true changes nothing. Never deletes: the result is a new version."""
+        if not isinstance(body, dict):
+            raise ValueError("invalid body")
+        floor = self._floor(body.get("floor"))
+        mode = body.get("mode", "add")
+        if mode not in ("add", "replace"):
+            raise ValueError("mode: add or replace")
+        cur = self._base_map(floor, body)
+        sug = _housemap.from_cells(_house.auto_layout(self._floor_areas().get(floor, []), self.brain.paths))
+        new = _mv.add_missing(cur, sug) if mode == "add" else {**sug, "layers": cur.get("layers", [])}
+        _, new = _housemap.validate_map({"floor": floor, **new}, self._floor_areas())
+        summary = _mv.diff(cur, new)
+        if body.get("preview", True) is not False:
+            return {"floor": floor, "mode": mode, "map": new, "summary": summary, "preview": True}
+        v = self._save_map(floor, new, "suggestion")
+        return {"floor": floor, "mode": mode, "map": new, "summary": summary, "version": v}
 
     def reset_map(self, floor: object) -> dict:
-        if not isinstance(floor, str) or floor not in self._floor_areas():
-            raise ValueError("unknown floor")
-        return {"deleted": self.store.del_obj("map", _house.floor_key(floor))}
+        """Older clients: no longer deletes – replaces with the suggestion as a new version."""
+        return self.suggest_map({"floor": floor, "mode": "replace", "preview": False})
 
     def reset_layout(self, floor: object) -> dict:
-        if not isinstance(floor, str) or floor not in self._floor_areas():
-            raise ValueError("unknown floor")
-        return {"deleted": self.store.del_obj("layout", _house.floor_key(floor))}
+        floor = self._floor(floor)
+        key = _house.floor_key(floor)
+        old = self.store.get_obj("layout", key)
+        if old:
+            self.store.add_version("layout", key, old, "before", keep=_mv.KEEP)
+        return {"deleted": self.store.del_obj("layout", key), "kept_as_version": bool(old)}
+
+    def map_versions(self, floor: object) -> dict:
+        floor = self._floor(floor)
+        return {"floor": floor, "keep": _mv.KEEP, "versions": self.store.list_versions("map", _house.floor_key(floor))}
+
+    def map_version(self, floor: object, version: object) -> dict:
+        floor = self._floor(floor)
+        if not isinstance(version, int) or isinstance(version, bool) or version < 1:
+            raise ValueError("version: number")
+        data = self.store.get_version("map", _house.floor_key(floor), version)
+        if data is None:
+            raise ValueError("unknown version")
+        return {"floor": floor, "version": version, "map": _clean_map(data, self._floor_areas().get(floor, []))}
+
+    def _fit_areas(self, floor: str, m: dict) -> tuple[dict, list[str]]:
+        """Rooms whose HA area no longer exists on this floor are kept as outside areas and reported (never dropped)."""
+        names = set(self._floor_areas().get(floor, []))
+        unknown = []
+        rooms = []
+        if not isinstance(m.get("rooms", []), list) or not all(isinstance(r, dict) for r in m.get("rooms", [])):
+            raise ValueError("rooms must be a list of rooms")
+        for r in m.get("rooms", []):
+            if not r.get("outside") and r.get("area") not in names:
+                unknown.append(r.get("area"))
+                r = {**r, "outside": True}
+            rooms.append(r)
+        return {**m, "rooms": rooms}, [u for u in unknown if isinstance(u, str)]
+
+    def restore_map(self, body: object) -> dict:
+        if not isinstance(body, dict):
+            raise ValueError("invalid body")
+        floor = self._floor(body.get("floor"))
+        version = body.get("version")
+        if not isinstance(version, int) or isinstance(version, bool):
+            raise ValueError("version: number")
+        data = self.store.get_version("map", _house.floor_key(floor), version)
+        if data is None:
+            raise ValueError("unknown version")
+        fitted, unknown = self._fit_areas(floor, {k: v for k, v in data.items() if k != "floor"})
+        _, m = _housemap.validate_map({"floor": floor, **fitted}, self._floor_areas())
+        v = self._save_map(floor, m, "restore")
+        return {"floor": floor, "version": v, "restored_from": version, "unknown_areas": unknown}
+
+    def pin_map_version(self, body: object) -> dict:
+        if not isinstance(body, dict):
+            raise ValueError("invalid body")
+        floor = self._floor(body.get("floor"))
+        version, pinned, label = body.get("version"), body.get("pinned"), body.get("label")
+        if not isinstance(version, int) or isinstance(version, bool) or not isinstance(pinned, bool):
+            raise ValueError("expected {floor, version, pinned, label}")
+        if label is not None and (not isinstance(label, str) or len(label) > 40 or not _housemap.OUTSIDE_NAME.match(label)):
+            raise ValueError("label: up to 40 letters")
+        if not self.store.pin_version("map", _house.floor_key(floor), version, pinned, label or None):
+            raise ValueError("unknown version")
+        return {"ok": True}
+
+    # devices into their areas – one button per kind
+    PLACE_KINDS = ("gateways", "motion", "presence", "openings", "buttons", "lights", "covers", "access", "media", "climate")
+
+    def _place_items(self, kind: str) -> tuple[list[dict], bool]:
+        if kind == "gateways":
+            with self._lock:
+                cands = list(self.scanners)
+            return [{"id": c["id"], "kind": "scanner", "area": c.get("area"), "name": c.get("name")} for c in cands], False
+        presence = ("occupancy", "presence")
+        with self._lock:
+            ents = [(eid, e) for eid, e in self.snap.entities.items() if e.status == STATUS_INCLUDED]
+
+        def match(e) -> bool:  # noqa: ANN001
+            dom, cat, dc = e.info.domain, e.category, (e.info.device_class or "")
+            return {
+                "motion": cat == "motion" and dc not in presence,
+                "presence": cat == "motion" and dc in presence,
+                "openings": cat == "openings" and dom != "cover",
+                "buttons": cat == "manual" and dom in ("event", "button", "input_button", "sensor", "binary_sensor"),
+                "lights": cat == "manual" and dom in ("light", "switch"),
+                "covers": dom == "cover",
+                "access": cat == "access",
+                "media": cat == "media",
+                "climate": cat == "climate",
+            }.get(kind, False)
+
+        items = [{"id": eid, "kind": "sensor", "area": e.info.area, "name": e.info.name or eid} for eid, e in ents if match(e)]
+        return sorted(items, key=lambda x: x["name"]), kind in ("openings", "covers")
+
+    def place_devices(self, body: object) -> dict:
+        """Put the devices of one kind into the room of their HA area on this floor's map (preview by default)."""
+        if not isinstance(body, dict):
+            raise ValueError("invalid body")
+        floor = self._floor(body.get("floor"))
+        kind = body.get("kind")
+        if kind not in self.PLACE_KINDS:
+            raise ValueError("unknown kind")
+        replace_placed = body.get("replace_placed", False) is True
+        cur = self._base_map(floor, body)
+        items, wall = self._place_items(kind)
+        here = set(self._floor_areas().get(floor, [])) | {r["area"] for r in cur.get("rooms", [])}
+        maps = self._maps()
+        elsewhere = {d["id"] for f, m in maps.items() if f != floor for d in m.get("devices", [])}
+        mine = [i for i in items if i.get("area") in here]
+        other_floor = [i for i in items if i.get("area") and i["area"] not in here]
+        res = _mv.place(cur, [i for i in mine + [i for i in items if not i.get("area")] if i["id"] not in elsewhere], replace_placed, wall)
+        res["cannot"] = [c for c in res["cannot"] if c["reason"] != "no_area" or c["id"] not in elsewhere]
+        res["other_floor"] = len(other_floor)
+        if body.get("preview", True) is not False:
+            return {"floor": floor, "kind": kind, **res, "preview": True}
+        new = {**cur, "devices": res["devices"]}
+        _, new = _housemap.validate_map({"floor": floor, **new}, self._floor_areas())
+        v = self._save_map(floor, new, "auto_place")
+        return {"floor": floor, "kind": kind, **res, "version": v}
+
+    def place_counts(self, floor: object) -> dict:
+        """How many devices of each kind could be placed on this floor right now (for the buttons)."""
+        floor = self._floor(floor)
+        out = {}
+        for k in self.PLACE_KINDS:
+            r = self.place_devices({"floor": floor, "kind": k, "preview": True})
+            out[k] = {"place": len(r["placed"]), "cannot": len(r["cannot"])}
+        return {"floor": floor, "kinds": out}
+
+    # export / import of the whole house configuration
+    def export_house(self, with_plans: bool = True) -> dict:
+        floors = {}
+        for floor in self._floor_areas():
+            key = _house.floor_key(floor)
+            m = self.store.get_obj("map", key)
+            if not m:
+                continue
+            entry = {"map": {k: v for k, v in m.items() if k != "floor"}, "plans": {}}
+            if with_plans:
+                for n in range(_housemap.MAX_LAYERS):
+                    fp = self.brain.floorplan_bytes(_housemap.layer_key(key, n))
+                    if fp:
+                        entry["plans"][str(n)] = base64.b64encode(fp[0]).decode()
+            floors[floor] = entry
+        return {"bifrost": __version__, "kind": "house", "created": datetime.now(UTC).isoformat(timespec="seconds"), "floors": floors, "calibration": list(self.ble.samples)}
+
+    def import_house(self, body: object) -> dict:
+        """Check everything first, then write: each floor as a new version, unknown areas kept as outside areas."""
+        if not isinstance(body, dict) or body.get("kind") != "house" or not isinstance(body.get("floors"), dict):
+            raise ValueError("not a Bifrost house export")
+        areas = self._floor_areas()
+        todo, report = [], {"floors": [], "unknown_floors": [], "unknown_areas": {}}
+        for floor, entry in body["floors"].items():
+            if not isinstance(floor, str) or not isinstance(entry, dict) or not isinstance(entry.get("map"), dict):
+                raise ValueError("invalid floor entry")
+            if floor not in areas:
+                report["unknown_floors"].append(floor[:60])
+                continue
+            fitted, unknown = self._fit_areas(floor, entry["map"])
+            _, m = _housemap.validate_map({"floor": floor, **fitted}, areas)
+            plans = entry.get("plans") or {}
+            if not isinstance(plans, dict) or any(k not in {str(n) for n in range(_housemap.MAX_LAYERS)} or not isinstance(v, str) for k, v in plans.items()):
+                raise ValueError("invalid plans")
+            for v in plans.values():
+                validate_floorplan(v)  # PNG/JPEG only, size-checked – before anything is written
+            todo.append((floor, m, plans))
+            if unknown:
+                report["unknown_areas"][floor] = unknown
+        cal = body.get("calibration")
+        if cal is not None and not isinstance(cal, list):
+            raise ValueError("invalid calibration")
+        for floor, m, plans in todo:
+            self._save_map(floor, m, "import")
+            for n, img in plans.items():
+                self.brain.floorplan(img, _housemap.layer_key(_house.floor_key(floor), int(n)))
+            report["floors"].append(floor)
+        if cal:
+            report["calibration"] = self.ble.import_samples(cal, set(areas))
+        return report
 
     def set_floorplan(self, body: object) -> dict:
         if not isinstance(body, dict) or not isinstance(body.get("floor"), str) or body["floor"] not in self._floor_areas():

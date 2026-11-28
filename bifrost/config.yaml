@@ -1,5 +1,5 @@
 name: Bifrost
-version: "0.17.0"
+version: "0.18.0"
 slug: bifrost
 description: Local, learning presence detection – knows when your home is empty.
 url: https://github.com/magi1982/bifrost

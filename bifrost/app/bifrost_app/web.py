@@ -29,6 +29,7 @@ MAX_BODY = 4096
 FLOORPLAN_BODY = 3_000_000  # base64 of a 2 MB picture
 LAYOUT_BODY = 32_768  # up to 864 painted cells
 MAP_BODY = 65_536  # house map 2.0: rectangles, marks and placed devices
+IMPORT_BODY = 16_000_000  # house export: maps of all floors + up to 4 plan pictures per floor (base64)
 FLOOR_KEY_RE = re.compile(r"^[a-z0-9_]{1,40}$")
 MAX_THREADS = 16
 REQUEST_TIMEOUT = 10  # seconds per connection
@@ -126,6 +127,11 @@ ACTIONS = {
     "/api/calib/delete": lambda svc, b: svc.calib_delete(b),
     "/api/own_entities/remove": lambda svc, b: svc.remove_leftover(b),
     "/api/map/reset": lambda svc, b: svc.reset_map(b.get("floor")),
+    "/api/map/suggest": lambda svc, b: svc.suggest_map(b),
+    "/api/map/restore": lambda svc, b: svc.restore_map(b),
+    "/api/map/pin": lambda svc, b: svc.pin_map_version(b),
+    "/api/map/place": lambda svc, b: svc.place_devices(b),
+    "/api/house/import": lambda svc, b: svc.import_house(b),
     "/api/pattern_entity": lambda svc, b: svc.set_pattern_entity(b),
     "/api/entities/seen": lambda svc, b: svc.mark_seen(b.get("entity_id")),
     "/api/notify": lambda svc, b: svc.set_notify(b.get("target")),
@@ -221,6 +227,20 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
                     return self._send(HTTPStatus.OK, service.entity_detail(eid))
                 except KeyError:
                     return self._send(HTTPStatus.NOT_FOUND, {"error": "unknown entity"})
+            if route in ("/api/map/versions", "/api/map/version", "/api/map/place_counts", "/api/house/export"):
+                query = parse_qs(self.path.split("?", 1)[1]) if "?" in self.path else {}
+                floor = (query.get("floor") or [""])[0][:80]
+                try:
+                    if route == "/api/map/versions":
+                        return self._send(HTTPStatus.OK, service.map_versions(floor))
+                    if route == "/api/map/place_counts":
+                        return self._send(HTTPStatus.OK, service.place_counts(floor))
+                    if route == "/api/house/export":
+                        return self._send(HTTPStatus.OK, service.export_house((query.get("plans") or ["1"])[0] != "0"))
+                    v = (query.get("v") or [""])[0]
+                    return self._send(HTTPStatus.OK, service.map_version(floor, int(v) if v.isdigit() else 0))
+                except ValueError as err:
+                    return self._send(HTTPStatus.BAD_REQUEST, {"error": str(err)})
             if route == "/api/floorplan":
                 query = parse_qs(self.path.split("?", 1)[1]) if "?" in self.path else {}
                 key = (query.get("floor") or [""])[0]
@@ -242,7 +262,17 @@ def make_handler(service, dev: bool = False):  # noqa: ANN001
                 return self._send(HTTPStatus.FORBIDDEN, {"error": "cross-site request"})  # CSRF: defence in depth
             route = self._route()
             try:
-                raw = self._read_body(FLOORPLAN_BODY if route == "/api/floorplan" else LAYOUT_BODY if route == "/api/layout" else MAP_BODY if route == "/api/map" else MAX_BODY)
+                raw = self._read_body(
+                    FLOORPLAN_BODY
+                    if route == "/api/floorplan"
+                    else LAYOUT_BODY
+                    if route == "/api/layout"
+                    else MAP_BODY
+                    if route in ("/api/map", "/api/map/pin", "/api/map/suggest", "/api/map/place")
+                    else IMPORT_BODY
+                    if route == "/api/house/import"
+                    else MAX_BODY
+                )
             except ValueError:
                 return self._send(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "body too large"})
             try:
