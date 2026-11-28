@@ -687,3 +687,20 @@ Every sub-section gets its own address (`#house/signal`), so a link or a notific
 2. *Show names* on by default while editing, or off?
 3. Should an *open* window in live mode also show on the Overview (e.g. "2 windows open") – or stay on the map?
 **Tests**: window entity → `contact: window` and window symbol, door → `door`, garage → `garage_door`, unknown class → `opening` – also for devices placed before the update (migration creates marks, removes the old devices, keeps a version, restore brings it back); selection info shows name, entity, area, kind and state; list ↔ map selection both ways; windows only on outer walls; entrance door on an outer wall, inner door between the two rooms with learned paths; no two contacts closer than 0.75 m; every contact on its room's wall (distance 0); GUI check light/dark/390 px incl. the info strip and the list.
+
+### Idea · Floor plan to scale by one line, grow the map per side (28.11.) – waiting for "mach es"
+**Wish**: when loading a floor plan picture, draw a line on it, type its real length and the picture gets the right size by itself. Then add or remove space per side of the map (+ / −), e.g. to add the garden later.
+**1 · Scale by a reference line** (Edit map → Floor plan, per picture layer)
+- Button **Measure**: drag a line on the picture between two points you know (e.g. an outer wall dimension written on the plan), snapping to the picture, not to the grid; then type the real length in metres (e.g. 11.40).
+- Bifrost sets the picture's size so that this line is exactly that long; the line's start point stays where it is (the picture grows/shrinks around it), rotation is kept (the length does not depend on it).
+- Optional second line (**Check**): shows how far the plan is off in % (crooked scans, stretched photos); above 2 % a hint "the plan may be distorted".
+- The line stays visible while the plan panel is open (neon cyan, with its length), is saved with the layer (`ref: {x1, y1, x2, y2, m}` in picture coordinates) and can be deleted.
+**2 · Grow or shrink the map per side** (Edit map, next to width/depth)
+- Four sides, each with **+** and **−** and a step (0.25 / 0.5 / 1 / 2 m, default 1 m).
+- **+ right / + bottom**: the map gets bigger on that side.
+- **+ left / + top**: the map gets bigger and *everything* moves along so nothing changes in the house – rooms, outside areas, zones, stairs, hull, doors/windows, devices, plan pictures and this floor's calibration points.
+- **−** only removes empty space: if something lies in the strip that would disappear, the button says what ("2 rooms, 1 device in the way") and does nothing. Limits 2–80 m as today.
+- Then draw the garden as an outside area in the new space.
+**Limits**: the measured scale is only as good as the plan; the line is drawn by hand (zoom in for precision). Moving left/top changes positions in metres – Bluetooth calibration points of that floor move along, other floors stay.
+**Open questions**: step default 1 m ok? Should "Measure" also offer to fit the map size to the plan (map = picture size)?
+**Tests**: line of 300 px on a 1200 px wide picture, typed 3 m → picture width 12 m, start point unchanged, rotation unchanged; check line shows the deviation; + left by 2 m moves every element by +2 m in x (rooms, marks, devices, zones, stairs, hull, layers, calibration points) and keeps validate_map valid; − right blocked when a room touches the strip, allowed when empty; sizes stay within 2–80 m; undo works; GUI check light/dark/390 px.
