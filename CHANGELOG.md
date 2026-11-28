@@ -6,6 +6,7 @@ All notable changes to Bifrost are documented here. The format follows [Keep a C
 
 ### Changed
 - **Areas and sub-tabs look the same**: both rows are neon pills (the area row a little larger); the active one is tinted in the area's colour.
+- **Floor plan picture size**: the picture now grows and shrinks around its **centre** (like turning), with fine buttons −10 % / −1 % / +1 % / +10 % and a field for the width in metres; the size slider reaches further for large pictures, and *Left/Top* cover the whole allowed range.
 
 ### Fixed
 - *Overview* and *Settings* were not marked as the active area.

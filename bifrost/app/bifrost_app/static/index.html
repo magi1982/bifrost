@@ -333,6 +333,7 @@ table.dtt{border-collapse:collapse;font-size:13px;width:100%}table.dtt th{text-a
 .hmitem.on{border-color:var(--n-cyan);background:color-mix(in srgb,var(--n-cyan) 12%,var(--card))}
 .hmitem:focus-visible{outline:2px solid var(--pri);outline-offset:2px}
 .hmsliders{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 14px;margin:8px 0}
+.hmszn{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--sec)}.hmszn input{width:78px;padding:4px 6px}
 .hmsl{display:grid;grid-template-columns:80px minmax(0,1fr) 46px;gap:6px;align-items:center;font-size:13px;color:var(--sec)}.hmsl input{width:100%}.hmsl output{font-variant-numeric:tabular-nums;color:var(--text)}
 .hmleg{display:inline-flex;align-items:center;gap:5px}.hmleg svg{width:20px;height:20px}
 .hmprev{fill:color-mix(in srgb,var(--rc,var(--pri)) 25%,transparent);stroke:var(--rc,var(--pri));stroke-width:2;stroke-dasharray:6 4;pointer-events:none}
@@ -775,7 +776,10 @@ function hmPlanPanel(d,fl,E){var lay=hmLayF(d,fl.name),m=E.m,cur=E.lay,used=(lay
   var l=m.layers.filter(function(x){return x.n===cur;})[0];
   var h='<div class="hmpanel"><div class="frow">'+(lay.plans||[]).map(function(p){return '<button type="button" class="ch'+(cur===p.n?" on":"")+'" data-hmlay="'+p.n+'">'+fmtK("hm_layer",{n:p.n+1})+'</button>';}).join("")+
     (free.length?'<label class="b sm">'+ic("upload")+'<span>'+t("hm_layer_add")+'</span><input id="hmPlanUp" data-n="'+free[0]+'" type="file" accept="image/png,image/jpeg" style="display:none"></label>':"")+'</div>';
-  if(l){h+='<div class="hmsliders">'+[["x",t("hm_lx"),-40,80,0.1],["y",t("hm_ly"),-40,80,0.1],["w",t("hm_lw"),1,120,0.1],["op",t("hm_lop"),0,1,0.05]].map(function(s){return '<label class="hmsl"><span>'+s[1]+'</span><input type="range" id="hmL_'+s[0]+'" min="'+s[2]+'" max="'+s[3]+'" step="'+s[4]+'" value="'+l[s[0]]+'"><output>'+l[s[0]]+'</output></label>';}).join("")+'</div>'+
+  if(l){h+='<div class="hmsliders">'+[["x",t("hm_lx"),-80,80,0.1],["y",t("hm_ly"),-80,80,0.1],["w",t("hm_lw"),0.5,Math.max(4*m.w,Math.ceil(l.w*1.5)),0.1],["op",t("hm_lop"),0,1,0.05]].map(function(s){return '<label class="hmsl"><span>'+s[1]+'</span><input type="range" id="hmL_'+s[0]+'" min="'+s[2]+'" max="'+s[3]+'" step="'+s[4]+'" value="'+l[s[0]]+'"><output>'+l[s[0]]+'</output></label>';}).join("")+'</div>'+
+    '<div class="hmrot"><span class="meta">'+t("hm_size")+'</span><div class="frow">'+[[-10,"− 10 %"],[-1,"− 1 %"]].map(function(r){return '<button type="button" class="ch sm" data-hmsz="'+r[0]+'">'+r[1]+'</button>';}).join("")+
+    '<label class="hmszn"><input type="number" id="hmLwNum" class="inp" min="0.5" max="320" step="0.1" value="'+l.w+'" aria-label="'+esc(t("hm_lw"))+'"> m</label>'+
+    [[1,"+ 1 %"],[10,"+ 10 %"]].map(function(r){return '<button type="button" class="ch sm" data-hmsz="'+r[0]+'">'+r[1]+'</button>';}).join("")+'</div><div class="meta">'+t("hm_size_hint")+'</div></div>'+
     '<div class="hmrot"><span class="meta">'+fmtK("hm_rot_now",{d:l.rot})+'</span><div class="frow">'+[[-90,"↺ 90°"],[-1,"↺ 1°"],[-0.1,"↺ 0,1°"],[0.1,"↻ 0,1°"],[1,"↻ 1°"],[90,"↻ 90°"]].map(function(r){return '<button type="button" class="ch sm" data-hmrot="'+r[0]+'">'+r[1]+'</button>';}).join("")+'<button type="button" class="ch sm" data-hmrot="0">'+t("hm_rot_reset")+'</button><button type="button" class="ch sm" id="hmFit">'+t("hm_fit")+'</button></div><div class="meta">'+t("hm_rot_hint")+'</div></div>'+
     '<div class="frow">'+btn(t("hm_layer_del"),'id="hmLayDel"','sm ghost','trash')+'</div>';}
   else if(!(lay.plans||[]).length)h+='<div class="meta">'+t("hm_layer_none")+'</div>';
@@ -844,7 +848,15 @@ function bindMap(){var d=V4.house;if(!d)return;var F=hgFloor(d);if(!F)return;
   document.querySelectorAll("[data-hmrot]").forEach(function(b){b.onclick=function(){var l=m.layers.filter(function(x){return x.n===E.lay;})[0];if(!l)return;snapshot();var v=+b.dataset.hmrot;
     l.rot=v===0?0:Math.round((((l.rot+v)%360+540)%360-180)*10)/10;render();};});
   var fit=document.getElementById("hmFit");if(fit)fit.onclick=function(){var l=m.layers.filter(function(x){return x.n===E.lay;})[0];if(!l)return;snapshot();l.x=0;l.y=0;l.w=m.w;render();};
-  ["x","y","w","rot","op"].forEach(function(key){var el=document.getElementById("hmL_"+key);if(!el)return;el.oninput=function(){var l=m.layers.filter(function(x){return x.n===E.lay;})[0];if(!l)return;l[key]=key==="op"?Math.round(parseFloat(el.value)*100)/100:key==="rot"?Math.round(parseFloat(el.value)*2)/2:r1(parseFloat(el.value));el.nextElementSibling.textContent=l[key];redraw();};el.onchange=function(){snapshot();};});
+  function layAsp(n){var p=(hmLayF(d,fl.name).plans||[]).filter(function(x){return x.n===n;})[0];return p?hmAspect('api/floorplan?floor='+encodeURIComponent(p.key)+'&v='+encodeURIComponent(p.v||"1")):0.75;}
+  /* new width in metres; the centre of the picture stays where it is (like turning) */
+  function setW(l,nw){nw=clamp(Math.round(nw*100)/100,0.5,320);var a=layAsp(l.n),cx=l.x+l.w/2,cy=l.y+l.w*a/2;l.w=nw;l.x=clamp(Math.round((cx-nw/2)*100)/100,-80,80);l.y=clamp(Math.round((cy-nw*a/2)*100)/100,-80,80);
+    [["x",l.x],["y",l.y],["w",l.w]].forEach(function(p){var el=document.getElementById("hmL_"+p[0]);if(el){el.value=p[1];el.nextElementSibling.textContent=p[1];}});var nf=document.getElementById("hmLwNum");if(nf&&document.activeElement!==nf)nf.value=l.w;redraw();}
+  function curLay(){return m.layers.filter(function(x){return x.n===E.lay;})[0];}
+  document.querySelectorAll("[data-hmsz]").forEach(function(b){b.onclick=function(){var l=curLay();if(!l)return;snapshot();setW(l,l.w*(1+(+b.dataset.hmsz)/100));};});
+  var wn=document.getElementById("hmLwNum");if(wn){wn.oninput=function(){var l=curLay(),v=parseFloat(wn.value);if(!l||!(v>=0.5))return;setW(l,v);};wn.onchange=function(){snapshot();};}
+  var wsl=document.getElementById("hmL_w");if(wsl){wsl.oninput=function(){var l=curLay();if(l)setW(l,parseFloat(wsl.value));};wsl.onchange=function(){snapshot();};}
+  ["x","y","rot","op"].forEach(function(key){var el=document.getElementById("hmL_"+key);if(!el)return;el.oninput=function(){var l=m.layers.filter(function(x){return x.n===E.lay;})[0];if(!l)return;l[key]=key==="op"?Math.round(parseFloat(el.value)*100)/100:key==="rot"?Math.round(parseFloat(el.value)*2)/2:r1(parseFloat(el.value));el.nextElementSibling.textContent=l[key];redraw();};el.onchange=function(){snapshot();};});
   var up=document.getElementById("hmPlanUp");if(up)up.onchange=function(){var file=up.files[0],n=+up.dataset.n;if(!file)return;if(file.size>2*1024*1024){toast("max 2 MB",true);return;}var rdr=new FileReader();rdr.onload=function(){var b64=String(rdr.result).split(",")[1];
       api("api/floorplan",{floor:fl.name||"",image:b64,layer:n}).then(function(){V4.fpv=(V4.fpv||0)+1;if(!m.layers.some(function(x){return x.n===n;}))m.layers.push({n:n,x:0,y:0,w:m.w,rot:0,op:.5});E.lay=n;return api("api/live");}).then(function(x){V4.house=x;render();toast("✓");}).catch(fail);};rdr.readAsDataURL(file);};
   var ld=document.getElementById("hmLayDel");if(ld)ld.onclick=function(){var n=E.lay;api("api/floorplan/delete",{floor:fl.name||"",layer:n}).then(function(){m.layers=m.layers.filter(function(x){return x.n!==n;});E.lay=null;return api("api/live");}).then(function(x){V4.house=x;render();}).catch(fail);};
@@ -1550,6 +1562,8 @@ function bindFilters(){if(S.view!=="setup")return;
 document.documentElement.lang=LANG;
 
 /* ---------- 0.15 navigation: six areas, each with sub-tabs (#area/sub) ---------- */
+Object.assign(TX.de,{hm_size:"Grösse fein einstellen",hm_size_hint:"Breite des Bildes in Metern; das Bild wächst und schrumpft um seine Mitte."});
+Object.assign(TX.en,{hm_size:"Fine size",hm_size_hint:"Width of the picture in metres; it grows and shrinks around its centre."});
 Object.assign(TX.de,{nav_status:"Übersicht",nav_house:"Haus",nav_people:"Personen",nav_recog:"Muster",nav_safety:"Sicherheit",nav_setup:"Einstellungen",
   sub_now:"Jetzt",sub_heimdall:"Heimdall",sub_bifrost:"Bifrost",sub_live:"Live-Karte",sub_config:"Konfiguration",sub_signal:"Signal & Einmessen",sub_ble:"Bluetooth",sub_happening:"Was passiert",
   sub_people:"Personen",sub_moves:"Bewegungen",sub_everyday:"Alltag",sub_routines:"Abläufe",sub_detectors:"Detektoren & Kalender",sub_incidents:"Vorfälle",sub_questions:"Fragen",sub_balance:"Bilanz",
